@@ -1,0 +1,18 @@
+Name:             hsc3-lang
+Version:          0.1
+License:          GPL
+Copyright:        Rohan Drape, 2007
+Author:           Rohan Drape
+Maintainer:       rd@slavepianos.org
+Stability:        Experimental
+Homepage:         http://www.slavepianos.org/rd/f/649352/
+Synopsis:         Haskell SuperCollider - Language
+Description:      Haskell library defining operations from the SuperCollider
+                  language class library
+Category:         Sound
+Tested-With:      GHC
+Build-Depends:    base
+GHC-Options:      -Wall -O2
+Exposed-modules:  Sound.SC3.Lang
+                  Sound.SC3.Lang.Collections.Collection
+                  Sound.SC3.Lang.Collections.SequenceableCollection
