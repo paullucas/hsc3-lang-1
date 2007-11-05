@@ -5,7 +5,7 @@ Copyright:        Rohan Drape, 2007
 Author:           Rohan Drape
 Maintainer:       rd@slavepianos.org
 Stability:        Experimental
-Homepage:         http://www.slavepianos.org/rd/f/649352/
+Homepage:         http://slavepianos.org/rd/f/649352/
 Synopsis:         Haskell SuperCollider - Language
 Description:      Haskell library defining operations from the SuperCollider
                   language class library
