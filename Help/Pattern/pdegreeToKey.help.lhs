@@ -18,3 +18,9 @@ Derive notes from an index into a scale.
 >                ,preturn [0, 2, 3, 5, 7, 8, 11]] 1
 >     ; r = 12 }
 > in pureP (pdegreeToKey p (pstutter 14 q) r)
+
+The degree_to_key function is also given.
+
+> import Sound.SC3.Lang.Math
+
+> map (\n -> degree_to_key n [0,2,4,5,7,9,11] 12) [0,2,4,7,4,2,0]
