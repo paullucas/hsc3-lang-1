@@ -15,5 +15,8 @@ Repeat each element of a pattern n times.
 There is a variant, pstutter', that does not do
 implicit extension.
 
+> let p = pstutter' (prepeat 2) (pseq [1, 2, 3] pinf)
+> in take 13 (pureP p)
+
 > let p = pstutter' (pseq [2,3] 1) (pseq [1, 2, 3] pinf)
 > in pureP p
