@@ -119,3 +119,13 @@ integrate (x:xs) = x : snd (mapAccumL f x xs)
 -- | d -> dx
 differentiate :: (Num a) => [a] -> [a]
 differentiate l = zipWith (-) l (0:l)
+
+-- | Rotate n places to the left (ie. rotate 1 [1, 2, 3] is [2, 3, 1]).
+rotate :: Int -> [a] -> [a]
+rotate n p = let (b, a) = splitAt n p 
+             in a ++ b 
+
+-- | Ensure sum of elements is one.
+normalizeSum :: (Fractional a) => [a] -> [a]
+normalizeSum l = let n = sum l
+                 in map (/ n) l
