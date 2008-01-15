@@ -15,10 +15,12 @@ Build-Depends:    array, base, random
 GHC-Options:      -Wall -O2
 Exposed-modules:  Sound.SC3.Lang
                   Sound.SC3.Lang.Collection
+                  Sound.SC3.Lang.Math
                   Sound.SC3.Lang.Pattern
 Other-modules:
                   Sound.SC3.Lang.Collection.Collection
                   Sound.SC3.Lang.Collection.SequenceableCollection
+                  Sound.SC3.Lang.Math.Pitch
                   Sound.SC3.Lang.Pattern.Pattern
                   Sound.SC3.Lang.Pattern.Extend
                   Sound.SC3.Lang.Pattern.Control

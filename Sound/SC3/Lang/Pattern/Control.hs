@@ -4,6 +4,7 @@ import Control.Applicative
 import Data.List
 import Data.Maybe
 import Data.Monoid
+import Sound.SC3.Lang.Math.Pitch
 import Sound.SC3.Lang.Pattern.Pattern
 import Sound.SC3.Lang.Pattern.Extend
 
@@ -115,12 +116,6 @@ pclutch p q = pclutch' p (pbool q)
 
 pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
-
-degree_to_key :: (RealFrac a) => a -> [a] -> a -> a
-degree_to_key d s n = (n * fromIntegral (d' `div` l)) + (s !! (d' `mod` l)) + a
-    where l = length s
-          d' = round d
-          a = (d - fromIntegral d') * 10.0 * (n / 12.0)
 
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3L degree_to_key
