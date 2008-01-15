@@ -79,13 +79,16 @@ step g (AppL p q pr qr ph qh) = case step g p of
                              else step g'' (AppL p qr pr qr ph True)
         (g'', Result x q') -> (g'', Result (f x) (AppL p' q' pr qr ph qh))
 
-nodes :: StdGen -> P a -> [a]
-nodes g p = case step g p of
-              (_, Done _) -> []
-              (g', Result a p') -> a : nodes g' p'
+pfoldl' :: StdGen -> (b -> a -> b) -> b -> P a -> b
+pfoldl' g f i p = case step g p of
+                    (_, Done _) -> i
+                    (g', Result a p') -> pfoldl' g' f (f i a) p'
+
+pfoldl :: Seed -> (b -> a -> b) -> b -> P a -> b
+pfoldl n = pfoldl' (mkStdGen n) 
 
 evalP :: Int -> P a -> [a]
-evalP n p = nodes (mkStdGen n) p
+evalP n = reverse . pfoldl n (flip (:)) []
 
 pureP :: P a -> [a]
 pureP = evalP 0
@@ -161,7 +164,9 @@ pinf = return 83886028 -- 2 ^^ 23
 pappend :: P a -> P a -> P a
 pappend = Append
 
-pfix :: Int -> P a -> P a
+type Seed = Int
+
+pfix :: Seed -> P a -> P a
 pfix n = Fix (mkStdGen n)
 
 pcontinue :: P x -> (x -> P x -> P a) -> P a
