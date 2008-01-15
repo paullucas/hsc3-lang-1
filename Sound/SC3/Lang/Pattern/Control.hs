@@ -21,14 +21,8 @@ paccf f g = pacc h
     where h x Nothing = (undefined, g x)
           h x (Just a) = f x a
 
-pcycle :: P a -> P a
-pcycle x = mappend x (pcycle x)
-
 pcons :: a -> P a -> P a
 pcons = mappend . return
-
-prepeat :: a -> P a
-prepeat = pcycle . return
 
 preplicate_ :: Int -> P a -> P a
 preplicate_ n p | n > 0 = mappend p (preplicate_ (n - 1) p)
@@ -62,10 +56,6 @@ pmapMaybe f p = fmap fromJust (pfilter isJust (fmap f p))
 
 preject :: (a -> Bool) -> P a -> P a
 preject f = pfilter (not . f)
-
--- | Apply `f' pointwise to elements of `p' and `q'.
-pzipWith :: (a -> b -> c) -> P a -> P b -> P c
-pzipWith f p = (<*>) (pure f <*> p)
 
 pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
 pzipWith3 f p q = (<*>) (pure f <*> p <*> q)

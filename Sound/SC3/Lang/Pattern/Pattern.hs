@@ -16,7 +16,10 @@ module Sound.SC3.Lang.Pattern.Pattern
     , prvalue
     , pappl
     , pacc
-    , pinf) where
+    , pinf
+    , pzipWith
+    , pcycle
+    , prepeat ) where
 
 import Control.Applicative
 import Data.Maybe
