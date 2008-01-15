@@ -20,5 +20,8 @@ pser l n = prestrict n (plist l)
 pswitch :: [P a] -> P Int -> P a
 pswitch l i = i >>= (l !!)
 
+pswitch1 :: [P a] -> P Int -> P a
+pswitch1 = undefined
+
 ppatlace :: [P a] -> P Int -> P a
 ppatlace = undefined
