@@ -4,7 +4,6 @@ import Data.List
 import Sound.SC3.Lang.Pattern.Pattern
 import Sound.SC3.Lang.Pattern.Control
 
--- | 'n' 
 pseq_ :: [P a] -> Int -> P a
 pseq_ l n = plist (concat (replicate n l))
 
@@ -23,4 +22,3 @@ pswitch l i = i >>= (l !!)
 
 ppatlace :: [P a] -> P Int -> P a
 ppatlace = undefined
-
