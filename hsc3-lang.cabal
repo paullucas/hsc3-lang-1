@@ -11,7 +11,7 @@ Description:      Haskell library defining operations from the SuperCollider
                   language class library
 Category:         Sound
 Tested-With:      GHC
-Build-Depends:    base, random
+Build-Depends:    array, base, random
 GHC-Options:      -Wall -O2
 Exposed-modules:  Sound.SC3.Lang
                   Sound.SC3.Lang.Collection
