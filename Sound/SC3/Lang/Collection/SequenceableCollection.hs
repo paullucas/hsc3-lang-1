@@ -110,10 +110,12 @@ clumps m s = f (cycle m) s
           f (n:ns) l = if null r then [e] else e :clumps ns r
               where (e, r) = splitAt n l
 
+-- | dx -> d
 integrate :: (Num a) => [a] -> [a]
 integrate [] = []
 integrate (x:xs) = x : snd (mapAccumL f x xs)
     where f p c = (p + c, p + c)
 
+-- | d -> dx
 differentiate :: (Num a) => [a] -> [a]
 differentiate l = zipWith (-) l (0:l)
