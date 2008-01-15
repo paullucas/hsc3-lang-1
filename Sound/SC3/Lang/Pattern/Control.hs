@@ -154,10 +154,10 @@ pduple :: (a, a) -> P a
 pduple (x, y) = return x `mappend` return y
 
 pinterleave' :: P a -> P a -> P a
-pinterleave' p q = pzipWith (\x y -> mappend (return x) (return y)) p q >>= id
+pinterleave' p q = psequence (fmap pduple (pzip p q))
 
 pinterleave :: P a -> P a -> P a
-pinterleave p q = pzipWithL (\x y -> mappend (return x) (return y)) p q >>= id
+pinterleave p q = psequence (fmap pduple (pzipL p q))
 
 pif :: Int -> P Bool -> P a -> P a -> P a
 pif s b p q = pzipWith f p' q'
