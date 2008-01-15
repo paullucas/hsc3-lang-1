@@ -74,10 +74,12 @@ pgeom i s n = plist (unfoldr f (i, n))
           f (j, m) = Just (return j, (j * s, m - 1))
 
 pstutter :: P Int -> P a -> P a
-pstutter n p = pzipWithL (\i e -> preplicate (return i) (return e)) n p >>= id
+pstutter n p = psequence (pzipWithL f n p)
+    where f i e = preplicate (return i) (return e)
 
 pstutter' :: P Int -> P a -> P a
-pstutter' n p = pzipWith (\i e -> preplicate (return i) (return e)) n p >>= id
+pstutter' n p = psequence (pzipWith f n p)
+    where f i e = preplicate (return i) (return e)
 
 -- | Count false values preceding each true value. 
 pcountpre :: P Bool -> P Int
