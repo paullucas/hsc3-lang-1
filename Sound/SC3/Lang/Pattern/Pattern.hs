@@ -179,7 +179,7 @@ pbind p f = pcontinue p f'
 papp :: P (a -> b) -> P a -> P b
 papp = App
 
-pacc :: (x -> Maybe a -> (x, y)) -> x -> P a -> P y
+pacc :: (x -> Maybe y -> (x, a)) -> x -> P y -> P a
 pacc = Acc
 
 pappl :: P (a -> b) -> P a -> P b
