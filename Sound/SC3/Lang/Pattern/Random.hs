@@ -3,6 +3,7 @@ module Sound.SC3.Lang.Pattern.Random where
 import Data.Array
 import Data.List
 import Sound.SC3.Lang.Pattern.Pattern
+import Sound.SC3.Lang.Pattern.Control
 import Sound.SC3.Lang.Pattern.Extend
 import Sound.SC3.Lang.Pattern.List
 import System.Random

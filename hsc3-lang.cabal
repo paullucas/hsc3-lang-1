@@ -21,5 +21,6 @@ Other-modules:
                   Sound.SC3.Lang.Collection.SequenceableCollection
                   Sound.SC3.Lang.Pattern.Pattern
                   Sound.SC3.Lang.Pattern.Extend
+                  Sound.SC3.Lang.Pattern.Control
                   Sound.SC3.Lang.Pattern.List
                   Sound.SC3.Lang.Pattern.Random
