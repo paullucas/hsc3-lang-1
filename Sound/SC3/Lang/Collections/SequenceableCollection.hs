@@ -1,8 +1,8 @@
 module Sound.SC3.Lang.Collections.SequenceableCollection where
 
-import Prelude hiding (drop, last)
+import Prelude
 import Control.Monad
-import qualified Data.List as L
+import Data.List
 import System.Random
 import Sound.SC3.Lang.Collections.Collection
 
@@ -35,14 +35,14 @@ first (x:_) = Just x
 first _ = Nothing
 
 -- | The last element.
-last :: [t] -> Maybe t
-last [] = Nothing
-last [x] = Just x
-last (_:xs) = last xs
+last' :: [t] -> Maybe t
+last' [] = Nothing
+last' [x] = Just x
+last' (_:xs) = last' xs
 
 -- | flip elemIndex
 indexOf :: Eq a => [a] -> a -> Maybe Int
-indexOf = flip L.elemIndex
+indexOf = flip elemIndex
 
 -- | indexOf
 indexOfEqual :: Eq a => [a] -> a -> Maybe Int
@@ -72,19 +72,19 @@ indexInBetween e l = maybe (fromIntegral (size l) - 1) f (indexOfGreaterThan e l
                     d = b - a
 
 keep :: Int -> [a] -> [a]
-keep n l | n < 0 = maybe l id (L.find (\e -> length e == negate n) (L.tails l))
+keep n l | n < 0 = maybe l id (find (\e -> length e == negate n) (tails l))
          | otherwise = take n l
 
-drop :: Int -> [a] -> [a]
-drop n l | n < 0 = take (length l + n) l
-         | otherwise = L.drop n l
+drop' :: Int -> [a] -> [a]
+drop' n l | n < 0 = take (length l + n) l
+          | otherwise = drop n l
 
 extendSequences :: [[a]] -> [[a]]
 extendSequences l = map (take n . cycle) l
     where n = maximum (map length l)
 
 flop :: [[a]] -> [[a]]
-flop = L.transpose . extendSequences
+flop = transpose . extendSequences
 
 choose :: [a] -> IO a
 choose l = liftM (l!!) (getStdRandom (randomR (0, length l - 1)))
@@ -112,7 +112,7 @@ clumps m s = f (cycle m) s
 
 integrate :: (Num a) => [a] -> [a]
 integrate [] = []
-integrate (x:xs) = x : snd (L.mapAccumL f x xs)
+integrate (x:xs) = x : snd (mapAccumL f x xs)
     where f p c = (p + c, p + c)
 
 differentiate :: (Num a) => [a] -> [a]
