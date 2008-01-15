@@ -41,45 +41,6 @@ data P a = End Reason
 data Result a = Result a (P a)
               | Done Reason
 
-stepP :: P a -> Result a
-stepP (End a) = Done a
-stepP (Value a) = Result a pempty
-stepP (RValue _) = Done Nil
-stepP (Append x y) = case stepP x of
-    Done Nil -> Done Nil
-    Done Empty -> stepP y
-    Result a x' -> Result a (Append x' y)
-stepP (Fix fg p) = let f x = Append (Value x) 
-                   in stepP (foldr f (End Empty) (nodes fg p))
-stepP (Bind p f) = case stepP p of
-    Done a -> Done a
-    Result x p' -> stepP (Append (f x) (Bind p' f))
-stepP (App p q) = case stepP p of
-    Done a -> Done a
-    Result f p' -> case stepP q of
-        Done a -> Done a
-        Result x q' -> Result (f x) (App p' q')
-stepP (Acc f i p) = case stepP p of
-    Done Nil -> Done Nil
-    Done Empty -> Result q (End Empty) where (_,q) = f i Nothing
-    Result a p' -> Result q (Acc f j p') where (j,q) = f i (Just a)
-stepP (Filter f p) = case stepP p of
-    Done a -> Done a
-    Result a p' -> if f a 
-                   then Result a (Filter f p')
-                   else stepP (Filter f p')
-stepP (AppL p q pr qr ph qh) = case stepP p of
-    Done Nil -> Done Nil
-    Done Empty -> if qh 
-                  then Done Empty
-                  else stepP (AppL pr q pr qr True qh)
-    Result f p' -> case stepP q of
-        Done Nil -> Done Nil
-        Done Empty -> if ph 
-                      then Done Empty
-                      else stepP (AppL p qr pr qr ph True)
-        Result x q' -> Result (f x) (AppL p' q' pr qr ph qh)
-
 step :: StdGen -> P a -> (StdGen, Result a)
 step g (End a) = (g, Done a)
 step g (Value a) = (g, Result a pempty)
@@ -130,9 +91,7 @@ evalP :: Int -> P a -> [a]
 evalP n p = nodes (mkStdGen n) p
 
 pureP :: P a -> [a]
-pureP p = case stepP p of
-            Done _ -> []
-            Result a p' -> a : pureP p'
+pureP = evalP 0
 
 instance (Show a) => Show (P a) where
     show = show . evalP 0
