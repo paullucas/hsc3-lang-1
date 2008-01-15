@@ -7,6 +7,11 @@ import Data.Monoid
 import Sound.SC3.Lang.Pattern.Pattern
 import Sound.SC3.Lang.Pattern.Extend
 
+pfilter :: (a -> Bool) -> P a -> P a
+pfilter f p = pcontinue p (\x p' -> if f x 
+                                    then mappend (return x) (pfilter f p')
+                                    else pfilter f p')
+
 plist :: [P a] -> P a
 plist = foldr mappend mempty
 
@@ -161,6 +166,9 @@ pif' :: P Bool -> P a -> P a -> P a
 pif' = pif 0
 
 ptail :: P a -> P a
-ptail p = pmapMaybe f (pzip p q)
-    where q = pcons False (prepeat True)
-          f (x, y) = if y then Just x else Nothing
+ptail p = pcontinue p (\_ p' -> p')
+
+pdrop :: P Int -> P a -> P a
+pdrop n p = n >>= (\x -> if x > 0 
+                         then pdrop (return (x-1)) (ptail p)
+                         else p)

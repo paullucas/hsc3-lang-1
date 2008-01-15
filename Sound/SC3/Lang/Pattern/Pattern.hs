@@ -5,6 +5,7 @@ module Sound.SC3.Lang.Pattern.Pattern
     , evalP, pureP
     , pnil
     , pfix
+    , pcontinue
     , pmap -- Prelude.fmap
     , preturn -- Control.Monad.return
     , pbind -- Control.Monad.(>>=)
@@ -15,7 +16,6 @@ module Sound.SC3.Lang.Pattern.Pattern
     , prvalue
     , pappl
     , pacc
-    , pfilter 
     , pinf) where
 
 import Control.Applicative
@@ -32,10 +32,9 @@ data P a = End Reason
          | RValue (StdGen -> (P a, StdGen))
          | Append (P a) (P a)
          | Fix StdGen (P a)
-         | forall x . Bind (P x) (x -> P a)
+         | forall x . Continue (P x) (x -> P x -> P a)
          | forall x . App (P (x -> a)) (P x)
          | forall x y . Acc (x -> Maybe y -> (x, a)) x (P y)
-         | Filter (a -> Bool) (P a)
          | forall x . AppL (P (x -> a)) (P x) (P (x -> a)) (P x) Bool Bool
 
 data Result a = Result a (P a)
@@ -53,9 +52,9 @@ step g (Append x y) = case step g x of
 step g (Fix fg p) = case step fg p of
     (_, Done a) -> (g, Done a)
     (fg', Result x p') -> (g, Result x (Fix fg' p'))
-step g (Bind p f) = case step g p of
+step g (Continue p f) = case step g p of
     (g', Done a) -> (g', Done a)
-    (g', Result x p') -> step g' (Append (f x) (Bind p' f))
+    (g', Result x p') -> step g' (f x p')
 step g (App p q) = case step g p of
     (g', Done a) -> (g', Done a)
     (g', Result f p') -> case step g' q of
@@ -65,11 +64,6 @@ step g (Acc f i p) = case step g p of
     (g', Done Nil) -> (g', Done Nil)
     (g', Done Empty) -> (g', Result q (End Empty)) where (_,q) = f i Nothing
     (g', Result a p') -> (g', Result q (Acc f j p')) where (j,q) = f i (Just a)
-step g (Filter f p) = case step g p of
-    (g', Done a) -> (g', Done a)
-    (g', Result a p') -> if f a 
-                         then (g', Result a (Filter f p'))
-                         else step g' (Filter f p')
 step g (AppL p q pr qr ph qh) = case step g p of
     (g', Done Nil) -> (g', Done Nil)
     (g', Done Empty) -> if qh 
@@ -167,17 +161,17 @@ pappend = Append
 pfix :: Int -> P a -> P a
 pfix n = Fix (mkStdGen n)
 
+pcontinue :: P x -> (x -> P x -> P a) -> P a
+pcontinue = Continue
+
 pbind :: P x -> (x -> P a) -> P a
-pbind = Bind
+pbind p f = pcontinue p (\x p' -> mappend (f x) (pbind p' f))
 
 papp :: P (a -> b) -> P a -> P b
 papp = App
 
 pacc :: (x -> Maybe a -> (x, y)) -> x -> P a -> P y
 pacc = Acc
-
-pfilter :: (a -> Bool) -> P a -> P a
-pfilter = Filter
 
 pappl :: P (a -> b) -> P a -> P b
 pappl f p = AppL f p f p False False
