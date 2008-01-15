@@ -147,6 +147,12 @@ prsd p = pmapMaybe id (paccf f (const Nothing) Nothing p)
     where f Nothing a = (Just a, Just a)
           f (Just x) a = (Just a, if a == x then Nothing else Just a)
 
+psequence :: P (P a) -> P a
+psequence p = p >>= id
+
+pduple :: (a, a) -> P a
+pduple (x, y) = return x `mappend` return y
+
 pinterleave' :: P a -> P a -> P a
 pinterleave' p q = pzipWith (\x y -> mappend (return x) (return y)) p q >>= id
 
