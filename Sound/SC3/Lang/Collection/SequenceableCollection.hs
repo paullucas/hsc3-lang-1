@@ -1,10 +1,10 @@
-module Sound.SC3.Lang.Collections.SequenceableCollection where
+module Sound.SC3.Lang.Collection.SequenceableCollection where
 
 import Prelude
 import Control.Monad
 import Data.List
 import System.Random
-import Sound.SC3.Lang.Collections.Collection
+import Sound.SC3.Lang.Collection.Collection
 
 -- | Arithmetic series (size, start, step)
 series :: (Num a) => Int -> a -> a -> [a]

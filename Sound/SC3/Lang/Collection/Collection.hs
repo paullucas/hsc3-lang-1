@@ -1,4 +1,4 @@
-module Sound.SC3.Lang.Collections.Collection where
+module Sound.SC3.Lang.Collection.Collection where
 
 import Prelude
 import Data.List
