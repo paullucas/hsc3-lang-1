@@ -173,7 +173,8 @@ pcontinue :: P x -> (x -> P x -> P a) -> P a
 pcontinue = Continue
 
 pbind :: P x -> (x -> P a) -> P a
-pbind p f = pcontinue p (\x p' -> mappend (f x) (pbind p' f))
+pbind p f = pcontinue p f'
+    where f' x p' = mappend (f x) (pbind p' f)
 
 papp :: P (a -> b) -> P a -> P b
 papp = App
