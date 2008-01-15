@@ -95,11 +95,6 @@ pclutch' :: P a -> P Bool -> P a
 pclutch' p q = pstutter' r p
     where r = ptail (fmap (+ 1) (pcountpost q))
 
-ptrigger :: P Bool -> P a -> P (Maybe a)
-ptrigger p q = pzipWith f r q >>= id
-    where r = pcountpre p
-          f i e = mappend (preplicate_ i (return Nothing)) (return (Just e))
-
 pbool :: (Ord a, Num a) => P a -> P Bool
 pbool = fmap (> 0)
 
@@ -145,6 +140,11 @@ pinterleave' p q = psequence (fmap pduple (pzip p q))
 
 pinterleave :: P a -> P a -> P a
 pinterleave p q = psequence (fmap pduple (pzipL p q))
+
+ptrigger :: P Bool -> P a -> P (Maybe a)
+ptrigger p q = pzipWith f r q >>= id
+    where r = pcountpre p
+          f i e = mappend (preplicate_ i (return Nothing)) (return (Just e))
 
 pif :: Int -> P Bool -> P a -> P a -> P a
 pif s b p q = pzipWith f p' q'
