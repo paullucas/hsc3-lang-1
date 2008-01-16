@@ -1,6 +1,9 @@
 pstutter :: P Int -> P a -> P a
 pstutter' :: P Int -> P a -> P a
 
+  count - number of repeats *cyc*
+      x - value pattern
+
 Repeat each element of a pattern n times.
 
 > import Sound.SC3.Lang.Pattern
@@ -14,7 +17,7 @@ Repeat each element of a pattern n times.
 > in take 13 (pureP r)
 
 There is a variant, pstutter', that does not do
-implicit extension.
+implicit extension on the count pattern.
 
 > let p = pstutter' (prepeat 2) (pseq [1, 2, 3] pinf)
 > in take 13 (pureP p)
