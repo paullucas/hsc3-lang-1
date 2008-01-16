@@ -3,7 +3,6 @@
 module Sound.SC3.Lang.Pattern.Pattern
     ( P
     , evalP, pureP
-    , pnil
     , pfix
     , pcontinue
     , pmap -- Prelude.fmap
@@ -25,11 +24,7 @@ import Data.Maybe
 import Data.Monoid
 import System.Random
 
--- | Empty indicates a (sub)pattern has no more elements, Nil causes
--- | the pattern to terminate.
-data Reason = Empty | Nil
-
-data P a = End Reason
+data P a = Empty
          | Value a
          | RP (StdGen -> (P a, StdGen))
          | Append (P a) (P a)
@@ -39,36 +34,34 @@ data P a = End Reason
          | forall x y . Acc (x -> Maybe y -> (x, a)) x (P y)
 
 data Result a = Result a (P a)
-              | Done Reason
+              | Done
 
 step :: StdGen -> P a -> (StdGen, Result a)
-step g (End a) = (g, Done a)
+step g Empty = (g, Done)
 step g (Value a) = (g, Result a pempty)
 step g (RP f) = let (p, g') = f g
                 in step g' p
 step g (Append x y) = case step g x of
-    (g', Done Nil) -> (g', Done Nil)
-    (g', Done Empty) -> step g' y
+    (g', Done) -> step g' y
     (g', Result a x') -> (g', Result a (Append x' y))
 step g (Fix fg p) = case step fg p of
-    (_, Done a) -> (g, Done a)
+    (_, Done) -> (g, Done)
     (fg', Result x p') -> (g, Result x (Fix fg' p'))
 step g (Continue p f) = case step g p of
-    (g', Done a) -> (g', Done a)
+    (g', Done) -> (g', Done)
     (g', Result x p') -> step g' (f x p')
 step g (App p q) = case step g p of
-    (g', Done a) -> (g', Done a)
+    (g', Done) -> (g', Done)
     (g', Result f p') -> case step g' q of
-        (g'', Done a) -> (g'', Done a)
+        (g'', Done) -> (g'', Done)
         (g'', Result x q') -> (g'', Result (f x) (App p' q'))
 step g (Acc f i p) = case step g p of
-    (g', Done Nil) -> (g', Done Nil)
-    (g', Done Empty) -> (g', Result q (End Empty)) where (_,q) = f i Nothing
+    (g', Done) -> (g', Result q Empty) where (_,q) = f i Nothing
     (g', Result a p') -> (g', Result q (Acc f j p')) where (j,q) = f i (Just a)
 
 pfoldr' :: StdGen -> (a -> b -> b) -> b -> P a -> b
 pfoldr' g f i p = case step g p of
-                    (_, Done _) -> i
+                    (_, Done) -> i
                     (g', Result a p') -> f a (pfoldr' g' f i p')
 
 pfoldr :: Seed -> (a -> b -> b) -> b -> P a -> b
@@ -133,11 +126,8 @@ instance Applicative P where
 
 -- * Basic constructors
 
-pnil :: P a
-pnil = End Nil
-
 pempty :: P a
-pempty = End Empty
+pempty = Empty
 
 preturn :: a -> P a
 preturn = Value
