@@ -1,4 +1,5 @@
 pstutter :: P Int -> P a -> P a
+pstutter' :: P Int -> P a -> P a
 
 Repeat each element of a pattern n times.
 
