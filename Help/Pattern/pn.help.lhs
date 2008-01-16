@@ -1,4 +1,5 @@
 pn :: P a -> P Int -> P a
+preplicate :: P Int -> P a -> P a
 
 Repeats the enclosed pattern a number of times.
 
