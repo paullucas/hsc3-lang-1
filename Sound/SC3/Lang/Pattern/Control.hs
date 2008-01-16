@@ -6,7 +6,6 @@ import Data.Maybe
 import Data.Monoid
 import Sound.SC3.Lang.Math.Pitch
 import Sound.SC3.Lang.Pattern.Pattern
-import Sound.SC3.Lang.Pattern.Extend
 
 pfilter :: (a -> Bool) -> P a -> P a
 pfilter f p = pcontinue p (\x p' -> if f x 
@@ -73,13 +72,12 @@ pgeom i s n = plist (unfoldr f (i, n))
     where f (_, 0) = Nothing
           f (j, m) = Just (return j, (j * s, m - 1))
 
-pstutter :: P Int -> P a -> P a
-pstutter n p = psequence (pzipWithL f n p)
-    where f i e = preplicate (return i) (return e)
-
 pstutter' :: P Int -> P a -> P a
 pstutter' n p = psequence (pzipWith f n p)
     where f i e = preplicate (return i) (return e)
+
+pstutter :: P Int -> P a -> P a
+pstutter n = pstutter' (pcycle n)
 
 -- | Count false values preceding each true value. 
 pcountpre :: P Bool -> P Int
@@ -105,7 +103,7 @@ pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
 
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
-pdegreeToKey = pzipWith3L degree_to_key
+pdegreeToKey = pzipWith3 degree_to_key
 
 pfin :: P Int -> P a -> P a
 pfin = ptake
@@ -121,7 +119,8 @@ wrap l r x = if x > r
                   else x
 
 pwrap :: (Ord a, Num a) => P a -> P a -> P a -> P a
-pwrap = pzipWith3L (\x l r -> wrap l r x)
+pwrap x l r = pzipWith3 f x (pcycle l) (pcycle r)
+    where f x' l' r' = wrap l' r' x'
 
 -- | Remove successive duplicates.
 prsd :: (Eq a) => P a -> P a
@@ -135,11 +134,8 @@ psequence p = p >>= id
 pduple :: (a, a) -> P a
 pduple (x, y) = return x `mappend` return y
 
-pinterleave' :: P a -> P a -> P a
-pinterleave' p q = psequence (fmap pduple (pzip p q))
-
 pinterleave :: P a -> P a -> P a
-pinterleave p q = psequence (fmap pduple (pzipL p q))
+pinterleave p q = psequence (fmap pduple (pzip p q))
 
 ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q = pzipWith f r q >>= id
