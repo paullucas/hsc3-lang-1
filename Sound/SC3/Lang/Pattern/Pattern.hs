@@ -13,7 +13,7 @@ module Sound.SC3.Lang.Pattern.Pattern
     , pappend -- Data.Monoid.mappend
     , ppure -- Control.Applicative.pure
     , papp -- Control.Applicative.(<*>)
-    , prvalue
+    , prp
     , pacc
     , pinf
     , pzipWith
@@ -31,7 +31,7 @@ data Reason = Empty | Nil
 
 data P a = End Reason
          | Value a
-         | RValue (StdGen -> (P a, StdGen))
+         | RP (StdGen -> (P a, StdGen))
          | Append (P a) (P a)
          | Fix StdGen (P a)
          | forall x . Continue (P x) (x -> P x -> P a)
@@ -44,8 +44,8 @@ data Result a = Result a (P a)
 step :: StdGen -> P a -> (StdGen, Result a)
 step g (End a) = (g, Done a)
 step g (Value a) = (g, Result a pempty)
-step g (RValue f) = let (p, g') = f g
-                    in step g' p
+step g (RP f) = let (p, g') = f g
+                in step g' p
 step g (Append x y) = case step g x of
     (g', Done Nil) -> (g', Done Nil)
     (g', Done Empty) -> step g' y
@@ -142,8 +142,8 @@ pempty = End Empty
 preturn :: a -> P a
 preturn = Value
 
-prvalue :: (StdGen -> (P a, StdGen)) -> P a
-prvalue = RValue
+prp :: (StdGen -> (P a, StdGen)) -> P a
+prp = RP
 
 pinf :: P Int
 pinf = return 83886028 -- 2 ^^ 23

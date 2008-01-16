@@ -10,8 +10,8 @@ import System.Random
 -- Random numbers
 
 prrandf :: (Random a) => (a -> a -> a -> a) -> a -> a -> P a
-prrandf f l r = prvalue (\g -> let (x, g') = randomR (l,r) g
-                               in (preturn (f l r x), g'))
+prrandf f l r = prp (\g -> let (x, g') = randomR (l,r) g
+                           in (preturn (f l r x), g'))
 
 prrand :: (Random a) => a -> a -> P a
 prrand = prrandf (\_ _ x -> x)
@@ -20,8 +20,8 @@ prrandexp :: (Floating a, Random a) => a -> a -> P a
 prrandexp = prrandf (\ l r x -> l * (log (r / l) * x))
 
 pchoosea :: Array Int (P a) -> P a
-pchoosea r = prvalue (\g -> let (i, g') = randomR (bounds r) g 
-                            in (r ! i, g'))
+pchoosea r = prp (\g -> let (i, g') = randomR (bounds r) g 
+                        in (r ! i, g'))
 
 pchoose :: [P a] -> P a
 pchoose l = pchoosea (listArray (0, length l - 1) l)
