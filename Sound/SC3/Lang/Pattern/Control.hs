@@ -88,12 +88,12 @@ pcountpre p = pmapMaybe id (paccf f (const Nothing) 0 p)
 
 -- | Count false values following each true value. 
 pcountpost :: P Bool -> P Int
-pcountpost p = pmapMaybe id (paccf f Just 0 p)
+pcountpost p = ptail (pmapMaybe id (paccf f Just 0 p))
     where f x e = if e then (0, Just x) else (x + 1, Nothing)
 
 pclutch' :: P a -> P Bool -> P a
 pclutch' p q = pstutter' r p
-    where r = ptail (fmap (+ 1) (pcountpost q))
+    where r = fmap (+ 1) (pcountpost q)
 
 pbool :: (Ord a, Num a) => P a -> P Bool
 pbool = fmap (> 0)
