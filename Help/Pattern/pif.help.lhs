@@ -19,8 +19,8 @@ A determinstic condition pattern, with deterministic
 branches.
 
 > let { c = pbool (pseq [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0] 1)
->     ; p = pseq [1,2,3,4,5] 3
->     ; q = pseq [11,12,13,14,15] 3 }
+>     ; p = pseq [1,2,3,4,5] pinf
+>     ; q = pseq [11,12,13,14,15] pinf }
 > in pureP (pif' c p q)
 
 A non-deterministic condition pattern, with
