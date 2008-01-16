@@ -1,8 +1,8 @@
 pwrap :: (Ord a, Num a) => P a -> P a -> P a -> P a
 
  x - input
- l - lower bound
- r - upper bound
+ l - lower bound *cycle*
+ r - upper bound *cycle*
 
 If x is outside of (l, r) wrap until it lies inside.
 
