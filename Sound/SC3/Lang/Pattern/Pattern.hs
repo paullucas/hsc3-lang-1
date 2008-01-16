@@ -79,16 +79,16 @@ step g (AppL p q pr qr ph qh) = case step g p of
                              else step g'' (AppL p qr pr qr ph True)
         (g'', Result x q') -> (g'', Result (f x) (AppL p' q' pr qr ph qh))
 
-pfoldl' :: StdGen -> (b -> a -> b) -> b -> P a -> b
-pfoldl' g f i p = case step g p of
+pfoldr' :: StdGen -> (a -> b -> b) -> b -> P a -> b
+pfoldr' g f i p = case step g p of
                     (_, Done _) -> i
-                    (g', Result a p') -> pfoldl' g' f (f i a) p'
+                    (g', Result a p') -> f a (pfoldr' g' f i p')
 
-pfoldl :: Seed -> (b -> a -> b) -> b -> P a -> b
-pfoldl n = pfoldl' (mkStdGen n) 
+pfoldr :: Seed -> (a -> b -> b) -> b -> P a -> b
+pfoldr n = pfoldr' (mkStdGen n) 
 
 evalP :: Int -> P a -> [a]
-evalP n = reverse . pfoldl n (flip (:)) []
+evalP n = pfoldr n (:) []
 
 pureP :: P a -> [a]
 pureP = evalP 0
