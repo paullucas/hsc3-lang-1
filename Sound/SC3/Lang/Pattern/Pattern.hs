@@ -94,7 +94,7 @@ pureP :: P a -> [a]
 pureP = evalP 0
 
 instance (Show a) => Show (P a) where
-    show = show . evalP 0
+    show _ = show "a pattern"
 
 instance (Eq a) => Eq (P a) where
     _ == _ = False
