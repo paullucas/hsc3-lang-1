@@ -1,6 +1,13 @@
 pfin :: P Int -> P a -> P a
+pfin_ :: Int -> P a -> P a
+ptake :: P Int -> P a -> P a
+ptake_ :: P Int -> P a -> P a
 
-Embeds n elements of the pattern into the stream.
+  n - number of elements to take
+  x - value pattern
+
+Take only the first n elements of the pattern 
+into the stream.
 
 > import Sound.SC3.Lang.Pattern
 
