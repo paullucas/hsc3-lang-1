@@ -118,7 +118,7 @@ instance (Fractional a) => Fractional (P a) where
     fromRational = return . fromRational
 
 pcycle :: P a -> P a
-pcycle x = mappend x (pcycle x)
+pcycle x = x `mappend` pcycle x
 
 prepeat :: a -> P a
 prepeat = pcycle . return
