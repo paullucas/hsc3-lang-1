@@ -17,7 +17,7 @@ prrand :: (Random a) => a -> a -> P a
 prrand = prrandf (\_ _ x -> x)
 
 prrandexp :: (Floating a, Random a) => a -> a -> P a
-prrandexp = prrandf (\ l r x -> l * (log (r / l) * x))
+prrandexp = prrandf (\l r x -> l * (log (r / l) * x))
 
 pchoosea :: Array Int (P a) -> P a
 pchoosea r = prp (\g -> let (i, g') = randomR (bounds r) g 
