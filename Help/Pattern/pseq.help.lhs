@@ -1,4 +1,5 @@
 pseq :: [P a] -> P Int -> P a
+pseq_ :: [P a] -> Int -> P a
 
 Cycle over a list of patterns. The repeats pattern gives
 the number of times to repeat the entire list. 
@@ -22,17 +23,18 @@ a random number of repeats.
 > let p = pseq [1, 2] (prrand 1 9)
 > in evalP 7 p
 
-For the same reason the pattern is not static when used
-in a cycle (also implicitly).
+For the same reason the pattern is not static when 
+re-examined.
 
-> let p = pseq [ 0, pseq [1] (prrand 1 3), 2] 1
-> in take 24 (evalP 94 (p +. prepeat 1))
+> let p = pseq [ 0, pseq [1] (prrand 1 3), 2] 5
+> in take 24 (evalP 94 p)
 
 Further, if the repeat pattern is not singular,
 the sequence will repeat until the pattern is exhausted.
 
-> let p = pseq [1] (pseq [1] 3)
-> in pureP p
+> let { p = pseq [1] 3
+>     ; q = pseq [1] p }
+> in pureP q
 
 If one specifies the value pinf for the repeats variable, 
 then it will repeat indefinitely.
