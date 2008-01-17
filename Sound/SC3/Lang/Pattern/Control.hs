@@ -15,11 +15,6 @@ pfilter f p = pcontinue p (\x p' -> if f x
 plist :: [P a] -> P a
 plist = foldr mappend mempty
 
-paccf :: (x -> a -> (x, y)) -> (x -> y) -> x -> P a -> P y
-paccf f g = pacc h
-    where h x Nothing = (undefined, g x)
-          h x (Just a) = f x a
-
 pcons :: a -> P a -> P a
 pcons = mappend . return
 
@@ -81,12 +76,12 @@ pstutter n = pstutter' (pcycle n)
 
 -- | Count false values preceding each true value. 
 pcountpre :: P Bool -> P Int
-pcountpre p = pmapMaybe id (paccf f (const Nothing) 0 p)
+pcountpre p = pmapMaybe id (pacc f (const Nothing) 0 p)
     where f x e = if e then (0, Just x) else (x + 1, Nothing)
 
 -- | Count false values following each true value. 
 pcountpost :: P Bool -> P Int
-pcountpost p = ptail (pmapMaybe id (paccf f Just 0 p))
+pcountpost p = ptail (pmapMaybe id (pacc f Just 0 p))
     where f x e = if e then (0, Just x) else (x + 1, Nothing)
 
 pclutch' :: P a -> P Bool -> P a
@@ -124,7 +119,7 @@ pwrap x l r = pzipWith3 f x (pcycle l) (pcycle r)
 
 -- | Remove successive duplicates.
 prsd :: (Eq a) => P a -> P a
-prsd p = pmapMaybe id (paccf f (const Nothing) Nothing p)
+prsd p = pmapMaybe id (pacc f (const Nothing) Nothing p)
     where f Nothing a = (Just a, Just a)
           f (Just x) a = (Just a, if a == x then Nothing else Just a)
 

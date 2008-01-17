@@ -31,7 +31,7 @@ data P a = Empty
          | Fix StdGen (P a)
          | forall x . Continue (P x) (x -> P x -> P a)
          | forall x . App (P (x -> a)) (P x)
-         | forall x y . Acc (x -> Maybe y -> (x, a)) x (P y)
+         | forall x y . Acc (x -> y -> (x, a)) (x -> a) x (P y)
 
 data Result a = Result StdGen a (P a)
               | Done StdGen
@@ -55,11 +55,11 @@ step g (App p q) = case step g p of
     Result g' f p' -> case step g' q of
         Done g'' -> Done g''
         Result g'' x q' -> Result g'' (f x) (App p' q')
-step g (Acc f i p) = case step g p of
-    Done g' -> let (_, q) = f i Nothing
-               in Result g' q Empty
-    Result g' a p' -> let (j,q) = f i (Just a)
-                      in Result g' q (Acc f j p')
+step g (Acc f f' i p) = case step g p of
+    Done g' -> let x = f' i
+               in Result g' x Empty
+    Result g' a p' -> let (j, x) = f i a
+                      in Result g' x (Acc f f' j p')
 
 pfoldr' :: StdGen -> (a -> b -> b) -> b -> P a -> b
 pfoldr' g f i p = case step g p of
@@ -158,5 +158,5 @@ pbind p f = pcontinue p f'
 papp :: P (a -> b) -> P a -> P b
 papp = App
 
-pacc :: (x -> Maybe y -> (x, a)) -> x -> P y -> P a
+pacc :: (x -> y -> (x, a)) -> (x -> a) -> x -> P y -> P a
 pacc = Acc
