@@ -33,36 +33,38 @@ data P a = Empty
          | forall x . App (P (x -> a)) (P x)
          | forall x y . Acc (x -> Maybe y -> (x, a)) x (P y)
 
-data Result a = Result a (P a)
-              | Done
+data Result a = Result StdGen a (P a)
+              | Done StdGen
 
-step :: StdGen -> P a -> (StdGen, Result a)
-step g Empty = (g, Done)
-step g (Value a) = (g, Result a pempty)
+step :: StdGen -> P a -> Result a
+step g Empty = Done g
+step g (Value a) = Result g a pempty
 step g (RP f) = let (p, g') = f g
                 in step g' p
 step g (Append x y) = case step g x of
-    (g', Done) -> step g' y
-    (g', Result a x') -> (g', Result a (Append x' y))
+    Done g' -> step g' y
+    Result g' a x' -> Result g' a (Append x' y)
 step g (Fix fg p) = case step fg p of
-    (_, Done) -> (g, Done)
-    (fg', Result x p') -> (g, Result x (Fix fg' p'))
+    Done _ -> Done g
+    Result fg' x p' -> Result g x (Fix fg' p')
 step g (Continue p f) = case step g p of
-    (g', Done) -> (g', Done)
-    (g', Result x p') -> step g' (f x p')
+    Done g' -> Done g'
+    Result g' x p' -> step g' (f x p')
 step g (App p q) = case step g p of
-    (g', Done) -> (g', Done)
-    (g', Result f p') -> case step g' q of
-        (g'', Done) -> (g'', Done)
-        (g'', Result x q') -> (g'', Result (f x) (App p' q'))
+    Done g' -> Done g'
+    Result g' f p' -> case step g' q of
+        Done g'' -> Done g''
+        Result g'' x q' -> Result g'' (f x) (App p' q')
 step g (Acc f i p) = case step g p of
-    (g', Done) -> (g', Result q Empty) where (_,q) = f i Nothing
-    (g', Result a p') -> (g', Result q (Acc f j p')) where (j,q) = f i (Just a)
+    Done g' -> let (_, q) = f i Nothing
+               in Result g' q Empty
+    Result g' a p' -> let (j,q) = f i (Just a)
+                      in Result g' q (Acc f j p')
 
 pfoldr' :: StdGen -> (a -> b -> b) -> b -> P a -> b
 pfoldr' g f i p = case step g p of
-                    (_, Done) -> i
-                    (g', Result a p') -> f a (pfoldr' g' f i p')
+                    Done _ -> i
+                    Result g' a p' -> f a (pfoldr' g' f i p')
 
 pfoldr :: Seed -> (a -> b -> b) -> b -> P a -> b
 pfoldr n = pfoldr' (mkStdGen n) 
