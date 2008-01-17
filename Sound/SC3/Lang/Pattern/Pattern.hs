@@ -20,7 +20,6 @@ module Sound.SC3.Lang.Pattern.Pattern
     , prepeat ) where
 
 import Control.Applicative
-import Data.Maybe
 import Data.Monoid
 import System.Random
 
