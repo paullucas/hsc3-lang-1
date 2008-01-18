@@ -1,3 +1,5 @@
+> import Sound.SC3.Lang.Pattern
+
 * Patterns are Monoids
 
 > class Monoid a where
@@ -17,7 +19,7 @@ Patterns are an instance of Functor.  fmap
 applies a function to each element of a
 pattern.
 
-* Patterns are applicative
+* Patterns are Applicative
 
 > class (Functor f) => Applicative f where
 >   pure :: a -> f a
@@ -67,3 +69,17 @@ denotes the pattern having elements
 (1,3), (1,4), (1,5), (2,3), (2,4) 
 and (2,5).
 
+* Extension
+
+Pointwise operations in the supercollider 
+language extend the shorter input by
+cycling.
+
+| [1,2] + [3,4,5]
+> zipWith (+) [1,2] [3,4,5]
+
+| (Pseq([1, 2], 1) + Pseq([3, 4, 5], 1)).asStream.nextN(3)
+> pureP (pseq [1, 2] 1 + pseq [3, 4, 5] 1)
+
+| (Pseq([1, 2], 1) + 3).asStream.nextN(3)
+> pureP (pseq [1, 2] 1 +. 3)
