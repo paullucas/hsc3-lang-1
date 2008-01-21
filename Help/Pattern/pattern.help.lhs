@@ -1,3 +1,13 @@
+* Beginning
+
+| One goal of separating the synthesis
+| engine and the language in SC Server
+| is to make it possible to explore
+| implementing in other languages the
+| concepts expressed in the SuperCollider
+| language and class library.
+| (McCartney, 2000)
+
 > import Sound.SC3.Lang.Pattern
 
 * Patterns are Monoids
