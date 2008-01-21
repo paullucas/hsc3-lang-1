@@ -81,15 +81,23 @@ and (2,5).
 
 * Extension
 
-Pointwise operations in the supercollider 
-language extend the shorter input by
-cycling.
+The haskell patterns follow the normal
+haskell behavior when operating pointwise
+on sequences of different length - the
+longer sequence is truncated.
 
-| [1,2] + [3,4,5]
-> zipWith (+) [1,2] [3,4,5]
+The haskell expression:
 
-| (Pseq([1, 2], 1) + Pseq([3, 4, 5], 1)).asStream.nextN(3)
-> pureP (pseq [1, 2] 1 + pseq [3, 4, 5] 1)
+> zip [1, 2] [3, 4, 5]
 
-| (Pseq([1, 2], 1) + 3).asStream.nextN(3)
-> pureP (pseq [1, 2] 1 +. 3)
+describes a list of two elements, being
+(1, 3) and (2, 4).
+
+This differs from the ordinary supercollider
+language behaviour, where the shorter sequence
+is extended in a cycle, so that the expression:
+
+| [[1, 2], [3, 4, 5]].flop
+
+computes a list of three elements, [1, 3],
+[2, 4] and [1, 5].
