@@ -1,4 +1,4 @@
-* Lists of numbers are numerical
+* Lists of numbers are numerical, Extension
 
 > import Sound.SC3.Lang.Collection
 
@@ -10,23 +10,29 @@ That is, the expression:
 
 | [1, 2] + [3, 4, 5]
 
-describes the three element list [4, 6, 6].
+is equivalent to:
+
+| [1, 2, 1] + [3, 4, 5]
+
+and so describes the three element 
+list [4, 6, 6].
 
 The collection module provides list 
-instances for the numerical type classes 
-with the same extension behaviour, so that:
+instances for the standard haskell 
+numerical type classes with the same 
+extension behaviour, so that:
 
 > [1, 2] + [3, 4, 5]
 
 has the same value as in the supercollider
-language, as distinct from the value of:
+language, and as distinct from the value of:
 
 > zipWith (+) [1, 2] [3, 4, 5]
 
 which is the two element list [4, 6].
 
-The function underlying the list intances
-is zipWith_c:
+The function underlying the list numerical 
+instances is zipWith_c:
 
 > zipWith_c (+) [1, 2] [3, 4, 5]
 
