@@ -10,6 +10,15 @@
 
 > import Sound.SC3.Lang.Pattern
 
+* Patterns are abstract
+
+The type of a pattern is abstract.
+
+> data P a
+
+Patterns are constructed and manipulated
+using the functions provided.
+
 * Patterns are Monoids
 
 > class Monoid a where
