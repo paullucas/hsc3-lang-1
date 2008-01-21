@@ -22,7 +22,7 @@ a sequence of two patterns.
 
 * Patterns are Functors
 
-> class Functor f 
+> class Functor f
 >     where fmap :: (a -> b) -> f a -> f b
 
 Patterns are an instance of Functor.  fmap
@@ -35,9 +35,9 @@ pattern.
 >   pure :: a -> f a
 >   (<*>) :: f (a -> b) -> f a -> f b
 
-Patterns are instances of Applicative.  The 
-pure function lifts a value into an infinite 
-pattern of itself. The (<*>) function applies 
+Patterns are instances of Applicative.  The
+pure function lifts a value into an infinite
+pattern of itself. The (<*>) function applies
 a pattern of functions to a pattern of values.
 
 Consider summing two patterns:
@@ -55,9 +55,9 @@ Consider summing two patterns:
 >     return :: a -> m a
 
 Patterns are an instance of the Monad
-class.  The (>>=) function, pronounced 
+class.  The (>>=) function, pronounced
 bind, is the mechanism for processing
-a monadic value.  The return function 
+a monadic value.  The return function
 places a value into the monad.
 
 The monad instance for Patterns follows
@@ -76,7 +76,7 @@ do notation as:
 >    ; return (x, y) }
 
 denotes the pattern having elements
-(1,3), (1,4), (1,5), (2,3), (2,4) 
+(1,3), (1,4), (1,5), (2,3), (2,4)
 and (2,5).
 
 * Extension
