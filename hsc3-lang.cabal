@@ -12,13 +12,14 @@ Description:      Haskell library defining operations from the SuperCollider
 Category:         Sound
 Tested-With:      GHC
 Build-Depends:    array, base, random
-GHC-Options:      -Wall -O2
+GHC-Options:      -Wall -fno-warn-orphans -O2
 Exposed-modules:  Sound.SC3.Lang
                   Sound.SC3.Lang.Collection
                   Sound.SC3.Lang.Math
                   Sound.SC3.Lang.Pattern
 Other-modules:
                   Sound.SC3.Lang.Collection.Collection
+                  Sound.SC3.Lang.Collection.Numerical
                   Sound.SC3.Lang.Collection.SequenceableCollection
                   Sound.SC3.Lang.Math.Pitch
                   Sound.SC3.Lang.Pattern.Pattern
