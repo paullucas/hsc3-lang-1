@@ -129,3 +129,14 @@ rotate n p = let (b, a) = splitAt n p
 normalizeSum :: (Fractional a) => [a] -> [a]
 normalizeSum l = let n = sum l
                  in map (/ n) l
+
+-- | Variant that cycles the shorter input.
+zipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith_c f a b = g a b (False, False)
+    where g [] [] _ = []
+          g [] b' (_, e) = if e then [] else g a b' (True, e)
+          g a' [] (e, _) = if e then [] else g a' b (e, True)
+          g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
+
+zip_c :: [a] -> [b] -> [(a, b)]
+zip_c = zipWith_c (,)
