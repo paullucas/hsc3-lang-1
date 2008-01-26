@@ -40,8 +40,11 @@ The type of a pattern is abstract.
 
 > data P a
 
-Patterns are constructed and manipulated using the
-functions provided.
+(P a) is the abstract data type of a pattern 
+with elements of type a.
+
+Patterns are constructed, manipulated and destructured 
+using the functions provided.
 
 * Patterns are Monoids
 
@@ -53,6 +56,9 @@ Patterns are instances of monoid.  mempty is the
 empty pattern, and mappend makes a sequence of two
 patterns.
 
+> pempty :: P a
+> pappend :: P a -> P a -> P a
+
 * Patterns are Functors
 
 > class Functor f
@@ -60,6 +66,8 @@ patterns.
 
 Patterns are an instance of Functor.  fmap applies
 a function to each element of a pattern.
+
+> pmap :: (a -> b) -> P a -> P b
 
 * Patterns are Applicative
 
@@ -69,9 +77,12 @@ a function to each element of a pattern.
 
 Patterns are instances of Applicative (McBride and
 Paterson, 2007).  The pure function lifts a value
-into an infinite pattern of itself. The (<*>)
+into an infinite pattern of itself.  The (<*>)
 function applies a pattern of functions to a
 pattern of values.
+
+> ppure :: a -> P a
+> papp :: P (a -> b) -> P a -> P b
 
 Consider summing two patterns:
 
@@ -91,7 +102,11 @@ Patterns are an instance of the Monad class
 (Wadler, 1990).  The (>>=) function, pronounced
 bind, is the mechanism for processing a monadic
 value.  The return function places a value into
-the monad.
+the monad, for the pattern case it creates a 
+single element pattern.
+
+> pbind :: P x -> (x -> P a) -> P a
+> preturn :: a -> P a
 
 The monad instance for Patterns follows the
 standard monad instance for lists, for example:
