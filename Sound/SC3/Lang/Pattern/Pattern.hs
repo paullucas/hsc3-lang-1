@@ -2,7 +2,7 @@
 
 module Sound.SC3.Lang.Pattern.Pattern
     ( P
-    , evalP, pureP
+    , pfoldr, evalP, pureP
     , pfix
     , pcontinue
     , pmap -- Prelude.fmap
