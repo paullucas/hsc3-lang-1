@@ -1,3 +1,5 @@
+> import Sound.SC3.Lang.Pattern
+
 * Beginning
 
 | One goal of separating the synthesis engine and
@@ -6,7 +8,31 @@
 | concepts expressed in the SuperCollider language
 | and class library.  (McCartney, 2000)
 
-> import Sound.SC3.Lang.Pattern
+Patterns in supercollider language provide
+a concise and expressive notation for writing
+complex processes.
+
+In a strict language the distinction between
+data and process is quite clear.
+
+In non-strict and purely functional languages
+ordinary data types may be of indefinite extent.
+
+> let ones = 1 : ones
+> in take 5 ones
+
+Since there is no mutation in haskell the
+pattern and stream distinction is less 
+clear.
+
+> let { a = [1,2,3] ++ a
+>     ; b = drop 2 (fmap negate a) }
+> in take 5 (zip a b)
+
+However, as was noted in relation to the noise
+and related unit generators, a notation for
+describing indeterminate structures presents
+some interesting questions.
 
 * Patterns are abstract
 
