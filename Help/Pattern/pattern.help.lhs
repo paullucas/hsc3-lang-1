@@ -152,6 +152,69 @@ applicative notation above:
 >     ; q = pseq [6, 4, 2] 1 }
 > in pureP (p + q)
 
+The numerical instances are written using the 
+applicative functions pure and <*>.
+
+* Intederminacy, Randomness
+
+A pattern may be given by a function from
+a random number generator to a duple of
+a pattern and a derived random number 
+generator.
+
+> prp :: (StdGen -> (P a, StdGen)) -> P a
+
+pfix makes a pattern determinate by seeding 
+the random number generator for the pattern.
+
+> type Seed = Int
+> pfix :: Seed -> P a -> P a
+
+* Accumulation, Threading
+
+pacc is an accumulator.  It provides a mechanism
+for state to be threaded through a pattern.  It can
+be used to write a function to remove succesive
+duplicates from a pattern, to count the distance
+between occurences of an element in a pattern and
+so on.
+
+> pacc :: (x -> y -> (x, a)) -> (x -> a) -> x -> P y -> P a
+
+* Continuing
+
+pcontinue provides a mechanism to destructure a
+pattern and generate a new pattern based on the
+first element and the 'rest' of the pattern.
+
+> pcontinue :: P x -> (x -> P x -> P a) -> P a
+
+The bind instance of monad is written in relation
+to pcontinue.
+
+> pbind p f = pcontinue p (\x q -> f x `mappend` pbind q f)
+
+pcontinue can be used to write pfilter the
+basic pattern filter, ptail which discards
+the front elment of a pattern, and so on.
+
+* Destructuring, folding
+
+A pattern has an ordinary right fold, with the
+additional requirement of a seed value for the 
+random number generator.
+
+> pfoldr :: Seed -> (a -> b -> b) -> b -> P a -> b
+
+pfoldr is the primitive traversal function for
+a pattern.  
+
+Right folding with the list constructor (:) and
+the empty list transforms a pattern into a list.
+
+> let p = pser [1, 2, 3] 5 + pseq [0, 10] 3
+> in pfoldr 0 (:) [] p
+
 * Extension
 
 The haskell patterns follow the normal haskell
