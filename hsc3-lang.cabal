@@ -27,7 +27,11 @@ Other-modules:    Sound.SC3.Lang.Collection.Collection
                   Sound.SC3.Lang.Pattern.Control
                   Sound.SC3.Lang.Pattern.List
                   Sound.SC3.Lang.Pattern.Random
+
 Data-files:       README
+                  -- The below is appended by:
+                  -- find Help -name "*.*hs" | sort | \
+                  -- sed "s/^/                  /" >> hsc3-lang.cabal
                   Help/Collection/collection.help.lhs
                   Help/Math/pitch.help.lhs
                   Help/Pattern/pattern.help.lhs
