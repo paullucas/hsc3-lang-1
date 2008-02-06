@@ -10,7 +10,8 @@ Synopsis:         Haskell SuperCollider - Language
 Description:      Haskell library defining operations from the SuperCollider
                   language class library
 Category:         Sound
-Tested-With:      GHC
+Tested-With:      GHC==6.8.2
+Build-Type:       Simple
 Build-Depends:    array, base, random
 GHC-Options:      -Wall -fno-warn-orphans -O2
 Exposed-modules:  Sound.SC3.Lang
