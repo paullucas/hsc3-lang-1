@@ -6,6 +6,7 @@ module Sound.SC3.Lang.Pattern.Pattern
     , pfix
     , pcontinue
     , pmap -- Prelude.fmap
+    , punfoldr -- Data.List.unfoldr
     , preturn -- Control.Monad.return
     , pbind -- Control.Monad.(>>=)
     , pempty -- Data.Monoid.mempty
@@ -28,6 +29,7 @@ data P a = Empty
          | RP (StdGen -> (P a, StdGen))
          | Append (P a) (P a)
          | Fix StdGen (P a)
+         | forall x . Unfoldr (x -> Maybe (a, x)) x
          | forall x . Continue (P x) (x -> P x -> P a)
          | forall x . App (P (x -> a)) (P x)
          | forall x y . Acc (x -> y -> (x, a)) (x -> a) x (P y)
@@ -49,6 +51,10 @@ step g (Fix fg p) = case step fg p of
 step g (Continue p f) = case step g p of
     Done g' -> Done g'
     Result g' x p' -> step g' (f x p')
+step g (Unfoldr f x) = let y = f x 
+                       in case y of
+                            Nothing -> Done g
+                            Just (a, x') -> Result g a (Unfoldr f x')
 step g (App p q) = case step g p of
     Done g' -> Done g'
     Result g' f p' -> case step g' q of
@@ -158,3 +164,6 @@ papp = App
 
 pacc :: (x -> y -> (x, a)) -> (x -> a) -> x -> P y -> P a
 pacc = Acc
+
+punfoldr :: (x -> Maybe (a, x)) -> x -> P a
+punfoldr = Unfoldr
