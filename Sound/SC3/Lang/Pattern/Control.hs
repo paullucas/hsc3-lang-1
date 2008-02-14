@@ -156,3 +156,7 @@ pdrop :: P Int -> P a -> P a
 pdrop n p = n >>= (\x -> if x > 0 
                          then pdrop (return (x-1)) (ptail p)
                          else p)
+
+pscanl :: (a -> y -> a) -> a -> P y -> P a
+pscanl f i p = pcons i (pacc g Nothing i p)
+    where g x y = let r = f x y in (r, r) 
