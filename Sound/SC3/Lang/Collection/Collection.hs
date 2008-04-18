@@ -1,6 +1,5 @@
 module Sound.SC3.Lang.Collection.Collection where
 
-import Prelude
 import Data.List
 
 fill :: Int -> (Int -> a) -> [a]
