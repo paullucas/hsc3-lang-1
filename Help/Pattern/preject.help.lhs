@@ -7,4 +7,4 @@ Rejects values for which the predicate is true.
 
 > let { p = pseq [1, 2, 3] 3
 >     ; q = preject (== 1) p }
-> in pureP q
+> in evalP 0 q

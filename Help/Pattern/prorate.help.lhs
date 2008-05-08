@@ -8,4 +8,4 @@ Divide stream proportionally
      pattern - a numerical pattern
 
 > let p = prorate (pseq [0.35, 0.5, 0.8] 1) 1
-> in pureP p
+> in evalP 0 p

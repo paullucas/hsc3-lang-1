@@ -7,7 +7,7 @@ the number of times to repeat the entire list.
 > import Sound.SC3.Lang.Pattern
 
 > let a = pseq [1, 2, 3] 2
-> in pureP a
+> in evalP 0 a
 
 Unlike Pseq, pseq does not have an offset argument to
 give a starting offset into the list.
@@ -15,7 +15,7 @@ give a starting offset into the list.
 > import Sound.SC3.Lang.Collection
 
 > let p = pseq (rotate 3 [1, 2, 3, 4]) 3
-> in pureP p
+> in evalP 0 p
 
 Because the repeat counter is a pattern one can have
 a random number of repeats.
@@ -34,15 +34,15 @@ the sequence will repeat until the pattern is exhausted.
 
 > let { p = pseq [1] 3
 >     ; q = pseq [1] p }
-> in pureP q
+> in evalP 0 q
 
 If one specifies the value pinf for the repeats variable, 
 then it will repeat indefinitely.
 
 > let p = pseq [1, 2, 3] pinf
-> in take 9 (pureP p)
+> in take 9 (evalP 0 p)
 
 There is a variant with a true integer repeat count.
 
 > let p = pseq_ [1, 2, 3] 5
-> in pureP p
+> in evalP 0 p

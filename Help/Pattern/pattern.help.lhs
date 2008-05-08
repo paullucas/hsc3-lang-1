@@ -90,7 +90,7 @@ Consider summing two patterns:
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
-> in pureP (pure (+) <*> p <*> q)
+> in evalP 0 (pure (+) <*> p <*> q)
 
 * Patterns are Monads
 
@@ -111,14 +111,14 @@ single element pattern.
 The monad instance for Patterns follows the
 standard monad instance for lists, for example:
 
-> pureP (pseq [1, 2] 1 >>= \x ->
+> evalP 0 (pseq [1, 2] 1 >>= \x ->
 >        pseq [3, 4, 5] 1 >>= \y ->
 >        return (x, y))
 
 which may be written using the haskell do notation
 as:
 
-> pureP (do { x <- pseq [1, 2] 1
+> evalP 0 (do { x <- pseq [1, 2] 1
 >           ; y <- pseq [3, 4, 5] 1
 >           ; return (x, y) })
 
@@ -150,7 +150,7 @@ applicative notation above:
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
-> in pureP (p + q)
+> in evalP 0 (p + q)
 
 The numerical instances are written using the 
 applicative functions pure and <*>.

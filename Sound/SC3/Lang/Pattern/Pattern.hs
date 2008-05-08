@@ -2,7 +2,7 @@
 
 module Sound.SC3.Lang.Pattern.Pattern
     ( P
-    , pfoldr, evalP, pureP
+    , pfoldr, evalP
     , pfix
     , pcontinue
     , pmap -- Prelude.fmap
@@ -77,9 +77,6 @@ pfoldr n = pfoldr' (mkStdGen n)
 
 evalP :: Int -> P a -> [a]
 evalP n = pfoldr n (:) []
-
-pureP :: P a -> [a]
-pureP = evalP 0
 
 instance (Show a) => Show (P a) where
     show _ = show "a pattern"

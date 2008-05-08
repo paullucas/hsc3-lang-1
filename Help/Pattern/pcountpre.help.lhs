@@ -4,7 +4,7 @@ pcountpost :: P Bool -> P Int
 > import Sound.SC3.Lang.Pattern
 
 > let p = pbool (pseq [0, 0, 1, 0, 0, 0, 1, 1] 1)
-> in pureP (pcountpre p)
+> in evalP 0 (pcountpre p)
 
 > let p = pbool (pseq [1, 0, 1, 0, 0, 0, 1, 1] 1)
-> in pureP (pcountpost p)
+> in evalP 0 (pcountpost p)

@@ -12,4 +12,4 @@ values at 'tr' generate Nothing values.
 
 > let { p = pseq [1, 2, 3, 4, 5] 3     
 >     ; q = pbool (pseq [0, 0, 1, 0, 0, 0, 1, 1] 1) } 
-> in pureP (ptrigger q p)
+> in evalP 0 (ptrigger q p)
