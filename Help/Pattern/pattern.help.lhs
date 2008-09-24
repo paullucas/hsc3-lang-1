@@ -112,15 +112,15 @@ The monad instance for Patterns follows the
 standard monad instance for lists, for example:
 
 > evalP 0 (pseq [1, 2] 1 >>= \x ->
->        pseq [3, 4, 5] 1 >>= \y ->
->        return (x, y))
+>          pseq [3, 4, 5] 1 >>= \y ->
+>          return (x, y))
 
 which may be written using the haskell do notation
 as:
 
 > evalP 0 (do { x <- pseq [1, 2] 1
->           ; y <- pseq [3, 4, 5] 1
->           ; return (x, y) })
+>             ; y <- pseq [3, 4, 5] 1
+>             ; return (x, y) })
 
 denotes the pattern having elements (1,3), (1,4),
 (1,5), (2,3), (2,4) and (2,5).
