@@ -1,4 +1,5 @@
 pswitch1 :: [P a] -> P Int -> P a
+pswitch1m :: IntMap (P a) -> P Int -> P a
 
   list - patterns to index
  which - index
@@ -9,6 +10,8 @@ is selected from each the pattern.
 
 This is in comparison to pswitch, which embeds the 
 pattern in its entirety.  pswitch1 switches every value.
+
+pswitch1 is implemented in terms of pswitch1m.
 
 > import Control.Applicative
 > import Sound.SC3.Lang.Pattern

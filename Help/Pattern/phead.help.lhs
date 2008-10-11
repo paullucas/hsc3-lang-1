@@ -10,3 +10,5 @@ Retain only the first element of a pattern.
 
 > let p = pseq [1, 2, 3] 1
 > in evalP 0 (phead p `mappend` ptail p)
+
+> evalP 0 (phead pempty)
