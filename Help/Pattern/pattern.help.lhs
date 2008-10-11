@@ -82,7 +82,7 @@ function applies a pattern of functions to a
 pattern of values.
 
 > ppure :: a -> P a
-> papp :: P (a -> b) -> P a -> P b
+> papply :: P (a -> b) -> P a -> P b
 
 Consider summing two patterns:
 
@@ -172,14 +172,14 @@ the random number generator for the pattern.
 
 * Accumulation, Threading
 
-pacc is an accumulator.  It provides a mechanism
+pscan is an accumulator.  It provides a mechanism
 for state to be threaded through a pattern.  It can
 be used to write a function to remove succesive
 duplicates from a pattern, to count the distance
 between occurences of an element in a pattern and
 so on.
 
-> pacc :: (x -> y -> (x, a)) -> (x -> a) -> x -> P y -> P a
+> pscan :: (x -> y -> (x, a)) -> (x -> a) -> x -> P y -> P a
 
 * Continuing
 

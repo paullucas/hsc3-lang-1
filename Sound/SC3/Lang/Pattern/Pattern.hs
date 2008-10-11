@@ -14,7 +14,7 @@ module Sound.SC3.Lang.Pattern.Pattern
     , ppure -- Control.Applicative.pure
     , papply -- Control.Applicative.(<*>)
     , prp
-    , pacc
+    , pscan
     , pinf
     , pzipWith
     , pcycle
@@ -32,7 +32,7 @@ data P a = Empty
          | forall x . Unfoldr (x -> Maybe (a, x)) x
          | forall x . Continue (P x) (x -> P x -> P a)
          | forall x . Apply (P (x -> a)) (P x)
-         | forall x y . Acc (x -> y -> (x, a)) (Maybe (x -> a)) x (P y)
+         | forall x y . Scan (x -> y -> (x, a)) (Maybe (x -> a)) x (P y)
 
 data Result a = Result StdGen a (P a)
               | Done StdGen
@@ -60,12 +60,12 @@ step g (Apply p q) = case step g p of
     Result g' f p' -> case step g' q of
         Done g'' -> Done g''
         Result g'' x q' -> Result g'' (f x) (Apply p' q')
-step g (Acc f f' i p) = case step g p of
+step g (Scan f f' i p) = case step g p of
     Done g' -> case f' of
                  Just h -> Result g' (h i) Empty
                  Nothing -> Done g'
     Result g' a p' -> let (j, x) = f i a
-                      in Result g' x (Acc f f' j p')
+                      in Result g' x (Scan f f' j p')
 
 pfoldr' :: StdGen -> (a -> b -> b) -> b -> P a -> b
 pfoldr' g f i p = case step g p of
@@ -160,8 +160,8 @@ pbind p f = pcontinue p (\x q -> f x `mappend` pbind q f)
 papply :: P (a -> b) -> P a -> P b
 papply = Apply
 
-pacc :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P y -> P a
-pacc = Acc
+pscan :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P y -> P a
+pscan = Scan
 
 punfoldr :: (x -> Maybe (a, x)) -> x -> P a
 punfoldr = Unfoldr

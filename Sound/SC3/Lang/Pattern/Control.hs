@@ -77,12 +77,12 @@ pstutter n = pstutter' (pcycle n)
 
 -- | Count false values preceding each true value. 
 pcountpre :: P Bool -> P Int
-pcountpre p = pmapMaybe id (pacc f Nothing 0 p)
+pcountpre p = pmapMaybe id (pscan f Nothing 0 p)
     where f x e = if e then (0, Just x) else (x + 1, Nothing)
 
 -- | Count false values following each true value. 
 pcountpost :: P Bool -> P Int
-pcountpost p = ptail (pmapMaybe id (pacc f (Just Just) 0 p))
+pcountpost p = ptail (pmapMaybe id (pscan f (Just Just) 0 p))
     where f x e = if e then (0, Just x) else (x + 1, Nothing)
 
 pclutch' :: P a -> P Bool -> P a
@@ -120,7 +120,7 @@ pwrap x l r = pzipWith3 f x (pcycle l) (pcycle r)
 
 -- | Remove successive duplicates.
 prsd :: (Eq a) => P a -> P a
-prsd p = pmapMaybe id (pacc f Nothing Nothing p)
+prsd p = pmapMaybe id (pscan f Nothing Nothing p)
     where f Nothing a = (Just a, Just a)
           f (Just x) a = (Just a, if a == x then Nothing else Just a)
 
@@ -159,5 +159,5 @@ pdrop n p = n >>= (\x -> if x > 0
                          else p)
 
 pscanl :: (a -> y -> a) -> a -> P y -> P a
-pscanl f i p = pcons i (pacc g Nothing i p)
+pscanl f i p = pcons i (pscan g Nothing i p)
     where g x y = let r = f x y in (r, r) 
