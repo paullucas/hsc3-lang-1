@@ -12,7 +12,7 @@ module Sound.SC3.Lang.Pattern.Pattern
     , pempty -- Data.Monoid.mempty
     , pappend -- Data.Monoid.mappend
     , ppure -- Control.Applicative.pure
-    , papp -- Control.Applicative.(<*>)
+    , papply -- Control.Applicative.(<*>)
     , prp
     , pacc
     , pinf
@@ -31,7 +31,7 @@ data P a = Empty
          | Fix StdGen (P a)
          | forall x . Unfoldr (x -> Maybe (a, x)) x
          | forall x . Continue (P x) (x -> P x -> P a)
-         | forall x . App (P (x -> a)) (P x)
+         | forall x . Apply (P (x -> a)) (P x)
          | forall x y . Acc (x -> y -> (x, a)) (Maybe (x -> a)) x (P y)
 
 data Result a = Result StdGen a (P a)
@@ -55,11 +55,11 @@ step g (Unfoldr f x) = let y = f x
                        in case y of
                             Nothing -> Done g
                             Just (a, x') -> Result g a (Unfoldr f x')
-step g (App p q) = case step g p of
+step g (Apply p q) = case step g p of
     Done g' -> Done g'
     Result g' f p' -> case step g' q of
         Done g'' -> Done g''
-        Result g'' x q' -> Result g'' (f x) (App p' q')
+        Result g'' x q' -> Result g'' (f x) (Apply p' q')
 step g (Acc f f' i p) = case step g p of
     Done g' -> case f' of
                  Just h -> Result g' (h i) Empty
@@ -127,7 +127,7 @@ ppure = prepeat
 
 instance Applicative P where
     pure = ppure
-    (<*>) = papp
+    (<*>) = papply
 
 -- * Basic constructors
 
@@ -157,8 +157,8 @@ pcontinue = Continue
 pbind :: P x -> (x -> P a) -> P a
 pbind p f = pcontinue p (\x q -> f x `mappend` pbind q f)
 
-papp :: P (a -> b) -> P a -> P b
-papp = App
+papply :: P (a -> b) -> P a -> P b
+papply = Apply
 
 pacc :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P y -> P a
 pacc = Acc
