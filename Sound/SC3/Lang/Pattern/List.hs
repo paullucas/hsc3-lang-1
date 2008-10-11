@@ -32,4 +32,20 @@ pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = pswitch1m (M.fromList (zip [0..] l))
 
 ppatlace :: [P a] -> P Int -> P a
-ppatlace = undefined
+ppatlace ps n = let is = pseq (map return [0 .. length ps - 1]) pinf
+                in ptake n (pswitch1 ps is)
+
+{-
+
+Neither the definition above or the variant below are correct.
+Both deadlock once all patterns are empty.  pswitch1 has the 
+same problem.  
+
+ppatlacea :: P (P a) -> P a
+ppatlacea ps = 
+    let f p qs = let h = phead p
+                     t = ptail p
+                     rs = qs `mappend` return t
+                 in h `mappend` (ppatlacea rs)
+    in pcontinue ps f
+-}
