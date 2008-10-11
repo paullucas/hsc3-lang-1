@@ -10,6 +10,8 @@ value at 'tr' the output is a 'Just e'
 of each succesive element at x.  False
 values at 'tr' generate Nothing values. 
 
+> import Sound.SC3.Lang.Pattern
+
 > let { p = pseq [1, 2, 3, 4, 5] 3     
 >     ; t = pbool (pseq [0, 0, 1, 0, 0, 0, 1, 1] 1) } 
 > in evalP 0 (ptrigger t p)
