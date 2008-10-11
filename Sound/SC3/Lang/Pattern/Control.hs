@@ -150,6 +150,9 @@ pif s b p q = pzipWith f p' q'
 pif' :: P Bool -> P a -> P a -> P a
 pif' = pif 0
 
+phead :: P a -> P a
+phead p = pcontinue p (\x _ -> return x)
+
 ptail :: P a -> P a
 ptail p = pcontinue p (\_ p' -> p')
 
