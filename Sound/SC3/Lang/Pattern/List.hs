@@ -1,6 +1,8 @@
 module Sound.SC3.Lang.Pattern.List where
 
+import qualified Data.IntMap as M
 import Data.List
+import Data.Monoid
 import Sound.SC3.Lang.Pattern.Pattern
 import Sound.SC3.Lang.Pattern.Control
 
@@ -20,8 +22,14 @@ pser l n = prestrict n (plist l)
 pswitch :: [P a] -> P Int -> P a
 pswitch l i = i >>= (l !!)
 
+pswitch1m :: M.IntMap (P a) -> P Int -> P a
+pswitch1m m is = let f i js = let h = phead (m M.! i)
+                                  t = ptail (m M.! i)
+                              in h `mappend` pswitch1m (M.insert i t m) js
+                 in pcontinue is f
+
 pswitch1 :: [P a] -> P Int -> P a
-pswitch1 = undefined
+pswitch1 l = pswitch1m (M.fromList (zip [0..] l))
 
 ppatlace :: [P a] -> P Int -> P a
 ppatlace = undefined
