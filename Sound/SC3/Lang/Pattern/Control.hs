@@ -1,6 +1,7 @@
 module Sound.SC3.Lang.Pattern.Control where
 
 import Control.Applicative
+import Control.Monad
 import Data.List
 import Data.Maybe
 import Data.Monoid
@@ -124,7 +125,7 @@ prsd p = pmapMaybe id (pacc f Nothing Nothing p)
           f (Just x) a = (Just a, if a == x then Nothing else Just a)
 
 psequence :: P (P a) -> P a
-psequence p = p >>= id
+psequence = join
 
 pduple :: (a, a) -> P a
 pduple (x, y) = return x `mappend` return y
@@ -133,7 +134,7 @@ pinterleave :: P a -> P a -> P a
 pinterleave p q = psequence (fmap pduple (pzip p q))
 
 ptrigger :: P Bool -> P a -> P (Maybe a)
-ptrigger p q = pzipWith f r q >>= id
+ptrigger p q = join (pzipWith f r q)
     where r = pcountpre p
           f i e = mappend (preplicate_ i (return Nothing)) (return (Just e))
 

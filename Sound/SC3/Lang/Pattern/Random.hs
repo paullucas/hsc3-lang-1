@@ -1,5 +1,6 @@
 module Sound.SC3.Lang.Pattern.Random where
 
+import Control.Monad
 import Data.Array
 import Data.List
 import Sound.SC3.Lang.Pattern.Pattern
@@ -30,10 +31,10 @@ prand :: [P a] -> P Int -> P a
 prand p = pseq [pchoose p]
 
 pwhite :: (Random a) => P a -> P a -> P Int -> P a
-pwhite l r n = prestrict n (pzipWith prrand l r >>= id)
+pwhite l r n = prestrict n (join (pzipWith prrand l r))
 
 pexprand :: (Floating a, Random a) => P a -> P a -> P Int -> P a
-pexprand l r n = prestrict n (pzipWith prrandexp l r >>= id)
+pexprand l r n = prestrict n (join (pzipWith prrandexp l r))
 
 pxrand :: (Eq a) => [P a] -> P Int -> P a
 pxrand p n = ptake n (prsd (pseq [pchoose p] pinf))
