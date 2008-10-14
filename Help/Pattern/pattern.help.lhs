@@ -146,7 +146,9 @@ and fractional:
 >   fromRational :: Rational -> a
 
 Summing two patterns does not require using the
-applicative notation above:
+applicative notation above, and the numerical
+pattern (return x) can be written as the literal
+'x':
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
