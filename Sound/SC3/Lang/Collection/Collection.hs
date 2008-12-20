@@ -1,6 +1,7 @@
 module Sound.SC3.Lang.Collection.Collection where
 
 import Data.List
+import Data.Maybe
 
 fill :: Int -> (Int -> a) -> [a]
 fill n f = map f [0 .. n - 1]
@@ -12,7 +13,7 @@ isEmpty :: [a] -> Bool
 isEmpty = null
 
 ignoringIndex :: (a -> b) -> a -> Int -> b
-ignoringIndex f = \e _ -> f e
+ignoringIndex f e _ = f e
 
 collect :: (a -> Int -> b) -> [a] -> [b]
 collect f l = zipWith f l [0..]
@@ -30,25 +31,26 @@ detectIndex :: (a -> Int -> Bool) -> [a] -> Maybe Int
 detectIndex f l = maybe Nothing (Just . snd) (find (uncurry f) (zip l [0..]))
 
 inject :: a -> (a -> b -> a) -> [b] -> a
-inject i f l = foldl f i l
+inject i f = foldl f i
 
 any' :: (a -> Int -> Bool) -> [a] -> Bool
-any' f l = maybe False (const True) (detect f l)
+any' f = isJust . detect f
 
 every :: (a -> Int -> Bool) -> [a] -> Bool
-every f l = not (any' g l) where g e i = not (f e i)
+every f = let g e = not . f e
+          in not . any' g
 
 count :: (a -> Int -> Bool) -> [a] -> Int
-count f l = length (select f l)
+count f = length . select f
 
 occurencesOf :: (Eq a) => a -> [a] -> Int
-occurencesOf k l = count (\e _ -> e == k) l
+occurencesOf k = count (\e _ -> e == k)
 
 sum' :: (Num a) => (b -> Int -> a) -> [b] -> a
-sum' f l = sum (collect f l)
+sum' f = sum . collect f
 
 maxItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
-maxItem f l = maximum (collect f l)
+maxItem f = maximum . collect f
 
 minItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
-minItem f l = minimum (collect f l)
+minItem f = minimum . collect f

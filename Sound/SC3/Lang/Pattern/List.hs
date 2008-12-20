@@ -29,7 +29,7 @@ pswitch1m m is = let f i js = let h = phead (m M.! i)
                  in pcontinue is f
 
 pswitch1 :: [P a] -> P Int -> P a
-pswitch1 l = pswitch1m (M.fromList (zip [0..] l))
+pswitch1 = pswitch1m . M.fromList . zip [0..]
 
 ppatlace :: [P a] -> P Int -> P a
 ppatlace ps n = let is = pseq (map return [0 .. length ps - 1]) pinf

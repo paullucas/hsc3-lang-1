@@ -2,6 +2,7 @@ module Sound.SC3.Lang.Collection.SequenceableCollection where
 
 import Control.Monad
 import Data.List
+import Data.Maybe
 import Sound.SC3.Lang.Collection.Collection
 import System.Random
 
@@ -49,7 +50,7 @@ indexOfEqual = indexOf
 
 -- | Collection is sorted, index of first greater element.
 indexOfGreaterThan :: (Ord a) => a -> [a] -> Maybe Int
-indexOfGreaterThan e l = detectIndex (ignoringIndex (> e)) l
+indexOfGreaterThan e = detectIndex (ignoringIndex (> e))
 
 -- | Collection is sorted, index of nearest element.
 indexIn :: (Ord a, Num a) => a -> [a] -> Int
@@ -71,7 +72,7 @@ indexInBetween e l = maybe (fromIntegral (size l) - 1) f (indexOfGreaterThan e l
                     d = b - a
 
 keep :: Int -> [a] -> [a]
-keep n l | n < 0 = maybe l id (find (\e -> length e == negate n) (tails l))
+keep n l | n < 0 = fromMaybe l (find (\e -> length e == negate n) (tails l))
          | otherwise = take n l
 
 drop' :: Int -> [a] -> [a]

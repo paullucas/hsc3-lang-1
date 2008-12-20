@@ -41,13 +41,13 @@ ptake n p = pzipWith const p (preplicate n (return undefined))
 
 -- | 'n' initial values at pcycle of 'p'.
 prestrict_ :: Int -> P a -> P a
-prestrict_ n p = ptake_ n (pcycle p)
+prestrict_ n = ptake_ n . pcycle
 
 prestrict :: P Int -> P a -> P a
-prestrict n p = ptake n (pcycle p)
+prestrict n = ptake n . pcycle
 
 pmapMaybe :: (a -> Maybe b) -> P a -> P b
-pmapMaybe f p = fmap fromJust (pfilter isJust (fmap f p))
+pmapMaybe f = fmap fromJust . pfilter isJust . fmap f
 
 preject :: (a -> Bool) -> P a -> P a
 preject f = pfilter (not . f)
@@ -69,11 +69,13 @@ pgeom i s n = plist (unfoldr f (i, n))
           f (j, m) = Just (return j, (j * s, m - 1))
 
 pstutter' :: P Int -> P a -> P a
-pstutter' n p = psequence (pzipWith f n p)
-    where f i e = preplicate (return i) (return e)
+pstutter' n p =
+    let f :: Int -> a -> P a
+        f i e = preplicate (return i) (return e)
+    in psequence (pzipWith f n p)
 
 pstutter :: P Int -> P a -> P a
-pstutter n = pstutter' (pcycle n)
+pstutter = pstutter' . pcycle
 
 -- | Count false values preceding each true value. 
 pcountpre :: P Bool -> P Int
@@ -93,7 +95,7 @@ pbool :: (Ord a, Num a) => P a -> P Bool
 pbool = fmap (> 0)
 
 pclutch :: (Num b, Ord b) => P a -> P b -> P a
-pclutch p q = pclutch' p (pbool q)
+pclutch p = pclutch' p . pbool
 
 pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
@@ -131,12 +133,12 @@ pduple :: (a, a) -> P a
 pduple (x, y) = return x `mappend` return y
 
 pinterleave :: P a -> P a -> P a
-pinterleave p q = psequence (fmap pduple (pzip p q))
+pinterleave p = psequence . fmap pduple . pzip p
 
 ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q = join (pzipWith f r q)
     where r = pcountpre p
-          f i e = mappend (preplicate_ i (return Nothing)) (return (Just e))
+          f i = mappend (preplicate_ i (return Nothing)) . return . Just
 
 pif :: Int -> P Bool -> P a -> P a -> P a
 pif s b p q = pzipWith f p' q'

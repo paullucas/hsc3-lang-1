@@ -73,7 +73,7 @@ pfoldr' g f i p = case step g p of
                     Result g' a p' -> f a (pfoldr' g' f i p')
 
 pfoldr :: Seed -> (a -> b -> b) -> b -> P a -> b
-pfoldr n = pfoldr' (mkStdGen n) 
+pfoldr = pfoldr' . mkStdGen
 
 evalP :: Int -> P a -> [a]
 evalP n = pfoldr n (:) []
@@ -109,7 +109,7 @@ prepeat :: a -> P a
 prepeat = pcycle . return
 
 pmap :: (a -> b) -> P a -> P b
-pmap f = (<*>) (prepeat f)
+pmap = (<*>) . prepeat
 
 instance Functor P where
     fmap = pmap
@@ -149,7 +149,7 @@ pappend = Append
 type Seed = Int
 
 pfix :: Seed -> P a -> P a
-pfix n = Fix (mkStdGen n)
+pfix = Fix . mkStdGen
 
 pcontinue :: P x -> (x -> P x -> P a) -> P a
 pcontinue = Continue

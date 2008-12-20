@@ -52,13 +52,13 @@ degree_to_key d s n = (n * fromIntegral (d' `div` l)) + (s !! (d' `mod` l)) + a
           a = (d - fromIntegral d') * 10.0 * (n / 12.0)
 
 note :: Pitch a -> a
-note e = (note_f e) e
+note e = note_f e e
 
 midinote :: Pitch a -> a
-midinote e = (midinote_f e) e
+midinote e = midinote_f e e
 
 freq :: Pitch a -> a
-freq e = (freq_f e) e
+freq e = freq_f e e
 
 detunedFreq :: (Num a) => Pitch a -> a
 detunedFreq e = freq e + detune e
