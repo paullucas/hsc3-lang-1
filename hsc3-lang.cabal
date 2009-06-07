@@ -50,7 +50,10 @@ Data-files:        README
                    Help/Pattern/pxrand.help.lhs
 
 Library
-  Build-Depends:   array, base, containers, random
+  Build-Depends:   array,
+                   base==3.*,
+                   containers,
+                   random
   GHC-Options:     -Wall -fwarn-tabs
   Exposed-modules: Sound.SC3.Lang
                    Sound.SC3.Lang.Collection
