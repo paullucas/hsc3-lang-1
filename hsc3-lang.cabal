@@ -1,11 +1,11 @@
 Name:              hsc3-lang
 Version:           0.7
 Synopsis:          Haskell SuperCollider Language
-Description:       Haskell library defining operations from the SuperCollider
-                   language class library
+Description:       Haskell library defining operations from the
+                   SuperCollider language class library
 License:           GPL
 Category:          Sound
-Copyright:         (c) Rohan Drape, 2007-2008
+Copyright:         (c) Rohan Drape, 2007-2009
 Author:            Rohan Drape
 Maintainer:        rd@slavepianos.org
 Stability:         Experimental
