@@ -10,7 +10,7 @@ Author:            Rohan Drape
 Maintainer:        rd@slavepianos.org
 Stability:         Experimental
 Homepage:          http://slavepianos.org/rd/f/649352/
-Tested-With:       GHC==6.8.2
+Tested-With:       GHC == 6.8.2
 Build-Type:        Simple
 Cabal-Version:     >= 1.2
 
@@ -51,7 +51,7 @@ Data-files:        README
 
 Library
   Build-Depends:   array,
-                   base==3.*,
+                   base == 3.*,
                    containers,
                    random
   GHC-Options:     -Wall -fwarn-tabs
