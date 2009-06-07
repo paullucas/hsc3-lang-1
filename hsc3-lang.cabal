@@ -1,5 +1,5 @@
 Name:              hsc3-lang
-Version:           0.4
+Version:           0.7
 Synopsis:          Haskell SuperCollider Language
 Description:       Haskell library defining operations from the SuperCollider
                    language class library
