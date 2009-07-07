@@ -198,7 +198,7 @@ to pcontinue.
 
 pcontinue can be used to write pfilter the
 basic pattern filter, ptail which discards
-the front elment of a pattern, and so on.
+the front element of a pattern, and so on.
 
 * Destructuring, folding
 
