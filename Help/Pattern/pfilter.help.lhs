@@ -6,4 +6,4 @@ Allows values for which the predicate is true.
 
 > let { p = pseq [1, 2, 3] 3
 >     ; q = pfilter (< 3) p }
-> in evalP 0 q
+> in evalP q

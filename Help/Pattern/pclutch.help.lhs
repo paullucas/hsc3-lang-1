@@ -12,18 +12,18 @@ else hold the previous value.
 
 > let { p = pseq [1, 2, 3, 4, 5] 3
 >     ; q = pseq [1, 0, 1, 0, 0, 0, 1, 1] 1 }
-> in evalP 0 (pclutch p q)
+> in evalP (pclutch p q)
 
 There is a variant that requires a boolean 
 pattern.  
 
 > let { p = pseq [1, 2, 3, 4, 5] 3
 >     ; q = fmap not (pbool (pseq [0, 0, 1, 0, 0, 0, 1, 1] 1)) }
-> in evalP 0 (pclutch' p q)
+> in evalP (pclutch' p q)
 
 Note the initialization behavior, nothing
 is generated until the first true value.
 
 > let { p = pseq [1, 2, 3, 4, 5] 3
 >     ; q = pseq [0, 0, 0, 1, 0, 0, 1] 1 }
-> in evalP 0 (pclutch p q)
+> in evalP (pclutch p q)

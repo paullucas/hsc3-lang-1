@@ -5,9 +5,9 @@ Exponential distribution distribution in given range.
 > import Sound.SC3.Lang.Pattern
 
 > let p = pexprand 0.01 0.99 12
-> in evalP 0 p
+> in evalP (pfixR 0 p)
 
 > let { l = pseq [1, 11] 1
 >     ; r = pseq [2, 12] 1
 >     ; p = pexprand l r 12 }
-> in evalP 0 p
+> in evalP (pfixR 0 p)

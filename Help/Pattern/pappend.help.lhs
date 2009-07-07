@@ -7,6 +7,6 @@ Sequence two patterns.  This is the mappend instance of Monoid.
 
 > let { p = pseq [1, 2] 1
 >     ; q = pseq [2, 3] 1 }
-> in evalP 0 (p `mappend` q)
+> in evalP (p `mappend` q)
 
-> evalP 0 (pempty `mappend` pempty)
+> evalP (pempty `mappend` pempty)

@@ -38,9 +38,9 @@ some interesting questions.
 
 The type of a pattern is abstract.
 
-> data P a
+> data P s a
 
-(P a) is the abstract data type of a pattern 
+(P s a) is the abstract data type of a pattern 
 with elements of type a.
 
 Patterns are constructed, manipulated and destructured 
@@ -56,8 +56,8 @@ Patterns are instances of monoid.  mempty is the
 empty pattern, and mappend makes a sequence of two
 patterns.
 
-> pempty :: P a
-> pappend :: P a -> P a -> P a
+> pempty :: P s a
+> pappend :: P s a -> P s a -> P s a
 
 * Patterns are Functors
 
@@ -67,7 +67,7 @@ patterns.
 Patterns are an instance of Functor.  fmap applies
 a function to each element of a pattern.
 
-> pmap :: (a -> b) -> P a -> P b
+> pmap :: (a -> b) -> P s a -> P s b
 
 * Patterns are Applicative
 
@@ -81,8 +81,8 @@ into an infinite pattern of itself.  The (<*>)
 function applies a pattern of functions to a
 pattern of values.
 
-> ppure :: a -> P a
-> papply :: P (a -> b) -> P a -> P b
+> ppure :: a -> P s a
+> papply :: P s (a -> b) -> P s a -> P s b
 
 Consider summing two patterns:
 
@@ -90,7 +90,7 @@ Consider summing two patterns:
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
-> in evalP 0 (pure (+) <*> p <*> q)
+> in evalP (pure (+) <*> p <*> q)
 
 * Patterns are Monads
 
@@ -105,22 +105,22 @@ value.  The return function places a value into
 the monad, for the pattern case it creates a 
 single element pattern.
 
-> pbind :: P x -> (x -> P a) -> P a
-> preturn :: a -> P a
+> pbind :: P s x -> (x -> P s a) -> P s a
+> preturn :: a -> P s a
 
 The monad instance for Patterns follows the
 standard monad instance for lists, for example:
 
-> evalP 0 (pseq [1, 2] 1 >>= \x ->
->          pseq [3, 4, 5] 1 >>= \y ->
->          return (x, y))
+> evalP (pseq [1, 2] 1 >>= \x ->
+>        pseq [3, 4, 5] 1 >>= \y ->
+>        return (x, y))
 
 which may be written using the haskell do notation
 as:
 
-> evalP 0 (do { x <- pseq [1, 2] 1
->             ; y <- pseq [3, 4, 5] 1
->             ; return (x, y) })
+> evalP (do { x <- pseq [1, 2] 1
+>           ; y <- pseq [3, 4, 5] 1
+>           ; return (x, y) })
 
 denotes the pattern having elements (1,3), (1,4),
 (1,5), (2,3), (2,4) and (2,5).
@@ -152,25 +152,23 @@ pattern (return x) can be written as the literal
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
-> in evalP 0 (p + q)
+> in evalP (p + q)
 
 The numerical instances are written using the 
 applicative functions pure and <*>.
 
-* Intederminacy, Randomness
+* Statefullness, Intederminacy, Randomness
 
 A pattern may be given by a function from
-a random number generator to a duple of
-a pattern and a derived random number 
-generator.
+an initial state to a duple of a pattern and
+a derived state.
 
-> prp :: (StdGen -> (P a, StdGen)) -> P a
+> prp :: (s -> (P s a, s)) -> P s a
 
-pfix makes a pattern determinate by seeding 
-the random number generator for the pattern.
+pfix makes a pattern determinate by setting 
+the initial state for the pattern.
 
-> type Seed = Int
-> pfix :: Seed -> P a -> P a
+> pfix :: s -> P s a -> P s a
 
 * Accumulation, Threading
 
@@ -181,7 +179,7 @@ duplicates from a pattern, to count the distance
 between occurences of an element in a pattern and
 so on.
 
-> pscan :: (x -> y -> (x, a)) -> (x -> a) -> x -> P y -> P a
+> pscan :: (x -> y -> (x, a)) -> (x -> a) -> x -> P s y -> P s a
 
 * Continuing
 
@@ -189,7 +187,7 @@ pcontinue provides a mechanism to destructure a
 pattern and generate a new pattern based on the
 first element and the 'rest' of the pattern.
 
-> pcontinue :: P x -> (x -> P x -> P a) -> P a
+> pcontinue :: P s x -> (x -> P s x -> P s a) -> P s a
 
 The bind instance of monad is written in relation
 to pcontinue.
@@ -203,10 +201,9 @@ the front element of a pattern, and so on.
 * Destructuring, folding
 
 A pattern has an ordinary right fold, with the
-additional requirement of a seed value for the 
-random number generator.
+additional requirement of an initial state value.
 
-> pfoldr :: Seed -> (a -> b -> b) -> b -> P a -> b
+> pfoldr :: s -> (a -> b -> b) -> b -> P s a -> b
 
 pfoldr is the primitive traversal function for
 a pattern.  
@@ -215,7 +212,7 @@ Right folding with the list constructor (:) and
 the empty list transforms a pattern into a list.
 
 > let p = pser [1, 2, 3] 5 + pseq [0, 10] 3
-> in pfoldr 0 (:) [] p
+> in pfoldr undefined (:) [] p
 
 * Extension
 

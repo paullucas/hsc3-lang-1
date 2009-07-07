@@ -7,7 +7,7 @@ An arithmetric series.
  length - number of values
 
 > let p = pseries 0 2 24
-> in evalP 0 p
+> in evalP p
 
 > let p = pseries 1.0 0.1 24
-> in evalP 0 p
+> in evalP p

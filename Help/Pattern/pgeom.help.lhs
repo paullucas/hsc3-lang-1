@@ -9,9 +9,9 @@ Geometric series pattern.
 > import Sound.SC3.Lang.Pattern
 
 > let p = pgeom 1 2 12
-> in evalP 0 p
+> in evalP p
 
 Real numbers work as well.
 
 > let p = pgeom 1.0 1.1 6
-> in evalP 0 p
+> in evalP p

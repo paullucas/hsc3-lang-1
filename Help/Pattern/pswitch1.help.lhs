@@ -19,4 +19,4 @@ pswitch1 is implemented in terms of pswitch1m.
 > let { p = pseq [1, 2, 3] pinf
 >     ; q = pseq [65, 76] pinf
 >     ; r = pswitch1 [p, q, pure 800] (pseq [2, 2, 0, 1] pinf) }
-> in take 24 (evalP 0 r)
+> in take 24 (evalP r)

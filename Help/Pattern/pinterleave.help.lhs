@@ -6,8 +6,8 @@ Interleave elements from two patterns.
 
 > let { p = pseq [1, 2, 3] 3
 >     ; q = pseq [4, 5, 6, 7] 2 }
-> in evalP 0 (pinterleave p q)
+> in evalP (pinterleave p q)
 
 > let p = pinterleave (pwhite 1 9 5) (pseries 10 1 10)
-> in evalP 1317 p
+> in evalR 1317 p
 

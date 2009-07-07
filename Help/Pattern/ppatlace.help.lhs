@@ -12,11 +12,11 @@ output in turn.
 
 > let { w = pwhite 1 5 5
 >     ; g = pgeom 10 1.01 10 }
-> in evalP 0 (ppatlace [w, g] 15)
+> in evalR 0 (ppatlace [w, g] 15)
 
 > let { w = pwhite 1 5 5
 >     ; g = pgeom 10 1.01 10 }
-> in evalP 0 (ptake 15 (ppatlacea (pseq (map return [w, g]) 1)))
+> in evalR 0 (ptake 15 (ppatlacea (pseq (map return [w, g]) 1)))
 
 Note that the ppatlace has an infinite number 
 of repeats, but the resulting stream is finite 

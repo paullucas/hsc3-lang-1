@@ -14,4 +14,4 @@ values at 'tr' generate Nothing values.
 
 > let { p = pseq [1, 2, 3, 4, 5] 3     
 >     ; t = pbool (pseq [0, 0, 1, 0, 0, 0, 1, 1] 1) } 
-> in evalP 0 (ptrigger t p)
+> in evalP (ptrigger t p)
