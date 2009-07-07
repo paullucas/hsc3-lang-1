@@ -22,22 +22,22 @@ module Sound.SC3.Lang.Pattern.Pattern
 
 import Control.Applicative
 import Data.Monoid
-import System.Random
+import qualified System.Random as R
 
 data P a = Empty
          | Value a
-         | RP (StdGen -> (P a, StdGen))
+         | RP (R.StdGen -> (P a, R.StdGen))
          | Append (P a) (P a)
-         | Fix StdGen (P a)
+         | Fix R.StdGen (P a)
          | forall x . Unfoldr (x -> Maybe (a, x)) x
          | forall x . Continue (P x) (x -> P x -> P a)
          | forall x . Apply (P (x -> a)) (P x)
          | forall x y . Scan (x -> y -> (x, a)) (Maybe (x -> a)) x (P y)
 
-data Result a = Result StdGen a (P a)
-              | Done StdGen
+data Result a = Result R.StdGen a (P a)
+              | Done R.StdGen
 
-step :: StdGen -> P a -> Result a
+step :: R.StdGen -> P a -> Result a
 step g Empty = Done g
 step g (Value a) = Result g a pempty
 step g (RP f) = let (p, g') = f g
@@ -67,13 +67,13 @@ step g (Scan f f' i p) = case step g p of
     Result g' a p' -> let (j, x) = f i a
                       in Result g' x (Scan f f' j p')
 
-pfoldr' :: StdGen -> (a -> b -> b) -> b -> P a -> b
+pfoldr' :: R.StdGen -> (a -> b -> b) -> b -> P a -> b
 pfoldr' g f i p = case step g p of
                     Done _ -> i
                     Result g' a p' -> f a (pfoldr' g' f i p')
 
 pfoldr :: Seed -> (a -> b -> b) -> b -> P a -> b
-pfoldr = pfoldr' . mkStdGen
+pfoldr = pfoldr' . R.mkStdGen
 
 evalP :: Int -> P a -> [a]
 evalP n = pfoldr n (:) []
@@ -137,7 +137,7 @@ pempty = Empty
 preturn :: a -> P a
 preturn = Value
 
-prp :: (StdGen -> (P a, StdGen)) -> P a
+prp :: (R.StdGen -> (P a, R.StdGen)) -> P a
 prp = RP
 
 pinf :: P Int
@@ -149,7 +149,7 @@ pappend = Append
 type Seed = Int
 
 pfix :: Seed -> P a -> P a
-pfix = Fix . mkStdGen
+pfix = Fix . R.mkStdGen
 
 pcontinue :: P x -> (x -> P x -> P a) -> P a
 pcontinue = Continue
