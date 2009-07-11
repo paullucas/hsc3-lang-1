@@ -38,9 +38,9 @@ some interesting questions.
 
 The type of a pattern is abstract.
 
-> data P s a
+> data P a
 
-(P s a) is the abstract data type of a pattern 
+(P a) is the abstract data type of a pattern 
 with elements of type a.
 
 Patterns are constructed, manipulated and destructured 
@@ -56,8 +56,8 @@ Patterns are instances of monoid.  mempty is the
 empty pattern, and mappend makes a sequence of two
 patterns.
 
-> pempty :: P s a
-> pappend :: P s a -> P s a -> P s a
+> pempty :: P a
+> pappend :: P a -> P a -> P a
 
 * Patterns are Functors
 
@@ -67,7 +67,7 @@ patterns.
 Patterns are an instance of Functor.  fmap applies
 a function to each element of a pattern.
 
-> pmap :: (a -> b) -> P s a -> P s b
+> pmap :: (a -> b) -> P a -> P b
 
 * Patterns are Applicative
 
@@ -81,8 +81,8 @@ into an infinite pattern of itself.  The (<*>)
 function applies a pattern of functions to a
 pattern of values.
 
-> ppure :: a -> P s a
-> papply :: P s (a -> b) -> P s a -> P s b
+> ppure :: a -> P a
+> papply :: P (a -> b) -> P a -> P b
 
 Consider summing two patterns:
 
@@ -105,8 +105,8 @@ value.  The return function places a value into
 the monad, for the pattern case it creates a 
 single element pattern.
 
-> pbind :: P s x -> (x -> P s a) -> P s a
-> preturn :: a -> P s a
+> pbind :: P x -> (x -> P a) -> P a
+> preturn :: a -> P a
 
 The monad instance for Patterns follows the
 standard monad instance for lists, for example:
@@ -163,12 +163,12 @@ A pattern may be given by a function from
 an initial state to a duple of a pattern and
 a derived state.
 
-> prp :: (s -> (P s a, s)) -> P s a
+> prp :: (s -> (P a, s)) -> P a
 
 pfix makes a pattern determinate by setting 
 the initial state for the pattern.
 
-> pfix :: s -> P s a -> P s a
+> pfix :: s -> P a -> P a
 
 * Accumulation, Threading
 
@@ -179,7 +179,7 @@ duplicates from a pattern, to count the distance
 between occurences of an element in a pattern and
 so on.
 
-> pscan :: (x -> y -> (x, a)) -> (x -> a) -> x -> P s y -> P s a
+> pscan :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P y -> P a
 
 * Continuing
 
@@ -187,7 +187,7 @@ pcontinue provides a mechanism to destructure a
 pattern and generate a new pattern based on the
 first element and the 'rest' of the pattern.
 
-> pcontinue :: P s x -> (x -> P s x -> P s a) -> P s a
+> pcontinue :: P x -> (x -> P x -> P a) -> P a
 
 The bind instance of monad is written in relation
 to pcontinue.
@@ -203,7 +203,7 @@ the front element of a pattern, and so on.
 A pattern has an ordinary right fold, with the
 additional requirement of an initial state value.
 
-> pfoldr :: s -> (a -> b -> b) -> b -> P s a -> b
+> pfoldr :: s -> (a -> b -> b) -> b -> P a -> b
 
 pfoldr is the primitive traversal function for
 a pattern.  
