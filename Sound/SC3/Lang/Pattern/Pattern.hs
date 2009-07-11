@@ -3,7 +3,6 @@
 module Sound.SC3.Lang.Pattern.Pattern
     ( P
     , pfoldr, evalP
-    , pfix
     , pcontinue
     , pmap -- Prelude.fmap
     , punfoldr -- Data.List.unfoldr
@@ -22,21 +21,21 @@ module Sound.SC3.Lang.Pattern.Pattern
 
 import Control.Applicative
 import Data.Monoid
+import qualified System.Random as R
 
-data P s a = Empty
+data P a = Empty
            | Value a
-           | RP (s -> (P s a, s))
-           | Append (P s a) (P s a)
-           | Fix s (P s a)
+           | RP (R.StdGen -> (P a, R.StdGen))
+           | Append (P a) (P a)
            | forall x . Unfoldr (x -> Maybe (a, x)) x
-           | forall x . Continue (P s x) (x -> P s x -> P s a)
-           | forall x . Apply (P s (x -> a)) (P s x)
-           | forall x y . Scan (x -> y -> (x, a)) (Maybe (x -> a)) x (P s y)
+           | forall x . Continue (P x) (x -> P x -> P a)
+           | forall x . Apply (P (x -> a)) (P x)
+           | forall x y . Scan (x -> y -> (x, a)) (Maybe (x -> a)) x (P y)
 
-data Result s a = Result s a (P s a)
-                | Done s
+data Result a = Result R.StdGen a (P a)
+              | Done R.StdGen
 
-step :: s -> P s a -> Result s a
+step :: R.StdGen -> P a -> Result a
 step g Empty = Done g
 step g (Value a) = Result g a pempty
 step g (RP f) = let (p, g') = f g
@@ -44,9 +43,6 @@ step g (RP f) = let (p, g') = f g
 step g (Append x y) = case step g x of
     Done g' -> step g' y
     Result g' a x' -> Result g' a (Append x' y)
-step g (Fix fg p) = case step fg p of
-    Done _ -> Done g
-    Result fg' x p' -> Result g x (Fix fg' p')
 step g (Continue p f) = case step g p of
     Done g' -> Done g'
     Result g' x p' -> step g' (f x p')
@@ -66,25 +62,26 @@ step g (Scan f f' i p) = case step g p of
     Result g' a p' -> let (j, x) = f i a
                       in Result g' x (Scan f f' j p')
 
-pfoldr :: s -> (a -> b -> b) -> b -> P s a -> b
-pfoldr g f i p = case step g p of
-                   Done _ -> i
-                   Result g' a p' -> f a (pfoldr g' f i p')
+pfoldr :: R.StdGen -> (a -> b -> b) -> b -> P a -> b
+pfoldr g f i p =
+    case step g p of
+      Done _ -> i
+      Result g' a p' -> f a (pfoldr g' f i p')
 
-evalP :: P s a -> [a]
+evalP :: P a -> [a]
 evalP = pfoldr (error "evalP") (:) []
 
-instance (Show a) => Show (P s a) where
+instance (Show a) => Show (P a) where
     show _ = show "a pattern"
 
-instance (Eq a) => Eq (P s a) where
+instance (Eq a) => Eq (P a) where
     _ == _ = False
 
 -- | Apply `f' pointwise to elements of `p' and `q'.
-pzipWith :: (a -> b -> c) -> P s a -> P s b -> P s c
+pzipWith :: (a -> b -> c) -> P a -> P b -> P c
 pzipWith f p = (<*>) (pure f <*> p)
 
-instance (Num a) => Num (P s a) where
+instance (Num a) => Num (P a) where
     (+) = pzipWith (+)
     (-) = pzipWith (-)
     (*) = pzipWith (*)
@@ -93,69 +90,66 @@ instance (Num a) => Num (P s a) where
     fromInteger = return . fromInteger
     negate = fmap negate
 
-instance (Fractional a) => Fractional (P s a) where
+instance (Fractional a) => Fractional (P a) where
     (/) = pzipWith (/)
     recip = fmap recip
     fromRational = return . fromRational
 
-pcycle :: P s a -> P s a
+pcycle :: P a -> P a
 pcycle x = x `mappend` pcycle x
 
-prepeat :: a -> P s a
+prepeat :: a -> P a
 prepeat = pcycle . return
 
-pmap :: (a -> b) -> P s a -> P s b
+pmap :: (a -> b) -> P a -> P b
 pmap = (<*>) . prepeat
 
-instance Functor (P s) where
+instance Functor P where
     fmap = pmap
 
-instance Monad (P s) where
+instance Monad P where
     (>>=) = pbind
     return = preturn
 
-instance Monoid (P s a) where
+instance Monoid (P a) where
     mempty = pempty
     mappend = pappend
 
-ppure :: a -> P s a
+ppure :: a -> P a
 ppure = prepeat
 
-instance Applicative (P s) where
+instance Applicative P where
     pure = ppure
     (<*>) = papply
 
 -- * Basic constructors
 
-pempty :: P s a
+pempty :: P a
 pempty = Empty
 
-preturn :: a -> P s a
+preturn :: a -> P a
 preturn = Value
 
-prp :: (s -> (P s a, s)) -> P s a
+prp :: (R.StdGen -> (P a, R.StdGen)) -> P a
 prp = RP
 
-pinf :: P s Int
+pinf :: P Int
 pinf = return 83886028 -- 2 ^^ 23
 
-pappend :: P s a -> P s a -> P s a
+pappend :: P a -> P a -> P a
 pappend = Append
 
-pfix :: s -> P s a -> P s a
-pfix = Fix
-
-pcontinue :: P s x -> (x -> P s x -> P s a) -> P s a
+pcontinue :: P x -> (x -> P x -> P a) -> P a
 pcontinue = Continue
 
-pbind :: P s x -> (x -> P s a) -> P s a
+pbind :: P x -> (x -> P a) -> P a
 pbind p f = pcontinue p (\x q -> f x `mappend` pbind q f)
 
-papply :: P s (a -> b) -> P s a -> P s b
+papply :: P (a -> b) -> P a -> P b
 papply = Apply
 
-pscan :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P s y -> P s a
+pscan :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P y -> P a
 pscan = Scan
 
-punfoldr :: (x -> Maybe (a, x)) -> x -> P s a
+punfoldr :: (x -> Maybe (a, x)) -> x -> P a
 punfoldr = Unfoldr
