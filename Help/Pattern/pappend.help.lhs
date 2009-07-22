@@ -1,4 +1,4 @@
-pappend :: P a -> P a -> P a
+mappend :: P a -> P a -> P a
 
 Sequence two patterns.  This is the mappend instance of Monoid.
 
@@ -9,4 +9,4 @@ Sequence two patterns.  This is the mappend instance of Monoid.
 >     ; q = pseq [2, 3] 1 }
 > in evalP (p `mappend` q)
 
-> evalP (pempty `mappend` pempty)
+> evalP (mempty `mappend` mempty)

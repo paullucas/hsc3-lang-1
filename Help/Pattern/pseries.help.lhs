@@ -6,6 +6,8 @@ An arithmetric series.
    step - addition factor
  length - number of values
 
+> import Sound.SC3.Lang.Pattern
+
 > let p = pseries 0 2 24
 > in evalP p
 

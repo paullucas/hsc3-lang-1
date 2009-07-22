@@ -56,9 +56,6 @@ Patterns are instances of monoid.  mempty is the
 empty pattern, and mappend makes a sequence of two
 patterns.
 
-> pempty :: P a
-> pappend :: P a -> P a -> P a
-
 * Patterns are Functors
 
 > class Functor f
@@ -67,7 +64,7 @@ patterns.
 Patterns are an instance of Functor.  fmap applies
 a function to each element of a pattern.
 
-> pmap :: (a -> b) -> P a -> P b
+> evalP (fmap (\n -> n * 2) (pseq [1,2,3,4,5] 1))
 
 * Patterns are Applicative
 
@@ -80,9 +77,6 @@ Paterson, 2007).  The pure function lifts a value
 into an infinite pattern of itself.  The (<*>)
 function applies a pattern of functions to a
 pattern of values.
-
-> ppure :: a -> P a
-> papply :: P (a -> b) -> P a -> P b
 
 Consider summing two patterns:
 
@@ -105,9 +99,6 @@ value.  The return function places a value into
 the monad, for the pattern case it creates a 
 single element pattern.
 
-> pbind :: P x -> (x -> P a) -> P a
-> preturn :: a -> P a
-
 The monad instance for Patterns follows the
 standard monad instance for lists, for example:
 
@@ -124,6 +115,26 @@ as:
 
 denotes the pattern having elements (1,3), (1,4),
 (1,5), (2,3), (2,4) and (2,5).
+
+* Patterns are Foldable
+
+> import Data.Foldable
+
+> Data.Foldable.product (pseq [1,3,5] 1)
+
+> Data.Foldable.sum (pwhite 0.25 0.75 12)
+
+> Data.Foldable.any even (pseq [1,3,5] 1)
+
+> Data.Foldable.elem 5 (pseq [1,3,5] 1)
+
+* Patterns are Traversable
+
+> import Data.Traversable
+
+> let { f i e = (i + e, e * 2)
+>     ; (r, p) = Data.Traversable.mapAccumL f 0 (pseq [1,3,5] 1) }
+> in (r, evalP p)
 
 * Patterns are numerical
 
@@ -165,11 +176,6 @@ a derived state.
 
 > prp :: (s -> (P a, s)) -> P a
 
-pfix makes a pattern determinate by setting 
-the initial state for the pattern.
-
-> pfix :: s -> P a -> P a
-
 * Accumulation, Threading
 
 pscan is an accumulator.  It provides a mechanism
@@ -192,7 +198,7 @@ first element and the 'rest' of the pattern.
 The bind instance of monad is written in relation
 to pcontinue.
 
-> pbind p f = pcontinue p (\x q -> f x `mappend` pbind q f)
+> (>>=) p f = pcontinue p (\x q -> f x `mappend` pbind q f)
 
 pcontinue can be used to write pfilter the
 basic pattern filter, ptail which discards

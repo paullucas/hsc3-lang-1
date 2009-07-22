@@ -11,7 +11,7 @@ and so on. Returns the pattern of intermediate and final results.
 
 [64.0,16.0,8.0,2.0]
 
-> evalP (pscanl (/) 3 pempty)
+> evalP (pscanl (/) 3 mempty)
 
 [3.0]
 

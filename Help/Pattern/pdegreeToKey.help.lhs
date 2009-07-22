@@ -14,8 +14,8 @@ Derive notes from an index into a scale.
 > in evalP (pdegreeToKey p q r)
 
 > let { p = pseq [0, 1, 2, 3, 4, 3, 2, 1, 0, 2, 4, 7, 4, 2] 2
->     ; q = pseq [preturn [0, 2, 4, 5, 7, 9, 11]
->                ,preturn [0, 2, 3, 5, 7, 8, 11]] 1
+>     ; q = pseq [return [0, 2, 4, 5, 7, 9, 11]
+>                ,return [0, 2, 3, 5, 7, 8, 11]] 1
 >     ; r = prepeat 12 }
 > in evalP (pdegreeToKey p (pstutter 14 q) r)
 

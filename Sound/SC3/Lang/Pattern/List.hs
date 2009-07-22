@@ -23,17 +23,19 @@ pswitch :: [P a] -> P Int -> P a
 pswitch l i = i >>= (l !!)
 
 pswitch1m :: M.IntMap (P a) -> P Int -> P a
-pswitch1m m is = let f i js = let h = phead (m M.! i)
-                                  t = ptail (m M.! i)
-                              in h `mappend` pswitch1m (M.insert i t m) js
-                 in pcontinue is f
+pswitch1m m is =
+    let f i js = let h = phead (m M.! i)
+                     t = ptail (m M.! i)
+                 in h `mappend` pswitch1m (M.insert i t m) js
+    in pcontinue is f
 
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 = pswitch1m . M.fromList . zip [0..]
 
 ppatlace :: [P a] -> P Int -> P a
-ppatlace ps n = let is = pseq (map return [0 .. length ps - 1]) pinf
-                in ptake n (pswitch1 ps is)
+ppatlace ps n =
+    let is = pseq (map return [0 .. length ps - 1]) pinf
+    in ptake n (pswitch1 ps is)
 
 {-
 

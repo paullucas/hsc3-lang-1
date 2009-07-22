@@ -12,7 +12,7 @@ Returns one item from the list at random for each repeat.
 >               , pseq [5, 6] 1 ] 9
 > in evalR 3 p
 
-> let p = pseq [prand [pempty, pseq [24, 31, 36, 43, 48, 55] 1] 1
+> let p = pseq [prand [mempty, pseq [24, 31, 36, 43, 48, 55] 1] 1
 >              ,pseq [60, prand [63, 65] 1
 >                    ,67, prand [70, 72, 74] 1] (prrand 2 5)
 >              ,prand [74, 75, 77, 79, 81] (prrand 3 9)] pinf

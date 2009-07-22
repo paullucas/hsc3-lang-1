@@ -10,12 +10,9 @@ import qualified System.Random as R
 
 -- Random numbers
 
-evalR :: Int -> P a -> [a]
-evalR n = pfoldr (R.mkStdGen n) (:) []
-
 prrandf :: (R.Random a) => (a -> a -> a -> a) -> a -> a -> P a
 prrandf f l r = prp (\g -> let (x, g') = R.randomR (l,r) g
-                           in (preturn (f l r x), g'))
+                           in (return (f l r x), g'))
 
 prrand :: (R.Random a) => a -> a -> P a
 prrand = prrandf (\_ _ x -> x)

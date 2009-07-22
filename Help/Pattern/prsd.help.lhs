@@ -4,5 +4,5 @@ Remove successive duplicates.
 
 > import Sound.SC3.Lang.Pattern
 
-> let p = pfixR 0 (prand [1,2,3] 9)
-> in evalR 0 (pzip (prsd p) p)
+> let p = pseq [1,1,2,2,2,3,3] 1
+> in evalP (prsd p)

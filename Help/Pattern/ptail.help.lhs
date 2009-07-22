@@ -7,4 +7,4 @@ Drop first element from pattern.
 > let p = pseq [1, 2, 3] 1
 > in evalP (ptail p)
 
-> evalP (ptail pempty)
+> evalP (ptail mempty)
