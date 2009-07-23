@@ -10,7 +10,8 @@ module Sound.SC3.Lang.Pattern.Pattern
     , pinf
     , pzipWith
     , pcycle
-    , prepeat ) where
+    , prepeat
+    , pfix ) where
 
 import qualified Control.Applicative as A
 import qualified Control.Monad as M
@@ -22,6 +23,7 @@ import qualified System.Random as R
 data P a = Empty
          | Value a
          | RP (R.StdGen -> (P a, R.StdGen))
+         | Fix R.StdGen (P a)
          | Append (P a) (P a)
          | forall x . Unfoldr (x -> Maybe (a, x)) x
          | forall x . Continue (P x) (x -> P x -> P a)
@@ -36,6 +38,10 @@ step g Empty = Done g
 step g (Value a) = Result g a M.mempty
 step g (RP f) = let (p, g') = f g
                 in step g' p
+step g (Fix g' p) =
+    case step g' p of
+      Done _ -> Done g
+      Result g'' a p' -> Result g a (Fix g'' p')
 step g (Append x y) = case step g x of
     Done g' -> step g' y
     Result g' a x' -> Result g' a (Append x' y)
@@ -144,3 +150,6 @@ pscan = Scan
 
 punfoldr :: (x -> Maybe (a, x)) -> x -> P a
 punfoldr = Unfoldr
+
+pfix :: Int -> P a -> P a
+pfix n = Fix (R.mkStdGen n)

@@ -14,6 +14,15 @@ non-zero.
 > let p = pwhite 0.0 1.0 12
 > in evalP (p - p)
 
+And likewise the below is a list of two possibly 
+different elements.
+
+> let { p = pwhite 1 10 1
+>     ; q = phead p }
+> in evalP (pseq [q, q] 1)
+
+The below is alternately lower and higher noise.
+
 > let { l = pseq [0.0, 10.0] 1
 >     ; r = pseq [1.0, 11.0] 1
 >     ; p = pwhite l r 12 }
