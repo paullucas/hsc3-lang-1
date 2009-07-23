@@ -9,5 +9,4 @@ Interleave elements from two patterns.
 > in evalP (pinterleave p q)
 
 > let p = pinterleave (pwhite 1 9 5) (pseries 10 1 10)
-> in evalR 1317 p
-
+> in evalP p

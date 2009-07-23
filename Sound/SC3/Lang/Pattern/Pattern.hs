@@ -2,7 +2,7 @@
 
 module Sound.SC3.Lang.Pattern.Pattern
     ( P
-    , evalP, evalR
+    , evalP
     , pcontinue
     , punfoldr -- Data.List.unfoldr
     , prp
@@ -67,9 +67,6 @@ pfoldr' g f i p =
 evalP :: P a -> [a]
 evalP = F.foldr (:) []
 
-evalR :: Int -> P a -> [a]
-evalR n = pfoldr' (R.mkStdGen n) (:) []
-
 instance (Show a) => Show (P a) where
     show _ = show "a pattern"
 
@@ -116,7 +113,7 @@ instance M.Monoid (P a) where
     mappend = Append
 
 instance F.Foldable P where
-    foldr = pfoldr' (R.mkStdGen 0)
+    foldr = pfoldr' (R.mkStdGen 1497285)
 
 instance T.Traversable P where
     traverse f =

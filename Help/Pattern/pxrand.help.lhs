@@ -6,4 +6,4 @@ step, but pxrand never repeats the same element twice in a row.
 > import Sound.SC3.Lang.Pattern
 
 > let p = pxrand [1,2,3] 10
-> in evalR 0 p
+> in evalP p

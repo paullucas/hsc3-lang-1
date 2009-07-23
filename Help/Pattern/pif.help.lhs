@@ -22,7 +22,7 @@ noisy branches.
 > let { c = fmap (< 0.3) (pwhite 0 1 20)
 >     ; p = pwhite 0 9 pinf
 >     ; q = pwhite 100 109 pinf }
-> in evalR 0 (pif c p q)
+> in evalP (pif c p q)
 
 Note that the noisy variant can be had for
 less trouble as:
@@ -31,4 +31,4 @@ less trouble as:
 >     ; p = pwhite 0 9 pinf
 >     ; q = pwhite 100 109 pinf 
 >     ; if_f c' p' q' = if c' then p' else q' }
-> in evalR 0 (pzipWith3 if_f c p q)
+> in evalP (pzipWith3 if_f c p q)
