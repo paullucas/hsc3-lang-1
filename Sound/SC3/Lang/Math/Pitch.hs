@@ -38,18 +38,21 @@ default_freq_f :: (Floating a) => Pitch a -> a
 default_freq_f e = midi_cps (midinote e + ctranspose e) * harmonic e
 
 default_midinote_f :: (Fractional a) => Pitch a -> a
-default_midinote_f e = let n = note e + gtranspose e + root e
-                       in (n / stepsPerOctave e + octave e) * 12
+default_midinote_f e =
+    let n = note e + gtranspose e + root e
+    in (n / stepsPerOctave e + octave e) * 12
 
 default_note_f :: (RealFrac a) => Pitch a -> a
-default_note_f e = let d = degree e + mtranspose e
-                   in degree_to_key d (scale e) (stepsPerOctave e)
+default_note_f e =
+    let d = degree e + mtranspose e
+    in degree_to_key d (scale e) (stepsPerOctave e)
 
 degree_to_key :: (RealFrac a) => a -> [a] -> a -> a
-degree_to_key d s n = (n * fromIntegral (d' `div` l)) + (s !! (d' `mod` l)) + a
-    where l = length s
-          d' = round d
-          a = (d - fromIntegral d') * 10.0 * (n / 12.0)
+degree_to_key d s n =
+    let l = length s
+        d' = round d
+        a = (d - fromIntegral d') * 10.0 * (n / 12.0)
+    in (n * fromIntegral (d' `div` l)) + (s !! (d' `mod` l)) + a
 
 note :: Pitch a -> a
 note e = note_f e e
