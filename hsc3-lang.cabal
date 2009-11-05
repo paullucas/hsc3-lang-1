@@ -15,39 +15,9 @@ Build-Type:        Simple
 Cabal-Version:     >= 1.6
 
 Data-files:        README
-                   -- The below is appended by:
-                   -- find Help -name "*.*hs" | sort | \
-                   -- sed "s/^/                   /" >> hsc3-lang.cabal
-                   Help/Collection/collection.help.lhs
-                   Help/Math/pitch.help.lhs
-                   Help/Pattern/pattern.help.lhs
-                   Help/Pattern/pclutch.help.lhs
-                   Help/Pattern/pcollect.help.lhs
-                   Help/Pattern/pcountpre.help.lhs
-                   Help/Pattern/pdegreeToKey.help.lhs
-                   Help/Pattern/pdrop.help.lhs
-                   Help/Pattern/pexprand.help.lhs
-                   Help/Pattern/pfilter.help.lhs
-                   Help/Pattern/pfin.help.lhs
-                   Help/Pattern/pgeom.help.lhs
-                   Help/Pattern/pif.help.lhs
-                   Help/Pattern/pinterleave.help.lhs
-                   Help/Pattern/pn.help.lhs
-                   Help/Pattern/prand.help.lhs
-                   Help/Pattern/preject.help.lhs
-                   Help/Pattern/prorate.help.lhs
-                   Help/Pattern/prsd.help.lhs
-                   Help/Pattern/pseq.help.lhs
-                   Help/Pattern/pser.help.lhs
-                   Help/Pattern/pseries.help.lhs
-                   Help/Pattern/pstutter.help.lhs
-                   Help/Pattern/pswitch1.help.lhs
-                   Help/Pattern/pswitch.help.lhs
-                   Help/Pattern/ptail.help.lhs
-                   Help/Pattern/ptrigger.help.lhs
-                   Help/Pattern/pwhite.help.lhs
-                   Help/Pattern/pwrap.help.lhs
-                   Help/Pattern/pxrand.help.lhs
+                   Help/Collection/*.help.lhs
+                   Help/Math/*.help.lhs
+                   Help/Pattern/*.help.lhs
 
 Library
   Build-Depends:   array,
