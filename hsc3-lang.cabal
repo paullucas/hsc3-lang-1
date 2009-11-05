@@ -38,3 +38,7 @@ Library
                    Sound.SC3.Lang.Pattern.Control
                    Sound.SC3.Lang.Pattern.List
                    Sound.SC3.Lang.Pattern.Random
+
+Source-Repository  head
+  Type:            darcs
+  Location:        http://slavepianos.org/~rd/sw/hsc3-lang/
