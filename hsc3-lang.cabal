@@ -23,6 +23,7 @@ Library
   Build-Depends:   array,
                    base == 4.*,
                    containers,
+                   split,
                    random
   GHC-Options:     -Wall -fwarn-tabs
   Exposed-modules: Sound.SC3.Lang
