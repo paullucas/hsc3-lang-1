@@ -2,6 +2,7 @@ module Sound.SC3.Lang.Collection.SequenceableCollection where
 
 import Control.Monad
 import Data.List
+import Data.List.Split
 import Data.Maybe
 import Sound.SC3.Lang.Collection.Collection
 import System.Random
@@ -54,34 +55,41 @@ indexOfGreaterThan e = detectIndex (ignoringIndex (> e))
 
 -- | Collection is sorted, index of nearest element.
 indexIn :: (Ord a, Num a) => a -> [a] -> Int
-indexIn e l = maybe (size l - 1) f (indexOfGreaterThan e l)
-    where f 0 = 0
-          f j = if (e - left) < (right - e) then i else j 
-              where i = j - 1
-                    right = l !! j
-                    left = l !! i
+indexIn e l =
+    let f 0 = 0
+        f j = let i = j - 1
+                  right = l !! j
+                  left = l !! i
+              in if (e - left) < (right - e) then i else j
+    in maybe (size l - 1) f (indexOfGreaterThan e l)
 
 -- | Collection is sorted, linearly interpolated fractional index.
 indexInBetween :: (Ord a, Fractional a) => a -> [a] -> a
-indexInBetween e l = maybe (fromIntegral (size l) - 1) f (indexOfGreaterThan e l)
-    where f 0 = 0
-          f j = if d == 0 then i else ((e - a) / d) + i - 1
-              where i = fromIntegral j
-                    a = l !! (j - 1)
-                    b = l !! j
-                    d = b - a
+indexInBetween e l =
+    let f 0 = 0
+        f j = let i = fromIntegral j
+                  a = l !! (j - 1)
+                  b = l !! j
+                  d = b - a
+              in if d == 0 then i else ((e - a) / d) + i - 1
+    in maybe (fromIntegral (size l) - 1) f (indexOfGreaterThan e l)
 
 keep :: Int -> [a] -> [a]
-keep n l | n < 0 = fromMaybe l (find (\e -> length e == negate n) (tails l))
-         | otherwise = take n l
+keep n l =
+    if n < 0
+    then drop (length l + n) l
+    else take n l
 
 drop' :: Int -> [a] -> [a]
-drop' n l | n < 0 = take (length l + n) l
-          | otherwise = drop n l
+drop' n l =
+    if n < 0
+    then take (length l + n) l
+    else drop n l
 
 extendSequences :: [[a]] -> [[a]]
-extendSequences l = map (take n . cycle) l
-    where n = maximum (map length l)
+extendSequences l =
+    let n = maximum (map length l)
+    in map (take n . cycle) l
 
 flop :: [[a]] -> [[a]]
 flop = transpose . extendSequences
@@ -90,31 +98,35 @@ choose :: [a] -> IO a
 choose l = liftM (l!!) (getStdRandom (randomR (0, length l - 1)))
 
 separateAt :: (a -> a -> Bool) -> [a] -> ([a], [a])
-separateAt f (x1:x2:xs) = if f x1 x2 
-                          then ([x1], x2:xs) 
-                          else x1 `g` separateAt f (x2:xs)
-                              where g e (l,r) = (e:l, r)
+separateAt f (x1:x2:xs) =
+    if f x1 x2
+    then ([x1], x2:xs)
+    else let g e (l,r) = (e:l, r)
+         in x1 `g` separateAt f (x2:xs)
 separateAt _ l = (l,[])
 
 separate :: (a -> a -> Bool) -> [a] -> [[a]]
-separate f l = if null r then [e] else e : separate f r
-    where (e, r) = separateAt f l
+separate f l =
+    let (e, r) = separateAt f l
+    in if null r then [e] else e : separate f r
 
 clump :: Int -> [a] -> [[a]]
-clump n l = if null r then [e] else e : clump n r
-    where (e, r) = splitAt n l
+clump = splitEvery
 
 clumps :: [Int] -> [a] -> [[a]]
-clumps m s = f (cycle m) s
-    where f [] _ = undefined
-          f (n:ns) l = if null r then [e] else e :clumps ns r
-              where (e, r) = splitAt n l
+clumps [] _ = []
+clumps m s =
+    let f [] _ = undefined
+        f (n:ns) l = let (e, r) = splitAt n l
+                     in if null r then [e] else e :clumps ns r
+    in f (cycle m) s
 
 -- | dx -> d
 integrate :: (Num a) => [a] -> [a]
 integrate [] = []
-integrate (x:xs) = x : snd (mapAccumL f x xs)
-    where f p c = (p + c, p + c)
+integrate (x:xs) =
+    let f p c = (p + c, p + c)
+    in x : snd (mapAccumL f x xs)
 
 -- | d -> dx
 differentiate :: (Num a) => [a] -> [a]
@@ -122,21 +134,24 @@ differentiate l = zipWith (-) l (0:l)
 
 -- | Rotate n places to the left (ie. rotate 1 [1, 2, 3] is [2, 3, 1]).
 rotate :: Int -> [a] -> [a]
-rotate n p = let (b, a) = splitAt n p 
-             in a ++ b 
+rotate n p =
+    let (b, a) = splitAt n p
+    in a ++ b
 
 -- | Ensure sum of elements is one.
 normalizeSum :: (Fractional a) => [a] -> [a]
-normalizeSum l = let n = sum l
-                 in map (/ n) l
+normalizeSum l =
+    let n = sum l
+    in map (/ n) l
 
 -- | Variant that cycles the shorter input.
 zipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
-zipWith_c f a b = g a b (False, False)
-    where g [] [] _ = []
-          g [] b' (_, e) = if e then [] else g a b' (True, e)
-          g a' [] (e, _) = if e then [] else g a' b (e, True)
-          g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
+zipWith_c f a b =
+    let g [] [] _ = []
+        g [] b' (_, e) = if e then [] else g a b' (True, e)
+        g a' [] (e, _) = if e then [] else g a' b (e, True)
+        g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
+    in g a b (False, False)
 
 zip_c :: [a] -> [b] -> [(a, b)]
 zip_c = zipWith_c (,)
