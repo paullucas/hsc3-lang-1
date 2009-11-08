@@ -36,33 +36,39 @@ data Result a = Result R.StdGen a (P a)
 step :: R.StdGen -> P a -> Result a
 step g Empty = Done g
 step g (Value a) = Result g a M.mempty
-step g (RP f) = let (p, g') = f g
-                in step g' p
+step g (RP f) =
+    let (p, g') = f g
+    in step g' p
 step g (Fix g' p) =
     case step g' p of
       Done _ -> Done g
       Result g'' a p' -> Result g a (Fix g'' p')
-step g (Append x y) = case step g x of
-    Done g' -> step g' y
-    Result g' a x' -> Result g' a (Append x' y)
-step g (Continue p f) = case step g p of
-    Done g' -> Done g'
-    Result g' x p' -> step g' (f x p')
-step g (Unfoldr f x) = let y = f x 
-                       in case y of
-                            Nothing -> Done g
-                            Just (a, x') -> Result g a (Unfoldr f x')
-step g (Apply p q) = case step g p of
-    Done g' -> Done g'
-    Result g' f p' -> case step g' q of
-        Done g'' -> Done g''
-        Result g'' x q' -> Result g'' (f x) (Apply p' q')
-step g (Scan f f' i p) = case step g p of
-    Done g' -> case f' of
-                 Just h -> Result g' (h i) Empty
-                 Nothing -> Done g'
-    Result g' a p' -> let (j, x) = f i a
-                      in Result g' x (Scan f f' j p')
+step g (Append x y) =
+    case step g x of
+      Done g' -> step g' y
+      Result g' a x' -> Result g' a (Append x' y)
+step g (Continue p f) =
+    case step g p of
+      Done g' -> Done g'
+      Result g' x p' -> step g' (f x p')
+step g (Unfoldr f x) =
+    let y = f x
+    in case y of
+         Nothing -> Done g
+         Just (a, x') -> Result g a (Unfoldr f x')
+step g (Apply p q) =
+    case step g p of
+      Done g' -> Done g'
+      Result g' f p' -> case step g' q of
+                          Done g'' -> Done g''
+                          Result g'' x q' -> Result g'' (f x) (Apply p' q')
+step g (Scan f f' i p) =
+    case step g p of
+      Done g' -> case f' of
+                   Just h -> Result g' (h i) Empty
+                   Nothing -> Done g'
+      Result g' a p' -> let (j, x) = f i a
+                        in Result g' x (Scan f f' j p')
 
 pfoldr' :: R.StdGen -> (a -> b -> b) -> b -> P a -> b
 pfoldr' g f i p =
