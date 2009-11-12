@@ -1,4 +1,4 @@
-> import Sound.SC3.Lang.Pattern.Step
+> import Sound.SC3.Lang.Pattern.List
 
 * Beginning
 
@@ -64,7 +64,7 @@ patterns.
 Patterns are an instance of Functor.  fmap applies
 a function to each element of a pattern.
 
-> evalP (fmap (\n -> n * 2) (pseq [1,2,3,4,5] 1))
+> fmap (\n -> n * 2) (pseq [1,2,3,4,5] 1)
 
 * Patterns are Applicative
 
@@ -84,7 +84,7 @@ Consider summing two patterns:
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
-> in evalP (pure (+) <*> p <*> q)
+> in pure (+) <*> p <*> q
 
 * Patterns are Monads
 
@@ -102,16 +102,16 @@ single element pattern.
 The monad instance for Patterns follows the
 standard monad instance for lists, for example:
 
-> evalP (pseq [1, 2] 1 >>= \x ->
->        pseq [3, 4, 5] 1 >>= \y ->
->        return (x, y))
+> pseq [1, 2] 1 >>= \x ->
+>  pseq [3, 4, 5] 1 >>= \y ->
+>   return (x, y)
 
 which may be written using the haskell do notation
 as:
 
-> evalP (do { x <- pseq [1, 2] 1
->           ; y <- pseq [3, 4, 5] 1
->           ; return (x, y) })
+> do { x <- pseq [1, 2] 1
+>    ; y <- pseq [3, 4, 5] 1
+>    ; return (x, y) }
 
 denotes the pattern having elements (1,3), (1,4),
 (1,5), (2,3), (2,4) and (2,5).
@@ -120,11 +120,19 @@ denotes the pattern having elements (1,3), (1,4),
 
 > import Data.Foldable
 
+Foldable includes funtions for product:
+
 > Data.Foldable.product (pseq [1,3,5] 1)
 
-> Data.Foldable.sum (pwhite 0.25 0.75 12)
+sum:
+
+> Data.Foldable.sum (ptake 12 (pwhite "x" 0.25 0.75))
+
+predicates:
 
 > Data.Foldable.any even (pseq [1,3,5] 1)
+
+and search:
 
 > Data.Foldable.elem 5 (pseq [1,3,5] 1)
 
@@ -134,7 +142,7 @@ denotes the pattern having elements (1,3), (1,4),
 
 > let { f i e = (i + e, e * 2)
 >     ; (r, p) = Data.Traversable.mapAccumL f 0 (pseq [1,3,5] 1) }
-> in (r, evalP p)
+> in (r, p)
 
 * Patterns are numerical
 
@@ -163,10 +171,73 @@ pattern (return x) can be written as the literal
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
-> in evalP (p + q)
+> in p + q
 
 The numerical instances are written using the 
 applicative functions pure and <*>.
+
+* Destructuring, folding
+
+A pattern has an ordinary right fold, with the
+additional requirement of an initial state value.
+
+> pfoldr :: s -> (a -> b -> b) -> b -> P a -> b
+
+pfoldr is the primitive traversal function for
+a pattern.  
+
+Right folding with the list constructor (:) and
+the empty list transforms a pattern into a list.
+
+> let p = pser [1, 2, 3] 5 + pseq [0, 10] 3
+> in pfoldr (:) [] p
+
+* Extension
+
+The haskell patterns follow the normal haskell
+behavior when operating pointwise on sequences of
+different length - the longer sequence is
+truncated.
+
+The haskell expression:
+
+> zip [1, 2] [3, 4, 5]
+
+describes a list of two elements, being (1, 3) and
+(2, 4).
+
+This differs from the ordinary supercollider
+language behaviour, where the shorter sequence is
+extended in a cycle, so that the expression:
+
+| [[1, 2], [3, 4, 5]].flop
+
+computes a list of three elements, [1, 3], [2, 4]
+and [1, 5].
+
+* Patterns/Step
+
+> import Sound.SC3.Lang.Pattern.Step
+
+> evalP (fmap (\n -> n * 2) (pseq [1,2,3,4,5] 1))
+
+> import Control.Applicative
+
+> let { p = pseq [1, 3, 5] 1
+>     ; q = pseq [6, 4, 2] 1 }
+> in evalP (pure (+) <*> p <*> q)
+
+> evalP (pseq [1, 2] 1 >>= \x ->
+>        pseq [3, 4, 5] 1 >>= \y ->
+>        return (x, y))
+
+> evalP (do { x <- pseq [1, 2] 1
+>           ; y <- pseq [3, 4, 5] 1
+>           ; return (x, y) })
+
+> let { p = pseq [1, 3, 5] 1
+>     ; q = pseq [6, 4, 2] 1 }
+> in evalP (p + q)
 
 * Statefullness, Intederminacy, Randomness
 
@@ -203,45 +274,6 @@ to pcontinue.
 pcontinue can be used to write pfilter the
 basic pattern filter, ptail which discards
 the front element of a pattern, and so on.
-
-* Destructuring, folding
-
-A pattern has an ordinary right fold, with the
-additional requirement of an initial state value.
-
-> pfoldr :: s -> (a -> b -> b) -> b -> P a -> b
-
-pfoldr is the primitive traversal function for
-a pattern.  
-
-Right folding with the list constructor (:) and
-the empty list transforms a pattern into a list.
-
-> let p = pser [1, 2, 3] 5 + pseq [0, 10] 3
-> in pfoldr undefined (:) [] p
-
-* Extension
-
-The haskell patterns follow the normal haskell
-behavior when operating pointwise on sequences of
-different length - the longer sequence is
-truncated.
-
-The haskell expression:
-
-> zip [1, 2] [3, 4, 5]
-
-describes a list of two elements, being (1, 3) and
-(2, 4).
-
-This differs from the ordinary supercollider
-language behaviour, where the shorter sequence is
-extended in a cycle, so that the expression:
-
-| [[1, 2], [3, 4, 5]].flop
-
-computes a list of three elements, [1, 3], [2, 4]
-and [1, 5].
 
 * References
 
