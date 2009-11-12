@@ -1,3 +1,4 @@
+(++) :: [a] -> [a] -> [a]
 pappend :: P a -> P a -> P a
 
 Sequence two patterns.  This is the mappend instance of Monoid.
@@ -11,3 +12,9 @@ Sequence two patterns.  This is the mappend instance of Monoid.
 > pnull (pempty `pappend` pempty)
 
 > ptake 5 (prepeat 3 `pappend` prepeat 4)
+
+> [1,2]++[2,3]
+
+> null ([] ++ [])
+
+> take 5 (repeat 3 ++ repeat 4)

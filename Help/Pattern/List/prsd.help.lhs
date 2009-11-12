@@ -1,3 +1,4 @@
+rsd :: (Eq a) => [a] -> [a]
 prsd :: (Eq a) => P a -> P a
 
 Remove successive duplicates.
@@ -6,4 +7,4 @@ Remove successive duplicates.
 
 > prsd (pseq [1,1,2,2,2,3,3] 1)
 
-> rsd [1,1,2,2,2,3,3]
+> rsd [1,1,2,2,2,3,3] == [1,2,3]

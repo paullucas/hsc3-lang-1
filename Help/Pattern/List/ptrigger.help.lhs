@@ -1,3 +1,4 @@
+trigger :: [Bool] -> [a] -> [Maybe a]
 ptrigger :: P Bool -> P a -> P (Maybe a)
 
   tr - boolean pattern

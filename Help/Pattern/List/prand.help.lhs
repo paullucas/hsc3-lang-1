@@ -17,9 +17,7 @@ based pattern library.  This is precisely because the
 noise patterns are values, not processes with a state
 threaded non-locally. 
 
-> import Data.Monoid
-
-> let p = pseq [prand "a" [mempty, pseq [24, 31, 36, 43, 48, 55] 1] 1
+> let p = pseq [prand "a" [pempty, pseq [24, 31, 36, 43, 48, 55] 1] 1
 >              ,pseq [60, prand "b" [63, 65] 1
 >                    ,67, prand "c" [70, 72, 74] 1] (pwhite "c" 2 5)
 >              ,prand "d" [74, 75, 77, 79, 81] (pwhite "e" 3 9)] pinf

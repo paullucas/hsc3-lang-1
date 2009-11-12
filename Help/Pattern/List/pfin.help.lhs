@@ -1,4 +1,4 @@
-pfin :: P Int -> P a -> P a
+take :: Int -> [a] -> [a]
 ptake :: P Int -> P a -> P a
 
   n - number of elements to take

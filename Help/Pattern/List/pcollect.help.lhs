@@ -1,5 +1,5 @@
+fmap :: (Functor f) => (a -> b) -> f a -> f b
 pcollect :: (a -> b) -> P a -> P b
-pcollect = fmap
 
 Patterns are functors.
 

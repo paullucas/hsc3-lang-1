@@ -1,3 +1,5 @@
+countpre :: [Bool] -> [Int]
+countpost :: [Bool] -> [Int]
 pcountpre :: P Bool -> P Int
 pcountpost :: P Bool -> P Int
 

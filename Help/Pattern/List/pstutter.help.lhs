@@ -16,4 +16,4 @@ Repeat each element of a pattern n times.
 >     ; r = pstutter p q }
 > in ptake 13 r
 
-> stutter [1,2,3] [4,5,6]
+> stutter [1,2,3] [4,5,6] == [4,5,5,6,6,6]

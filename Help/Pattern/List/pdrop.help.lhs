@@ -1,3 +1,4 @@
+drop :: Int -> [a] -> [a]
 pdrop :: P Int -> P a -> P a
 
 Drop first n element from pattern.

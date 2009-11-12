@@ -1,3 +1,4 @@
+repeat :: a -> [a]
 prepeat :: a -> P a
 
 pattern variant of Data.List.repeat
@@ -6,5 +7,5 @@ pattern variant of Data.List.repeat
 
 > ptake 5 (prepeat 3)
 
-[3,3,3,3,3]
+> take 5 (repeat 3) == [3,3,3,3,3]
 

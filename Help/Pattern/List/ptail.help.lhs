@@ -1,3 +1,4 @@
+tail :: [a] -> [a]
 ptail :: P a -> P a
 
 Drop first element from pattern.
@@ -7,3 +8,7 @@ Drop first element from pattern.
 > ptail (pseq [1, 2, 3] 1)
 
 > ptail pempty
+
+Note that the haskell tail function is partial.
+
+> tail []

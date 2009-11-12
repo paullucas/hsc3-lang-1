@@ -1,3 +1,4 @@
+filter :: (a -> Bool) -> [a] -> [a]
 pfilter :: (a -> Bool) -> P a -> P a
 
 Allows values for which the predicate is true. 

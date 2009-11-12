@@ -1,3 +1,4 @@
+cycle :: [a] -> [a]
 pcycle :: P a -> P a
 
 pattern variant of Data.List.cycle
@@ -6,4 +7,5 @@ pattern variant of Data.List.cycle
 
 > ptake 5 (pcycle (pseq [1,2,3] 1))
 
-[1,2,3,1,2]
+> take 5 (cycle [1,2,3]) == [1,2,3,1,2]
+

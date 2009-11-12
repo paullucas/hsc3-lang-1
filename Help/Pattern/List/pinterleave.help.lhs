@@ -1,3 +1,4 @@
+interleave :: [a] -> [a] -> [a]
 pinterleave :: P a -> P a -> P a
 
 Interleave elements from two patterns.  If one pattern ends the other
