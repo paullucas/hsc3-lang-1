@@ -21,13 +21,13 @@ Because the repeat counter is a pattern one can have
 a random number of repeats.
 
 > let p = pseq [1, 2] (prrand 1 9)
-> in evalP p
+> in evalR "x" p
 
 For the same reason the pattern is not static when 
 re-examined.
 
 > let p = pseq [0, pseq [1] (prrand 1 3), 2] 5
-> in take 24 (evalP p)
+> in take 24 (evalR "x" p)
 
 Further, if the repeat pattern is not singular,
 the sequence will repeat until the pattern is exhausted.
