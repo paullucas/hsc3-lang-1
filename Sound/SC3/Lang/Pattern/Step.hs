@@ -424,6 +424,9 @@ ppatlacea ps =
 pzipWith_c :: (a -> b -> c) -> P s a -> P s b -> P s c
 pzipWith_c f p = pzipWith f p . pcycle
 
+infixl 7  *., /.
+infixl 6  +., -.
+
 (+.) :: Num a => P s a -> P s a -> P s a
 (+.) = pzipWith_c (+)
 
