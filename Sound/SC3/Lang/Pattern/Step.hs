@@ -207,11 +207,18 @@ preject f = pfilter (not . f)
 pzipWith3 :: (a -> b -> c -> d) -> P s a -> P s b -> P s c -> P s d
 pzipWith3 f p q = (A.<*>) (A.pure f A.<*> p A.<*> q)
 
+pzipWith4 :: (a -> b -> c -> d -> e) -> 
+             P s a -> P s b -> P s c -> P s d -> P s e
+pzipWith4 f p q r = (A.<*>) (A.pure f A.<*> p A.<*> q  A.<*> r)
+
 pzip :: P s a -> P s b -> P s (a,b)
 pzip = pzipWith (,)
 
 pzip3 :: P s a -> P s b -> P s c -> P s (a,b,c)
 pzip3 = pzipWith3 (,,)
+
+pzip4 :: P s a -> P s b -> P s c -> P s d -> P s (a,b,c,d)
+pzip4 = pzipWith4 (,,,)
 
 pseries :: (Num a) => a -> a -> Int -> P s a
 pseries i s n =
