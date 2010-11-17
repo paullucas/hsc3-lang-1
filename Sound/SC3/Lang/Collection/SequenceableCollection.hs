@@ -3,7 +3,6 @@ module Sound.SC3.Lang.Collection.SequenceableCollection where
 import Control.Monad
 import Data.List
 import Data.List.Split
-import Data.Maybe
 import Sound.SC3.Lang.Collection.Collection
 import System.Random
 
