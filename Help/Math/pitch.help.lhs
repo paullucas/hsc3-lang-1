@@ -1,6 +1,6 @@
 * Pitch & record
 
-> import Sound.SC3.Lang.Math
+> import Sound.SC3.Lang.Math.Pitch
 
 The supercollider language pitch model
 is organised as a tree with three separate

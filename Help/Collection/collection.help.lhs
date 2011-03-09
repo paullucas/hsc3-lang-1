@@ -1,7 +1,5 @@
 * Lists of numbers are numerical, Extension
 
-> import Sound.SC3.Lang.Collection
-
 Pointwise operations in the supercollider 
 language extend the shorter input by
 cycling.
@@ -22,6 +20,8 @@ instances for the standard haskell
 numerical type classes with the same 
 extension behaviour, so that:
 
+> import Sound.SC3.Lang.Collection.Numerical
+
 > [1, 2] + [3, 4, 5]
 
 has the same value as in the supercollider
@@ -33,6 +33,8 @@ which is the two element list [4, 6].
 
 The function underlying the list numerical 
 instances is zipWith_c:
+
+> import Sound.SC3.Lang.Collection.SequenceableCollection
 
 > zipWith_c (+) [1, 2] [3, 4, 5]
 
