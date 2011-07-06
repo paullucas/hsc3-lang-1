@@ -24,6 +24,7 @@ Library
   Build-Depends:   array,
                    base == 4.*,
                    containers,
+                   hsc3 == 0.10,
                    split,
                    random
   GHC-Options:     -Wall -fwarn-tabs

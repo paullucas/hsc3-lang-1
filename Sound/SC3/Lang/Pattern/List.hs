@@ -33,8 +33,14 @@ instance (Fractional a) => Fractional (P a) where
     recip = fmap recip
     fromRational = return . fromRational
 
+plift :: ([a] -> [b]) -> (P a -> P b)
+plift f = P . f . unP
+
+plift2 :: ([a] -> [b] -> [c]) -> (P a -> P b -> P c)
+plift2 f x = P . f (unP x) . unP
+
 instance Functor P where
-    fmap f = P . fmap f . unP
+    fmap f = plift (fmap f)
 
 instance (Eq a) => Eq (P a) where
     (P p) == (P q) = p == q
@@ -129,7 +135,7 @@ trigger p q =
 -- * Pattern functions
 
 pappend :: P a -> P a -> P a
-pappend p q = P (unP p ++ unP q)
+pappend = plift2 (++)
 
 papply :: P (a -> b) -> P a -> P b
 papply (P f) (P x) = P (f A.<*> x)
@@ -144,10 +150,10 @@ pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
 
 pcountpost :: P Bool -> P Int
-pcountpost = P . countpost . unP
+pcountpost = plift countpost
 
 pcountpre :: P Bool -> P Int
-pcountpre = P . countpre . unP
+pcountpre = plift countpre
 
 pconcat :: P (P a) -> P a
 pconcat p =
@@ -161,10 +167,10 @@ pconcatMap :: (b -> P a) -> P b -> P a
 pconcatMap f = pconcat . fmap f
 
 pcons :: a -> P a -> P a
-pcons x = P . (x:) . unP
+pcons x = plift (x:)
 
 pcycle :: P a -> P a
-pcycle = P . L.cycle . unP
+pcycle = plift L.cycle
 
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3 S.degree_to_key
@@ -173,13 +179,13 @@ pdrop :: P Int -> P a -> P a
 pdrop n =
     case phead n of
       Nothing -> error "pdrop"
-      Just n' -> P . L.drop n' . unP
+      Just n' -> plift (L.drop n')
 
 pempty :: P a
 pempty = P []
 
 pfilter :: (a -> Bool) -> P a -> P a
-pfilter f = P . L.filter f . unP
+pfilter = plift . L.filter
 
 pfin :: P Int -> P a -> P a
 pfin = ptake
@@ -214,10 +220,10 @@ prepeat = P . L.repeat
 preject :: (a -> Bool) -> P a -> P a
 preject f =
     let g i _ = f i
-    in P . S.reject g . unP
+    in plift (S.reject g)
 
 prsd :: (Eq a) => P a -> P a
-prsd = P . rsd . unP
+prsd = plift rsd
 
 pseq :: [P a] -> P Int -> P a
 pseq ps n =
@@ -252,16 +258,13 @@ pswitch1 ps i =
                                  in x' `pcons` pswitch1 ps' j
 
 ptail :: P a -> P a
-ptail =
-    let f [] = []
-        f (_:xs) = xs
-    in P . f . unP
+ptail = plift (\xs -> if null xs then [] else tail xs)
 
 ptake :: P Int -> P a -> P a
 ptake n =
     case phead n of
       Nothing -> error "ptake: empty length pattern"
-      Just n' -> P . L.take n' . unP
+      Just n' -> plift (L.take n')
 
 ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger (P p) (P q) = P (trigger p q)

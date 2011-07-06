@@ -5,7 +5,6 @@ module Sound.SC3.Lang.Pattern.Step where
 import qualified Control.Applicative as A
 import qualified Control.Monad as M
 import qualified Data.Array as A
-import qualified Data.HashTable as H
 import qualified Data.IntMap as M
 import qualified Data.List as L
 import qualified Data.Maybe as M
