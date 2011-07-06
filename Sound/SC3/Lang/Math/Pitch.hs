@@ -4,7 +4,7 @@ data Pitch a = Pitch { mtranspose :: a
                      , gtranspose :: a
                      , ctranspose :: a
                      , octave :: a
-                     , root :: a 
+                     , root :: a
                      , scale :: [a]
                      , degree :: a
                      , stepsPerOctave :: a
@@ -18,7 +18,7 @@ midi_cps :: (Floating a) => a -> a
 midi_cps a = 440.0 * (2.0 ** ((a - 69.0) * (1.0 / 12.0)))
 
 defaultPitch :: (Floating a, RealFrac a) => Pitch a
-defaultPitch = 
+defaultPitch =
     Pitch { mtranspose = 0
           , gtranspose = 0
           , ctranspose = 0

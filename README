@@ -1,7 +1,7 @@
 hsc3-lang - Haskell SuperCollider Language Library
 
-hsc3-lang provides Sound.SC3.Lang, a Haskell module that 
-defines a subset of functions from the SuperCollider 
+hsc3-lang provides Sound.SC3.Lang, a Haskell module that
+defines a subset of functions from the SuperCollider
 class library.
 
   http://slavepianos.org/rd/

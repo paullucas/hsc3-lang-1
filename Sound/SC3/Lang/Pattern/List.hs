@@ -4,10 +4,10 @@ import qualified Control.Applicative as A
 import qualified Control.Monad as M
 import qualified Data.Array as A
 import qualified Data.Foldable as F
-import qualified Data.HashTable as H
 import qualified Data.List as L
 import qualified Data.Monoid as M
 import qualified Data.Traversable as T
+import Sound.SC3.Identifier
 import qualified Sound.SC3.Lang.Collection.Collection as S
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as S
 import qualified Sound.SC3.Lang.Math.Pitch as S
@@ -95,15 +95,17 @@ countpost =
 countpre :: [Bool] -> [Int]
 countpre =
     let f i [] = if i == 0 then [] else [i]
-        f i (x:xs) = if x 
+        f i (x:xs) = if x
                      then i : f 0 xs
                      else f (i + 1) xs
     in f 0
 
 interleave :: [a] -> [a] -> [a]
-interleave p [] = p
-interleave [] q = q
-interleave (p:ps) (q:qs) = p : q : interleave ps qs
+interleave xs ys =
+    case (xs,ys) of
+      (_,[]) -> xs
+      ([],_) -> ys
+      (p:ps,q:qs) -> p : q : interleave ps qs
 
 -- | Remove successive duplicates.
 rsd :: (Eq a) => [a] -> [a]
@@ -116,9 +118,7 @@ rsd =
     in f Nothing
 
 stutter :: [Int] -> [a] -> [a]
-stutter [] _ = []
-stutter _ [] = []
-stutter (n:ns) (p:ps) = replicate n p ++ stutter ns ps
+stutter ns = concat . zipWith replicate ns
 
 trigger :: [Bool] -> [a] -> [Maybe a]
 trigger p q =
@@ -281,26 +281,26 @@ pzipWith3 f (P p) (P q) (P r) = P (L.zipWith3 f p q r)
 -- * Random patterns
 
 choosea :: R.StdGen -> A.Array Int a -> [a]
-choosea g r = 
+choosea g r =
     let (i, g') = R.randomR (A.bounds r) g
         x = r A.! i
     in x : choosea g' r
 
-pchoose :: String -> P a -> P a
-pchoose s (P p) = 
-    let g = R.mkStdGen (fromIntegral (H.hashString s))
+pchoose :: ID n => n -> P a -> P a
+pchoose n (P p) =
+    let g = R.mkStdGen (resolveID n)
     in P (choosea g (A.listArray (0, length p - 1) p))
 
-pnoise :: (R.Random a) => String -> P a
-pnoise s =
-    let g = R.mkStdGen (fromIntegral (H.hashString s))
+pnoise :: ID n => (R.Random a) => n -> P a
+pnoise n =
+    let g = R.mkStdGen (resolveID n)
     in P (R.randoms g)
 
-prand :: String -> [P a] -> P Int -> P a
-prand s ps n = 
+prand :: ID n => n -> [P a] -> P Int -> P a
+prand s ps n =
     case phead n of
       Nothing -> error "prand"
-      Just n' -> let g = R.mkStdGen (fromIntegral (H.hashString s))
+      Just n' -> let g = R.mkStdGen (resolveID s)
                      qs = choosea g (A.listArray (0, length ps - 1) ps)
                  in L.foldr pappend pempty (take n' qs)
 
@@ -311,10 +311,10 @@ prand_b g b =
       Just b' -> let (x, g') = R.randomR b' g
                  in pcons x (prand_b g' (ptail b))
 
-pwhite :: (R.Random a) => String -> P a -> P  a -> P a
-pwhite s l r =
+pwhite :: (ID n,R.Random a) => n -> P a -> P  a -> P a
+pwhite n l r =
     let b = pzip (pcycle l) (pcycle r)
-        g = R.mkStdGen (fromIntegral (H.hashString s))
+        g = R.mkStdGen (resolveID n)
     in prand_b g b
 
 -- * Extension

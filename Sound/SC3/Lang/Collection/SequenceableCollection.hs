@@ -6,20 +6,34 @@ import Data.List.Split
 import Sound.SC3.Lang.Collection.Collection
 import System.Random
 
+with_counter :: (a -> (b,a)) -> Int -> a -> [b]
+with_counter f =
+    let go n i =
+            case n of
+              0 -> []
+              _ -> let (r,i') = f i in r : go n i'
+    in go
+
 -- | Arithmetic series (size, start, step)
 series :: (Num a) => Int -> a -> a -> [a]
-series 0 _ _ = []
-series n i j = i : series (n - 1) (i + j) j
+series n i j =
+    case n of
+      0 -> []
+      _ -> i : series (n - 1) (i + j) j
 
 -- | Geometric series (size, start, grow)
 geom :: (Num a) => Int -> a -> a -> [a]
-geom 0 _ _ = []
-geom n i j = i : series (n - 1) (i * j) j
+geom n i j =
+    case n of
+      0 -> []
+      _ -> i : series (n - 1) (i * j) j
 
 -- | Fibonacci series (size, initial step, start)
 fib :: (Num a) => Int -> a -> a -> [a]
-fib 0 _ _ = []
-fib n i j = j : fib (n - 1) j (i + j)
+fib n i j =
+    case n of
+      0 -> []
+      _ -> j : fib (n - 1) j (i + j)
 
 -- | Random values (size, min, max) - ought this be in floating?
 rand :: (Random a) => Int -> a -> a -> IO [a]
@@ -31,14 +45,18 @@ rand2 n m = replicateM n (getStdRandom (randomR (negate m, m)))
 
 -- | The first element.
 first :: [t] -> Maybe t
-first (x:_) = Just x
-first _ = Nothing
+first xs =
+    case xs of
+      [] -> Nothing
+      x:_ -> Just x
 
 -- | The last element.
 last' :: [t] -> Maybe t
-last' [] = Nothing
-last' [x] = Just x
-last' (_:xs) = last' xs
+last' xs =
+    case xs of
+      [] -> Nothing
+      [x] -> Just x
+      _:xs' -> last' xs'
 
 -- | flip elemIndex
 indexOf :: Eq a => [a] -> a -> Maybe Int
@@ -97,12 +115,14 @@ choose :: [a] -> IO a
 choose l = liftM (l!!) (getStdRandom (randomR (0, length l - 1)))
 
 separateAt :: (a -> a -> Bool) -> [a] -> ([a], [a])
-separateAt f (x1:x2:xs) =
-    if f x1 x2
-    then ([x1], x2:xs)
-    else let g e (l,r) = (e:l, r)
-         in x1 `g` separateAt f (x2:xs)
-separateAt _ l = (l,[])
+separateAt f xs =
+    case xs of
+      (x1:x2:xs') ->
+          if f x1 x2
+          then ([x1], x2:xs')
+          else let g e (l,r) = (e:l, r)
+               in x1 `g` separateAt f (x2:xs')
+      _ -> (xs,[])
 
 separate :: (a -> a -> Bool) -> [a] -> [[a]]
 separate f l =
@@ -113,19 +133,21 @@ clump :: Int -> [a] -> [[a]]
 clump = splitEvery
 
 clumps :: [Int] -> [a] -> [[a]]
-clumps [] _ = []
 clumps m s =
     let f [] _ = undefined
         f (n:ns) l = let (e, r) = splitAt n l
-                     in if null r then [e] else e :clumps ns r
-    in f (cycle m) s
+                     in if null r then [e] else e : clumps ns r
+    in case m of
+         [] -> []
+         _ -> f (cycle m) s
 
 -- | dx -> d
 integrate :: (Num a) => [a] -> [a]
-integrate [] = []
-integrate (x:xs) =
-    let f p c = (p + c, p + c)
-    in x : snd (mapAccumL f x xs)
+integrate xs =
+    case xs of
+      [] -> []
+      x:xs' -> let f p c = (p + c, p + c)
+               in x : snd (mapAccumL f x xs')
 
 -- | d -> dx
 differentiate :: (Num a) => [a] -> [a]

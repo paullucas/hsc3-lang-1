@@ -22,7 +22,7 @@ ordinary data types may be of indefinite extent.
 > in take 5 ones
 
 Since there is no mutation in haskell the
-pattern and stream distinction is less 
+pattern and stream distinction is less
 clear.
 
 > let { a = [1,2,3] ++ a
@@ -40,10 +40,10 @@ The type of a pattern is abstract.
 
 > data P a
 
-(P a) is the abstract data type of a pattern 
+(P a) is the abstract data type of a pattern
 with elements of type a.
 
-Patterns are constructed, manipulated and destructured 
+Patterns are constructed, manipulated and destructured
 using the functions provided.
 
 * Patterns are Monoids
@@ -96,7 +96,7 @@ Patterns are an instance of the Monad class
 (Wadler, 1990).  The (>>=) function, pronounced
 bind, is the mechanism for processing a monadic
 value.  The return function places a value into
-the monad, for the pattern case it creates a 
+the monad, for the pattern case it creates a
 single element pattern.
 
 The monad instance for Patterns follows the
@@ -120,7 +120,7 @@ denotes the pattern having elements (1,3), (1,4),
 
 > import Data.Foldable
 
-Foldable includes funtions for product:
+Foldable includes functions for product:
 
 > Data.Foldable.product (pseq [1,3,5] 1)
 
@@ -173,7 +173,7 @@ pattern (return x) can be written as the literal
 >     ; q = pseq [6, 4, 2] 1 }
 > in p + q
 
-The numerical instances are written using the 
+The numerical instances are written using the
 applicative functions pure and <*>.
 
 * Destructuring, folding
@@ -184,7 +184,7 @@ additional requirement of an initial state value.
 > pfoldr :: s -> (a -> b -> b) -> b -> P a -> b
 
 pfoldr is the primitive traversal function for
-a pattern.  
+a pattern.
 
 Right folding with the list constructor (:) and
 the empty list transforms a pattern into a list.

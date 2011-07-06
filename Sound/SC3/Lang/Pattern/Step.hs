@@ -10,6 +10,7 @@ import qualified Data.IntMap as M
 import qualified Data.List as L
 import qualified Data.Maybe as M
 import qualified Data.Monoid as M
+import Sound.SC3.Identifier
 import qualified Sound.SC3.Lang.Math.Pitch as S
 import qualified System.Random as R
 
@@ -23,7 +24,7 @@ data P s a
     | forall x . Apply (P s (x -> a)) (P s x)
     | forall x y . Scan (x -> y -> (x, a)) (Maybe (x -> a)) x (P s y)
 
-data Result s a 
+data Result s a
     = Result s a (P s a)
     | Done s
 
@@ -77,9 +78,9 @@ pfoldr' g f i p =
 evalP :: P () a -> [a]
 evalP = pfoldr' () (:) []
 
-evalR :: String -> P R.StdGen a -> [a]
-evalR s =
-    let g = R.mkStdGen (fromIntegral (H.hashString s))
+evalR :: ID n => n -> P R.StdGen a -> [a]
+evalR n =
+    let g = R.mkStdGen (resolveID n)
     in pfoldr' g (:) []
 
 instance (Show a) => Show (P s a) where
@@ -207,7 +208,7 @@ preject f = pfilter (not . f)
 pzipWith3 :: (a -> b -> c -> d) -> P s a -> P s b -> P s c -> P s d
 pzipWith3 f p q = (A.<*>) (A.pure f A.<*> p A.<*> q)
 
-pzipWith4 :: (a -> b -> c -> d -> e) -> 
+pzipWith4 :: (a -> b -> c -> d -> e) ->
              P s a -> P s b -> P s c -> P s d -> P s e
 pzipWith4 f p q r = (A.<*>) (A.pure f A.<*> p A.<*> q  A.<*> r)
 
@@ -334,21 +335,21 @@ pscanl f i p =
 
 -- * Random numbers
 
-prrandf :: (R.RandomGen s, R.Random a) => 
+prrandf :: (R.RandomGen s, R.Random a) =>
            (a -> a -> a -> a) -> a -> a -> P s a
 prrandf f l r = prp (\g -> let (x, g') = R.randomR (l,r) g
                            in (return (f l r x), g'))
 
-prrand :: (R.RandomGen s, R.Random a) => 
+prrand :: (R.RandomGen s, R.Random a) =>
           a -> a -> P s a
 prrand = prrandf (\_ _ x -> x)
 
-prrandexp :: (R.RandomGen s, Floating a, R.Random a) => 
+prrandexp :: (R.RandomGen s, Floating a, R.Random a) =>
              a -> a -> P s a
 prrandexp = prrandf (\l r x -> l * (log (r / l) * x))
 
 pchoosea :: (R.RandomGen s) => A.Array Int (P s a) -> P s a
-pchoosea r = prp (\g -> let (i, g') = R.randomR (A.bounds r) g 
+pchoosea r = prp (\g -> let (i, g') = R.randomR (A.bounds r) g
                         in (r A.! i, g'))
 
 pchoose :: R.RandomGen s => [P s a] -> P s a
@@ -357,11 +358,11 @@ pchoose l = pchoosea (A.listArray (0, length l - 1) l)
 prand :: R.RandomGen s => [P s a] -> P s Int -> P s a
 prand p = pseq [pchoose p]
 
-pwhite :: (R.RandomGen s, R.Random a) => 
+pwhite :: (R.RandomGen s, R.Random a) =>
           P s a -> P s a -> P s Int -> P s a
 pwhite l r n = prestrict n (M.join (pzipWith prrand l r))
 
-pexprand :: (R.RandomGen s, Floating a, R.Random a) => 
+pexprand :: (R.RandomGen s, Floating a, R.Random a) =>
             P s a -> P s a -> P s Int -> P s a
 pexprand l r n = prestrict n (M.join (pzipWith prrandexp l r))
 
@@ -407,11 +408,11 @@ ppatlace ps n =
 {-
 
 Neither the definition above or the variant below are correct.
-Both deadlock once all patterns are empty.  pswitch1 has the 
-same problem.  
+Both deadlock once all patterns are empty.  pswitch1 has the
+same problem.
 
 ppatlacea :: P s (P s a) -> P s a
-ppatlacea ps = 
+ppatlacea ps =
     let f p qs = let h = phead p
                      t = ptail p
                      rs = qs `mappend` return t
