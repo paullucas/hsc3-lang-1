@@ -3,6 +3,6 @@ pbool :: (Ord a, Num a) => P a -> P Bool
 
 > import Sound.SC3.Lang.Pattern.List
 
-> pbool (pseq [1, 0, 1, 0, 0, 0, 1, 1] 1)
+> pbool (pseq [1,0,1,0,0,0,1,1] 1)
 
-> bool [1, 0, 1, 0, 0, 0, 1, 1]
+> bool [1,0,1,0,0,0,1,1]

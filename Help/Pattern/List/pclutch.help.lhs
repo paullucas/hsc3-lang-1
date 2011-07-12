@@ -7,15 +7,23 @@ pclutch :: P a -> P Bool -> P a
 Sample and hold a pattern.  For true values in the control pattern,
 step the value pattern, else hold the previous value.
 
-> import Sound.SC3.Lang.Pattern.List
+> import Sound.SC3.Lang.Pattern.List as P
 
-> let { p = pseq [1, 2, 3, 4, 5] 3
->     ; q = pbool (pseq [1, 0, 1, 0, 0, 0, 1, 1] 1) }
+> let {p = P.seq [1,2,3,4,5] 3
+>     ;q = bool (P.seq [1,0,1,0,0,0,1,1] 1)}
+> in clutch p q
+
+> let {p = pseq [1,2,3,4,5] 3
+>     ;q = pbool (pseq [1,0,1,0,0,0,1,1] 1)}
 > in pclutch p q
 
-Note the initialization behavior, nothing
+Note the initialization behavior,nothing
 is generated until the first true value.
 
-> let { p = pseq [1, 2, 3, 4, 5] 3
->     ; q = pbool (pseq [0, 0, 0, 1, 0, 0, 1, 0, 1] 1) }
+> let { p = P.seq [1,2,3,4,5] 3
+>     ; q = bool (P.seq [0,0,0,1,0,0,1,0,1] 1) }
+> in clutch p q
+
+> let { p = pseq [1,2,3,4,5] 3
+>     ; q = pbool (pseq [0,0,0,1,0,0,1,0,1] 1) }
 > in pclutch p q
