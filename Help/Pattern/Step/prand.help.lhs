@@ -1,6 +1,6 @@
 prand :: [P a] -> P Int -> P a
 
-Returns one item from the list at random for each repeat. 
+Returns one item from the list at random for each repeat.
 
 > import Sound.SC3.Lang.Pattern.Step
 

@@ -31,6 +31,11 @@ instance Applicative P where
 instance Foldable P where
     foldr = pfoldr
 
+instance (Fractional a) => Fractional [a] where
+    (/) = zipWith (/)
+    recip = fmap recip
+    fromRational = return . fromRational
+
 instance (Fractional a) => Fractional (P a) where
     (/) = pzipWith (/)
     recip = fmap recip
@@ -220,8 +225,11 @@ pfin = ptake
 pfoldr :: (a -> b -> b) -> b -> P a -> b
 pfoldr f x = foldr f x . unP
 
+geom :: (Num a) => a -> a -> Int -> [a]
+geom i s n = S.geom n i s
+
 pgeom :: (Num a) => a -> a -> Int -> P a
-pgeom i s n = P (S.geom n i s)
+pgeom i s = P . geom i s
 
 pheadM :: P a -> Maybe a
 pheadM = headM . unP
@@ -229,13 +237,14 @@ pheadM = headM . unP
 pinterleave :: P a -> P a -> P a
 pinterleave (P p) (P q) = P (interleave p q)
 
+nof :: [a] -> [Int] -> [a]
+nof xs is =
+    case is of
+      [] -> error "nof"
+      i:_ -> concat (take i (repeat xs))
+
 pn :: P a -> P Int -> P a
-pn (P p) n =
-    let f 0 _ = []
-        f i xs = xs ++ f (i - 1) xs
-    in case pheadM n of
-         Nothing -> error "preplicate"
-         Just x -> P (f x p)
+pn = plift2 nof
 
 pnull :: P a -> Bool
 pnull = null . unP
@@ -243,10 +252,13 @@ pnull = null . unP
 prepeat :: a -> P a
 prepeat = P . repeat
 
-preject :: (a -> Bool) -> P a -> P a
-preject f =
+reject :: (a -> Bool) -> [a] -> [a]
+reject f =
     let g i _ = f i
-    in plift (S.reject g)
+    in S.reject g
+
+preject :: (a -> Bool) -> P a -> P a
+preject f = plift (reject f)
 
 prsd :: (Eq a) => P a -> P a
 prsd = plift rsd
@@ -271,14 +283,32 @@ ser ps n = fin n (seq ps inf)
 pser :: [P a] -> P Int -> P a
 pser ps n = ptake n (pseq ps pinf)
 
+series :: (Num a) => a -> a -> Int -> [a]
+series i s n = S.series n i s
+
 pseries :: (Num a) => a -> a -> Int -> P a
 pseries i s n = P (S.series n i s)
 
 pstutter :: P Int -> P a -> P a
-pstutter (P n) (P p) = P (stutter n p)
+pstutter = plift2 stutter
+
+switch :: [[a]] -> [Int] -> [a]
+switch l i = i >>= (l !!)
 
 pswitch :: [P a] -> P Int -> P a
 pswitch l i = i >>= (l !!)
+
+switch1 :: [[a]] -> [Int] -> [a]
+switch1 ps is =
+    case is of
+      [] -> []
+      i:_ -> let (l,r) = splitAt i ps
+                 (p:_) = r
+                 j = tail is
+             in case p of
+                  [] -> switch1 ps j
+                  x:_ -> let ps' = l ++ [tail p] ++ tail r
+                         in x : switch1 ps' j
 
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 ps i =
@@ -293,8 +323,11 @@ pswitch1 ps i =
                       Just x' -> let ps' = l ++ [ptail p] ++ tail r
                                  in x' `pcons` pswitch1 ps' j
 
+tail' :: [a] -> [a]
+tail' xs = if null xs then [] else tail xs
+
 ptail :: P a -> P a
-ptail = plift (\xs -> if null xs then [] else tail xs)
+ptail = plift tail'
 
 ptake :: P Int -> P a -> P a
 ptake n =
@@ -325,15 +358,26 @@ choosea g r =
         x = r A.! i
     in x : choosea g' r
 
-pchoose :: ID n => n -> P a -> P a
-pchoose n (P p) =
+choose :: ID n => n -> [a] -> [a]
+choose n p =
     let g = mkStdGen (resolveID n)
-    in P (choosea g (A.listArray (0, length p - 1) p))
+    in choosea g (A.listArray (0, length p - 1) p)
+
+pchoose :: ID n => n -> P a -> P a
+pchoose n = plift (choose n)
 
 pnoise :: ID n => (Random a) => n -> P a
 pnoise n =
     let g = mkStdGen (resolveID n)
     in P (randoms g)
+
+rand :: ID n => n -> [[a]] -> [Int] -> [a]
+rand s ps ns =
+    case ns of
+      [] -> error "rand"
+      n:_ -> let g = mkStdGen (resolveID s)
+                 qs = choosea g (A.listArray (0, length ps - 1) ps)
+             in foldr (++) [] (take n qs)
 
 prand :: ID n => n -> [P a] -> P Int -> P a
 prand s ps n =
@@ -364,17 +408,23 @@ pwhite n = plift2 (white n)
 
 -- * Extension
 
-pzipWith_c :: (a -> b -> c) -> P a -> P b -> P c
-pzipWith_c f p = pzipWith f p . pcycle
+class Extending f where
+    zipWith_c :: (a -> b -> c) -> f a -> f b -> f c
 
-(+.) :: Num a => P a -> P a -> P a
-(+.) = pzipWith_c (+)
+instance Extending P where
+    zipWith_c f p = pzipWith f p . pcycle
 
-(*.) :: Num a => P a -> P a -> P a
-(*.) = pzipWith_c (*)
+instance Extending [] where
+    zipWith_c f p = zipWith f p . cycle
 
-(/.) :: Fractional a => P a -> P a -> P a
-(/.) = pzipWith_c (/)
+(+.) :: (Extending f,Num a) => f a -> f a -> f a
+(+.) = zipWith_c (+)
 
-(-.) :: Num a => P a -> P a -> P a
-(-.) = pzipWith_c (-)
+(*.) :: (Extending f,Num a) => f a -> f a -> f a
+(*.) = zipWith_c (*)
+
+(/.) :: (Extending f,Fractional a) => f a -> f a -> f a
+(/.) = zipWith_c (/)
+
+(-.) :: (Extending f,Num a) => f a -> f a -> f a
+(-.) = zipWith_c (-)

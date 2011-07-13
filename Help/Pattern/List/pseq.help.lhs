@@ -8,7 +8,6 @@ the number of times to repeat the entire list.
 
 > P.seq [[1],[2],[3]] [2]
 > P.seq [1,2,3] 2
-
 > pseq [1,2,3] 2
 
 Unlike Pseq, pseq does not have an offset argument to
@@ -27,8 +26,8 @@ a random number of repeats.
 
 For the same reason the pattern is static when re-examined.
 
-> let p = pseq [0,pseq [1] (pwhite 'u' 1 3),2] 5
-> in ptake 24 p
+> let p = P.seq [0,P.seq [1] (white 'u' 1 3),2] 5 in take 24 p
+> let p = pseq [0,pseq [1] (pwhite 'u' 1 3),2] 5 in ptake 24 p
 
 Only the first element of the repeat pattern is consulted.
 
