@@ -16,54 +16,7 @@ import qualified Sound.SC3.Lang.Collection.SequenceableCollection as S
 import qualified Sound.SC3.Lang.Math.Pitch as S
 import System.Random
 
-data P a = P { unP :: [a] }
-
--- * Instances
-
-instance Alternative P where
-    empty = pempty
-    (<|>) = pappend
-
-instance Applicative P where
-    pure = return
-    (<*>) = ap
-
-instance Foldable P where
-    foldr = pfoldr
-
-instance (Fractional a) => Fractional [a] where
-    (/) = zipWith (/)
-    recip = fmap recip
-    fromRational = return . fromRational
-
-instance (Fractional a) => Fractional (P a) where
-    (/) = pzipWith (/)
-    recip = fmap recip
-    fromRational = return . fromRational
-
-plift :: ([a] -> [b]) -> (P a -> P b)
-plift f = P . f . unP
-
-plift2 :: ([a] -> [b] -> [c]) -> (P a -> P b -> P c)
-plift2 f x = P . f (unP x) . unP
-
-instance Functor P where
-    fmap f = plift (fmap f)
-
-instance (Eq a) => Eq (P a) where
-    (P p) == (P q) = p == q
-
-instance Monad P where
-    m >>= f = pconcatMap f m
-    return x = P [x]
-
-instance MonadPlus P where
-    mzero = pempty
-    mplus = pappend
-
-instance Monoid (P a) where
-    mempty = pempty
-    mappend = pappend
+-- * List instances
 
 instance (Num a) => Num [a] where
     (+) = zipWith (+)
@@ -74,31 +27,15 @@ instance (Num a) => Num [a] where
     fromInteger = return . fromInteger
     negate = fmap negate
 
-instance (Num a) => Num (P a) where
-    (+) = plift2 (+)
-    (-) = plift2 (-)
-    (*) = plift2 (*)
-    abs = fmap abs
-    signum = fmap signum
-    fromInteger = return . fromInteger
-    negate = fmap negate
+instance (Fractional a) => Fractional [a] where
+    (/) = zipWith (/)
+    recip = fmap recip
+    fromRational = return . fromRational
 
-instance (Show a) => Show (P a) where
-    show = show . unP
-
-instance Traversable P where
-    traverse f = let cons_f x ys = pcons <$> f x <*> ys
-                 in pfoldr cons_f (pure pempty)
-
--- * Basic constructors
+-- * List functions
 
 inf :: Monad m => m Int
 inf = return 83886028 -- 2 ^^ 23
-
-pinf :: P Int
-pinf = inf
-
--- * List functions
 
 headM :: [a] -> Maybe a
 headM xs =
@@ -158,7 +95,147 @@ trigger p q =
         f i x = replicate i Nothing ++ [Just x]
     in concat (zipWith f r q)
 
+collect :: (a -> b) -> [a] -> [b]
+collect = fmap
+
+fin :: [Int] -> [a] -> [a]
+fin ns = take (head ns)
+
+geom :: (Num a) => a -> a -> Int -> [a]
+geom i s n = S.geom n i s
+
+-- | pn
+nof :: [a] -> [Int] -> [a]
+nof xs is =
+    case is of
+      [] -> error "nof"
+      i:_ -> concat (take i (repeat xs))
+
+reject :: (a -> Bool) -> [a] -> [a]
+reject f =
+    let g i _ = f i
+    in S.reject g
+
+seq :: [[a]] -> [Int] -> [a]
+seq ps n =
+    case headM n of
+      Nothing -> error "seq: empty repeat pattern"
+      Just n' -> let ps' = concat (replicate n' ps)
+                 in foldr mappend mempty ps'
+
+ser :: [[a]] -> [Int] -> [a]
+ser ps n = fin n (seq ps inf)
+
+switch :: [[a]] -> [Int] -> [a]
+switch l i = i >>= (l !!)
+
+switch1 :: [[a]] -> [Int] -> [a]
+switch1 ps is =
+    case is of
+      [] -> []
+      i:_ -> let (l,r) = splitAt i ps
+                 (p:_) = r
+                 j = tail is
+             in case p of
+                  [] -> switch1 ps j
+                  x:_ -> let ps' = l ++ [tail p] ++ tail r
+                         in x : switch1 ps' j
+
+tail' :: [a] -> [a]
+tail' xs = if null xs then [] else tail xs
+
+choose :: ID n => n -> [a] -> [a]
+choose n p =
+    let g = mkStdGen (resolveID n)
+    in choosea g (A.listArray (0, length p - 1) p)
+
+rand :: ID n => n -> [[a]] -> [Int] -> [a]
+rand s ps ns =
+    case ns of
+      [] -> error "rand"
+      n:_ -> let g = mkStdGen (resolveID s)
+                 qs = choosea g (A.listArray (0, length ps - 1) ps)
+             in foldr (++) [] (take n qs)
+
+rand_b :: (Random a) => StdGen -> [(a,a)] -> [a]
+rand_b g b =
+    case headM b of
+      Nothing -> mempty
+      Just b' -> let (x, g') = randomR b' g
+                 in x : (rand_b g' (tail b))
+
+white :: (ID n,Random a) => n -> [a] -> [a] -> [a]
+white n l r =
+    let b = zip (cycle l) (cycle r)
+        g = mkStdGen (resolveID n)
+    in rand_b g b
+
+-- * Pattern type
+
+data P a = P { unP :: [a] }
+
+plift :: ([a] -> [b]) -> (P a -> P b)
+plift f = P . f . unP
+
+plift2 :: ([a] -> [b] -> [c]) -> (P a -> P b -> P c)
+plift2 f x = P . f (unP x) . unP
+
+-- * Pattern instances
+
+instance Alternative P where
+    empty = pempty
+    (<|>) = pappend
+
+instance Applicative P where
+    pure = return
+    (<*>) = ap
+
+instance Foldable P where
+    foldr = pfoldr
+
+instance (Fractional a) => Fractional (P a) where
+    (/) = pzipWith (/)
+    recip = fmap recip
+    fromRational = return . fromRational
+
+instance Functor P where
+    fmap f = plift (fmap f)
+
+instance (Eq a) => Eq (P a) where
+    (P p) == (P q) = p == q
+
+instance Monad P where
+    m >>= f = pconcatMap f m
+    return x = P [x]
+
+instance MonadPlus P where
+    mzero = pempty
+    mplus = pappend
+
+instance Monoid (P a) where
+    mempty = pempty
+    mappend = pappend
+
+instance (Num a) => Num (P a) where
+    (+) = plift2 (+)
+    (-) = plift2 (-)
+    (*) = plift2 (*)
+    abs = fmap abs
+    signum = fmap signum
+    fromInteger = return . fromInteger
+    negate = fmap negate
+
+instance (Show a) => Show (P a) where
+    show = show . unP
+
+instance Traversable P where
+    traverse f = let cons_f x ys = pcons <$> f x <*> ys
+                 in pfoldr cons_f (pure pempty)
+
 -- * Pattern functions
+
+pinf :: P Int
+pinf = inf
 
 pappend :: P a -> P a -> P a
 pappend = plift2 (++)
@@ -171,9 +248,6 @@ pbool = bool
 
 pclutch :: P a -> P Bool -> P a
 pclutch (P x) (P c) = P (clutch x c)
-
-collect :: (a -> b) -> [a] -> [b]
-collect = fmap
 
 pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
@@ -216,17 +290,11 @@ pempty = P []
 pfilter :: (a -> Bool) -> P a -> P a
 pfilter = plift . filter
 
-fin :: [Int] -> [a] -> [a]
-fin ns = take (head ns)
-
 pfin :: P Int -> P a -> P a
 pfin = ptake
 
 pfoldr :: (a -> b -> b) -> b -> P a -> b
 pfoldr f x = foldr f x . unP
-
-geom :: (Num a) => a -> a -> Int -> [a]
-geom i s n = S.geom n i s
 
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s = P . geom i s
@@ -237,12 +305,6 @@ pheadM = headM . unP
 pinterleave :: P a -> P a -> P a
 pinterleave (P p) (P q) = P (interleave p q)
 
-nof :: [a] -> [Int] -> [a]
-nof xs is =
-    case is of
-      [] -> error "nof"
-      i:_ -> concat (take i (repeat xs))
-
 pn :: P a -> P Int -> P a
 pn = plift2 nof
 
@@ -252,23 +314,11 @@ pnull = null . unP
 prepeat :: a -> P a
 prepeat = P . repeat
 
-reject :: (a -> Bool) -> [a] -> [a]
-reject f =
-    let g i _ = f i
-    in S.reject g
-
 preject :: (a -> Bool) -> P a -> P a
 preject f = plift (reject f)
 
 prsd :: (Eq a) => P a -> P a
 prsd = plift rsd
-
-seq :: [[a]] -> [Int] -> [a]
-seq ps n =
-    case headM n of
-      Nothing -> error "seq: empty repeat pattern"
-      Just n' -> let ps' = concat (replicate n' ps)
-                 in foldr mappend mempty ps'
 
 pseq :: [P a] -> P Int -> P a
 pseq ps n =
@@ -276,9 +326,6 @@ pseq ps n =
       Nothing -> error "pseq: empty repeat pattern"
       Just n' -> let ps' = concat (replicate n' ps)
                  in foldr mappend mempty ps'
-
-ser :: [[a]] -> [Int] -> [a]
-ser ps n = fin n (seq ps inf)
 
 pser :: [P a] -> P Int -> P a
 pser ps n = ptake n (pseq ps pinf)
@@ -292,23 +339,8 @@ pseries i s n = P (S.series n i s)
 pstutter :: P Int -> P a -> P a
 pstutter = plift2 stutter
 
-switch :: [[a]] -> [Int] -> [a]
-switch l i = i >>= (l !!)
-
 pswitch :: [P a] -> P Int -> P a
 pswitch l i = i >>= (l !!)
-
-switch1 :: [[a]] -> [Int] -> [a]
-switch1 ps is =
-    case is of
-      [] -> []
-      i:_ -> let (l,r) = splitAt i ps
-                 (p:_) = r
-                 j = tail is
-             in case p of
-                  [] -> switch1 ps j
-                  x:_ -> let ps' = l ++ [tail p] ++ tail r
-                         in x : switch1 ps' j
 
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 ps i =
@@ -322,9 +354,6 @@ pswitch1 ps i =
                       Nothing -> pswitch1 ps j
                       Just x' -> let ps' = l ++ [ptail p] ++ tail r
                                  in x' `pcons` pswitch1 ps' j
-
-tail' :: [a] -> [a]
-tail' xs = if null xs then [] else tail xs
 
 ptail :: P a -> P a
 ptail = plift tail'
@@ -350,19 +379,6 @@ pzipWith f (P p) (P q) = P (zipWith f p q)
 pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
 pzipWith3 f (P p) (P q) (P r) = P (zipWith3 f p q r)
 
--- * Random patterns
-
-choosea :: StdGen -> A.Array Int a -> [a]
-choosea g r =
-    let (i, g') = randomR (A.bounds r) g
-        x = r A.! i
-    in x : choosea g' r
-
-choose :: ID n => n -> [a] -> [a]
-choose n p =
-    let g = mkStdGen (resolveID n)
-    in choosea g (A.listArray (0, length p - 1) p)
-
 pchoose :: ID n => n -> P a -> P a
 pchoose n = plift (choose n)
 
@@ -370,14 +386,6 @@ pnoise :: ID n => (Random a) => n -> P a
 pnoise n =
     let g = mkStdGen (resolveID n)
     in P (randoms g)
-
-rand :: ID n => n -> [[a]] -> [Int] -> [a]
-rand s ps ns =
-    case ns of
-      [] -> error "rand"
-      n:_ -> let g = mkStdGen (resolveID s)
-                 qs = choosea g (A.listArray (0, length ps - 1) ps)
-             in foldr (++) [] (take n qs)
 
 prand :: ID n => n -> [P a] -> P Int -> P a
 prand s ps n =
@@ -387,26 +395,13 @@ prand s ps n =
                      qs = choosea g (A.listArray (0, length ps - 1) ps)
                  in foldr pappend pempty (take n' qs)
 
-rand_b :: (Random a) => StdGen -> [(a,a)] -> [a]
-rand_b g b =
-    case headM b of
-      Nothing -> mempty
-      Just b' -> let (x, g') = randomR b' g
-                 in x : (rand_b g' (tail b))
-
 prand_b :: (Random a) => StdGen -> P (a,a) -> P a
 prand_b g = plift (rand_b g)
-
-white :: (ID n,Random a) => n -> [a] -> [a] -> [a]
-white n l r =
-    let b = zip (cycle l) (cycle r)
-        g = mkStdGen (resolveID n)
-    in rand_b g b
 
 pwhite :: (ID n,Random a) => n -> P a -> P  a -> P a
 pwhite n = plift2 (white n)
 
--- * Extension
+-- * Extension (list & pattern)
 
 class Extending f where
     zipWith_c :: (a -> b -> c) -> f a -> f b -> f c
@@ -428,3 +423,11 @@ instance Extending [] where
 
 (-.) :: (Extending f,Num a) => f a -> f a -> f a
 (-.) = zipWith_c (-)
+
+-- * Random constructors
+
+choosea :: StdGen -> A.Array Int a -> [a]
+choosea g r =
+    let (i, g') = randomR (A.bounds r) g
+        x = r A.! i
+    in x : choosea g' r
