@@ -1,5 +1,4 @@
-geom :: (Num a) => a -> a -> Int -> [a]
-pgeom :: (Num a) => a -> a -> Int -> P a
+pgeom :: (Num a) => a -> a -> Int -> [a]
 
 Geometric series pattern.
 
@@ -9,10 +8,8 @@ Geometric series pattern.
 
 > import Sound.SC3.Lang.Pattern.List
 
-> geom 1 2 12
 > pgeom 1 2 12
 
 Real numbers work as well.
 
-> geom 1.0 1.1 6
 > pgeom 1.0 1.1 6

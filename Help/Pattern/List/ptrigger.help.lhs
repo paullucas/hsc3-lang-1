@@ -1,5 +1,4 @@
-trigger :: [Bool] -> [a] -> [Maybe a]
-ptrigger :: P Bool -> P a -> P (Maybe a)
+ptrigger :: [Bool] -> [a] -> [Maybe a]
 
   tr - boolean pattern
    x - value pattern
@@ -13,10 +12,5 @@ values at 'tr' generate Nothing values.
 
 > import Sound.SC3.Lang.Pattern.List as P
 
-> let {p = P.seq [1,2,3] 1
->     ;t = bool (P.seq [0,0,1,0,0,0,1,1] 1)}
-> in trigger t p
-
-> let {p = pseq [1,2,3] 1
->     ;t = pbool (pseq [0,0,1,0,0,0,1,1] 1)}
-> in ptrigger t p
+> let t = pbool [0,0,1,0,0,0,1,1]
+> in ptrigger t [1,2,3]

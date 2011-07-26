@@ -1,5 +1,4 @@
-series :: (Num a) => a -> a -> Int -> [a]
-pseries :: (Num a) => a -> a -> Int -> P a
+pseries :: (Num a) => a -> a -> Int -> [a]
 
 An arithmetric series.
 
@@ -9,8 +8,6 @@ An arithmetric series.
 
 > import Sound.SC3.Lang.Pattern.List
 
-> series 0 2 24
 > pseries 0 2 24
 
-> series 1.0 0.1 24
 > pseries 1.0 0.1 24
