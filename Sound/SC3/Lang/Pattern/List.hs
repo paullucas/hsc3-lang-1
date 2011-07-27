@@ -1,6 +1,5 @@
 module Sound.SC3.Lang.Pattern.List where
 
-import Control.Applicative
 import Control.Monad
 import qualified Data.Array as A
 import Data.Bool
@@ -8,7 +7,6 @@ import Data.Foldable
 import Data.List hiding (concat,foldr,find)
 import Data.Maybe
 import Data.Monoid
-import Data.Traversable
 import Prelude hiding (concat,foldr)
 import Sound.SC3.Identifier
 import qualified Sound.SC3.Lang.Collection.Collection as S
@@ -102,7 +100,7 @@ prsd =
     in f Nothing
 
 pstutter :: [Int] -> [a] -> [a]
-pstutter ns = concat . zipWith replicate ns
+pstutter ns = concat . zipWith replicate (cycle ns)
 
 -- | Count false values preceding each true value.
 pcountpre :: [Bool] -> [Int]

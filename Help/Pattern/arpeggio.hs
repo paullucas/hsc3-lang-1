@@ -80,7 +80,7 @@ main :: IO ()
 main = do
   let tempo = 157/60
       dur = pwrand' 'n' [0.25,0.125,0.0625] [0.45,0.45,0.1]
-      dur' = pstutter (cycle 32) dur
+      dur' = pstutter 32 dur
       run_note fd (i,n,d) = do
             print ("run_note",i,d)
             send fd (note_msg n i)
