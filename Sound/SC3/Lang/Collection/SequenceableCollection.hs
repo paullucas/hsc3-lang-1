@@ -2,9 +2,10 @@ module Sound.SC3.Lang.Collection.SequenceableCollection where
 
 import Control.Monad
 import Data.List
-import Data.List.Split
+import Data.List.Split {- split -}
 import Sound.SC3.Lang.Collection.Collection
-import System.Random
+import System.Random {- random -}
+import System.Random.Shuffle {- random-shuffle -}
 
 with_counter :: (a -> (b,a)) -> Int -> a -> [b]
 with_counter f =
@@ -176,3 +177,13 @@ zipWith_c f a b =
 
 zip_c :: [a] -> [b] -> [(a, b)]
 zip_c = zipWith_c (,)
+
+scramble' :: Enum a => a -> [t] -> [t]
+scramble' j k =
+    let g = mkStdGen (fromEnum j)
+    in shuffle' k (length k) g
+
+scramble :: [t] -> IO [t]
+scramble k = do
+    g <- getStdGen
+    return (shuffle' k (length k) g)

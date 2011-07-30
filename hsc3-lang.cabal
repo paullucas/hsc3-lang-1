@@ -26,12 +26,14 @@ Library
                    containers,
                    hsc3 == 0.10,
                    split,
-                   random
+                   random,
+                   random-shuffle
   GHC-Options:     -Wall -fwarn-tabs
   Exposed-modules: Sound.SC3.Lang.Collection.Collection
                    Sound.SC3.Lang.Collection.Numerical
                    Sound.SC3.Lang.Collection.SequenceableCollection
                    Sound.SC3.Lang.Math.Pitch
+                   Sound.SC3.Lang.Math.SimpleNumber
                    Sound.SC3.Lang.Pattern.List
                    Sound.SC3.Lang.Pattern.Step
 

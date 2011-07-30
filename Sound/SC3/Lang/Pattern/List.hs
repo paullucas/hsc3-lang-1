@@ -169,11 +169,11 @@ prand s ps n =
     in foldr (++) [] (take n qs)
 
 prand_b :: (Random a) => StdGen -> [(a,a)] -> [a]
-prand_b g b =
-    case headM b of
-      Nothing -> mempty
-      Just b' -> let (x, g') = randomR b' g
-                 in x : (prand_b g' (tail b))
+prand_b g i =
+    case i of
+      [] -> []
+      (b:i') -> let (x,g') = randomR b g
+                in x : prand_b g' i'
 
 pwhite :: (ID n,Random a) => n -> [a] -> [a] -> [a]
 pwhite n l r =
