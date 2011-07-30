@@ -187,3 +187,15 @@ scramble :: [t] -> IO [t]
 scramble k = do
     g <- getStdGen
     return (shuffle' k (length k) g)
+
+windex :: (Ord a, Num a) => [a] -> a -> Maybe Int
+windex w n = findIndex (n <) (tail (differentiate w))
+
+wchoose :: (Random a, Ord a, Fractional a) => [b] -> [a] -> IO b
+wchoose l w = do
+  i <- randomRIO (0.0,1.0)
+  let n = case windex w i of
+            Nothing -> error "wchoose: windex"
+            Just n' -> n'
+  return (l !! n)
+
