@@ -189,7 +189,7 @@ scramble k = do
     return (shuffle' k (length k) g)
 
 windex :: (Ord a, Num a) => [a] -> a -> Maybe Int
-windex w n = findIndex (n <) (tail (differentiate w))
+windex w n = findIndex (n <) (integrate w)
 
 wchoose :: (Random a, Ord a, Fractional a) => [b] -> [a] -> IO b
 wchoose l w = do
@@ -199,3 +199,6 @@ wchoose l w = do
             Just n' -> n'
   return (l !! n)
 
+{-
+sequence (replicate 20 (wchoose [1..5] [0.4,0.2,0.2,0.1,0.1]))
+-}
