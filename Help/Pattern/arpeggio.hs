@@ -57,6 +57,11 @@ notes =
             let n = pchoose 'g' [8,16]
                 s = pwhite 'h' (-1.0) 1.0
                 e = pif (< 0) s (pwhite 'i' 0.0 1.0) (pwhite 'i' (-1.0) 0.0)
+{-
+                e = map (\i -> if i > 0
+                               then pwhite i 0.0 1.0
+                               else pwhite i (-1.0) 0.0) s
+-}
             in interp' n s e
         amp =
             let n = pchoose 'j' [8,16,24,32]

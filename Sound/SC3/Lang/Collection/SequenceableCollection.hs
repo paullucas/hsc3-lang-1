@@ -112,6 +112,11 @@ extendSequences l =
 flop :: [[a]] -> [[a]]
 flop = transpose . extendSequences
 
+choose' :: RandomGen g => [a] -> g -> (a,g)
+choose' l g =
+    let (i,g') = randomR (0, length l - 1) g
+    in (l !! i,g')
+
 choose :: [a] -> IO a
 choose l = liftM (l!!) (getStdRandom (randomR (0, length l - 1)))
 
