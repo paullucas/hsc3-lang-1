@@ -38,11 +38,11 @@ fib n i j =
 
 -- | Random values (size, min, max) - ought this be in floating?
 rand :: (Random a) => Int -> a -> a -> IO [a]
-rand n l r = replicateM n (getStdRandom (randomR (l, r)))
+rand n l r = replicateM n (getStdRandom (randomR (l,r)))
 
 -- | Random values in the range -abs to +abs (size, abs)
-rand2 :: (Num a, Random a) => Int -> a -> IO [a]
-rand2 n m = replicateM n (getStdRandom (randomR (negate m, m)))
+rand2 :: (Num a,Random a) => Int -> a -> IO [a]
+rand2 n m = replicateM n (getStdRandom (randomR (negate m,m)))
 
 -- | The first element.
 first :: [t] -> Maybe t
@@ -72,7 +72,7 @@ indexOfGreaterThan :: (Ord a) => a -> [a] -> Maybe Int
 indexOfGreaterThan e = detectIndex (ignoringIndex (> e))
 
 -- | Collection is sorted, index of nearest element.
-indexIn :: (Ord a, Num a) => a -> [a] -> Int
+indexIn :: (Ord a,Num a) => a -> [a] -> Int
 indexIn e l =
     let f 0 = 0
         f j = let i = j - 1
@@ -82,7 +82,7 @@ indexIn e l =
     in maybe (size l - 1) f (indexOfGreaterThan e l)
 
 -- | Collection is sorted, linearly interpolated fractional index.
-indexInBetween :: (Ord a, Fractional a) => a -> [a] -> a
+indexInBetween :: (Ord a,Fractional a) => a -> [a] -> a
 indexInBetween e l =
     let f 0 = 0
         f j = let i = fromIntegral j
@@ -114,25 +114,25 @@ flop = transpose . extendSequences
 
 choose' :: RandomGen g => [a] -> g -> (a,g)
 choose' l g =
-    let (i,g') = randomR (0, length l - 1) g
+    let (i,g') = randomR (0,length l - 1) g
     in (l !! i,g')
 
 choose :: [a] -> IO a
-choose l = liftM (l!!) (getStdRandom (randomR (0, length l - 1)))
+choose = getStdRandom . choose'
 
-separateAt :: (a -> a -> Bool) -> [a] -> ([a], [a])
+separateAt :: (a -> a -> Bool) -> [a] -> ([a],[a])
 separateAt f xs =
     case xs of
       (x1:x2:xs') ->
           if f x1 x2
-          then ([x1], x2:xs')
-          else let g e (l,r) = (e:l, r)
+          then ([x1],x2:xs')
+          else let g e (l,r) = (e:l,r)
                in x1 `g` separateAt f (x2:xs')
       _ -> (xs,[])
 
 separate :: (a -> a -> Bool) -> [a] -> [[a]]
 separate f l =
-    let (e, r) = separateAt f l
+    let (e,r) = separateAt f l
     in if null r then [e] else e : separate f r
 
 clump :: Int -> [a] -> [[a]]
@@ -141,7 +141,7 @@ clump = splitEvery
 clumps :: [Int] -> [a] -> [[a]]
 clumps m s =
     let f [] _ = undefined
-        f (n:ns) l = let (e, r) = splitAt n l
+        f (n:ns) l = let (e,r) = splitAt n l
                      in if null r then [e] else e : clumps ns r
     in case m of
          [] -> []
@@ -158,7 +158,7 @@ differentiate l = zipWith (-) l (0:l)
 -- | Rotate n places to the left (ie. rotate 1 [1, 2, 3] is [2, 3, 1]).
 rotate :: Int -> [a] -> [a]
 rotate n p =
-    let (b, a) = splitAt n p
+    let (b,a) = splitAt n p
     in a ++ b
 
 -- | Ensure sum of elements is one.
@@ -167,26 +167,28 @@ normalizeSum l =
     let n = sum l
     in map (/ n) l
 
-scramble' :: RandomGen g => g -> [t] -> ([t],g)
-scramble' g k =
+scramble' :: RandomGen g => [t] -> g -> ([t],g)
+scramble' k g =
     let (_,g') = next g
     in (shuffle' k (length k) g,g')
 
 scramble :: [t] -> IO [t]
-scramble k = do
-    g <- getStdGen
-    return (shuffle' k (length k) g)
+scramble = getStdRandom . scramble'
 
-windex :: (Ord a, Num a) => [a] -> a -> Maybe Int
+windex :: (Ord a,Num a) => [a] -> a -> Maybe Int
 windex w n = findIndex (n <) (integrate w)
 
-wchoose :: (Random a, Ord a, Fractional a) => [b] -> [a] -> IO b
-wchoose l w = do
-  i <- randomRIO (0.0,1.0)
-  let n = case windex w i of
+wchoose' :: (RandomGen g,Random a,Ord a,Fractional a) =>
+            [b] -> [a] -> g -> (b,g)
+wchoose' l w g =
+  let (i,g') = randomR (0.0,1.0) g
+      n = case windex w i of
             Nothing -> error "wchoose: windex"
             Just n' -> n'
-  return (l !! n)
+  in (l !! n,g')
+
+wchoose :: (Random a,Ord a,Fractional a) => [b] -> [a] -> IO b
+wchoose l = getStdRandom . wchoose' l
 
 {-
 sequence (replicate 20 (wchoose [1..5] [0.4,0.2,0.2,0.1,0.1]))
@@ -201,10 +203,10 @@ class Extending f where
 lZipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
 lZipWith_c f a b =
     let g [] [] _ = []
-        g [] b' (_, e) = if e then [] else g a b' (True, e)
-        g a' [] (e, _) = if e then [] else g a' b (e, True)
+        g [] b' (_,e) = if e then [] else g a b' (True,e)
+        g a' [] (e,_) = if e then [] else g a' b (e,True)
         g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
-    in g a b (False, False)
+    in g a b (False,False)
 
 instance Extending [] where
     zipWith_c = zipWith_c
@@ -221,6 +223,6 @@ instance Extending [] where
 (-.) :: (Extending f,Num a) => f a -> f a -> f a
 (-.) = zipWith_c (-)
 
-zip_c :: [a] -> [b] -> [(a, b)]
+zip_c :: [a] -> [b] -> [(a,b)]
 zip_c = zipWith_c (,)
 
