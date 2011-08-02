@@ -1,4 +1,5 @@
 > import Sound.SC3.Lang.Pattern.List
+> import Sound.SC3.Lang.Pattern.Parallel
 
 * Beginning
 
@@ -214,6 +215,10 @@ extended in a cycle, so that the expression:
 
 computes a list of three elements, [1, 3], [2, 4]
 and [1, 5].
+
+> zipWith_c (,) (fromList [1,2]) (fromList [3,4,5])
+
+> fromList [1,2] *. fromList [3,4,5]
 
 * Patterns/Step
 

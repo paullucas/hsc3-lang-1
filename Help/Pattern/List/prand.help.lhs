@@ -2,7 +2,7 @@ prand :: ID n => n -> [[a]] -> [Int] -> [a]
 
 Returns one item from a finite pattern at random for each step.
 
-> import Sound.SC3.Lang.Pattern.List as P
+> import Sound.SC3.Lang.Pattern.List
 
 > prand 'e' (map fromList [[1,2],[3,4],[5,6]]) 10
 

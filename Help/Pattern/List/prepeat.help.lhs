@@ -3,6 +3,7 @@ ppure :: a -> P a
 
 Data.List.repeat, Data.Applicative.pure
 
+> import Control.Applicative
 > import Sound.SC3.Lang.Pattern.List
 > import Sound.SC3.Lang.Pattern.Parallel
 

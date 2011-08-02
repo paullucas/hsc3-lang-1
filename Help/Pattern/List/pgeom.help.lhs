@@ -7,6 +7,7 @@ Geometric series pattern.
  length - number of values produced
 
 > import Sound.SC3.Lang.Pattern.List
+> import Sound.SC3.Lang.Pattern.Parallel
 
 > pgeom 1 2 12
 

@@ -18,4 +18,4 @@ give a starting offset into the list.
 
 There is an 'infinite' value for the repeats variable.
 
-> ptake 9 (pseq [1,2,3] inf)
+> ptake 9 (pdrop 1000000 (pseq [1,2,3] inf))

@@ -6,6 +6,7 @@ pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 
 Derive notes from an index into a scale.
 
+> import Control.Applicative
 > import Sound.SC3.Lang.Pattern.List
 
 > let { p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2

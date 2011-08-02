@@ -6,7 +6,7 @@ take :: Int -> [a] -> [a]
 Take only the first n elements of the pattern
 into the stream.  pfin = ptake.
 
-> import Sound.SC3.Lang.Pattern.List as P
+> import Sound.SC3.Lang.Pattern.List
 
 > ptake 5 (pseq [1,2,3] inf)
 
