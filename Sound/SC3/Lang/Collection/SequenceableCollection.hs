@@ -167,10 +167,10 @@ normalizeSum l =
     let n = sum l
     in map (/ n) l
 
-scramble' :: Enum a => a -> [t] -> [t]
-scramble' j k =
-    let g = mkStdGen (fromEnum j)
-    in shuffle' k (length k) g
+scramble' :: RandomGen g => g -> [t] -> ([t],g)
+scramble' g k =
+    let (_,g') = next g
+    in (shuffle' k (length k) g,g')
 
 scramble :: [t] -> IO [t]
 scramble k = do
