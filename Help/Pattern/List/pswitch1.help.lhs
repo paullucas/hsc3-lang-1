@@ -10,7 +10,7 @@ is selected from each the pattern.
 This is in comparison to pswitch,which embeds the
 pattern in its entirety.  pswitch1 switches every value.
 
-> import Sound.SC3.Lang.Pattern.List as P
+> import Sound.SC3.Lang.Pattern.List
 
 > let {p = pseq [1,2,3] inf
 >     ;q = pseq [65,76] inf

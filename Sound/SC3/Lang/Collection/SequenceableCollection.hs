@@ -167,18 +167,6 @@ normalizeSum l =
     let n = sum l
     in map (/ n) l
 
--- | Variant that cycles the shorter input.
-zipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
-zipWith_c f a b =
-    let g [] [] _ = []
-        g [] b' (_, e) = if e then [] else g a b' (True, e)
-        g a' [] (e, _) = if e then [] else g a' b (e, True)
-        g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
-    in g a b (False, False)
-
-zip_c :: [a] -> [b] -> [(a, b)]
-zip_c = zipWith_c (,)
-
 scramble' :: Enum a => a -> [t] -> [t]
 scramble' j k =
     let g = mkStdGen (fromEnum j)
@@ -203,3 +191,36 @@ wchoose l w = do
 {-
 sequence (replicate 20 (wchoose [1..5] [0.4,0.2,0.2,0.1,0.1]))
 -}
+
+-- * Extension (list & pattern)
+
+class Extending f where
+    zipWith_c :: (a -> b -> c) -> f a -> f b -> f c
+
+-- | Variant that cycles the shorter input.
+lZipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
+lZipWith_c f a b =
+    let g [] [] _ = []
+        g [] b' (_, e) = if e then [] else g a b' (True, e)
+        g a' [] (e, _) = if e then [] else g a' b (e, True)
+        g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
+    in g a b (False, False)
+
+instance Extending [] where
+    zipWith_c = zipWith_c
+
+(+.) :: (Extending f,Num a) => f a -> f a -> f a
+(+.) = zipWith_c (+)
+
+(*.) :: (Extending f,Num a) => f a -> f a -> f a
+(*.) = zipWith_c (*)
+
+(/.) :: (Extending f,Fractional a) => f a -> f a -> f a
+(/.) = zipWith_c (/)
+
+(-.) :: (Extending f,Num a) => f a -> f a -> f a
+(-.) = zipWith_c (-)
+
+zip_c :: [a] -> [b] -> [(a, b)]
+zip_c = zipWith_c (,)
+
