@@ -4,4 +4,4 @@ Returns one item from a finite pattern at random for each step.
 
 > import Sound.SC3.Lang.Pattern.List as P
 
-> take 5 (pchoose 'x' [1,2,3,4,5])
+> ptake 12 (pchoose 'a' [1,2,3,4,5])

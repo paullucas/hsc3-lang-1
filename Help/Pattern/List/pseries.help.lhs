@@ -9,5 +9,4 @@ An arithmetric series.
 > import Sound.SC3.Lang.Pattern.List
 
 > pseries 0 2 24
-
 > pseries 1.0 0.1 24

@@ -9,6 +9,6 @@ pattern continues until it also ends.
 >     ;q = pseq [4,5,6,7] 2}
 > in pinterleave p q
 
-> take 10 (pinterleave (cycle 1) (cycle 2))
+> ptake 10 (pinterleave (pcycle 1) (pcycle 2))
 
-> take 10 (pinterleave (pwhite 'x' 1 9) (pseries 10 1 5))
+> ptake 10 (pinterleave (pwhite 'a' 1 9) (pseries 10 1 5))

@@ -8,8 +8,8 @@ into the stream.  pfin = ptake.
 
 > import Sound.SC3.Lang.Pattern.List as P
 
-> take 5 (pseq [1,2,3] inf)
+> ptake 5 (pseq [1,2,3] inf)
 
-Note that take does not extend the input pattern, unlike pser.
+Note that ptake does not extend the input pattern, unlike pser.
 
-> (take 5 [1,2,3],pser [1,2,3] 5)
+> (ptake 5 (pseq [1,2,3] 1),pser [1,2,3] 5)

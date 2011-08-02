@@ -1,7 +1,9 @@
-pn :: [a] -> [Int] -> [a]
+pn :: P a -> Int -> P a
 
 Repeats the enclosed pattern a number of times.
 
-> import Sound.SC3.Lang.Pattern.List as P
+> import Sound.SC3.Lang.Pattern.List
+> import Sound.SC3.Lang.Pattern.Parallel
 
-> pn [1,2,3] 4
+> pn (fromList [1,2,3]) 4
+> pn 1 4

@@ -11,4 +11,4 @@ not the number of cycles of the pattern.
 > pseq [1,pseq [100,200] 2,3] 2
 > pser [1,pser [100,200] 3,3] 9
 
-> pser [1,2,3] 5 *. 3
+> pser [1,2,3] 5 * pure 3

@@ -15,4 +15,4 @@ pattern in its entirety.  pswitch1 switches every value.
 > let {p = pseq [1,2,3] inf
 >     ;q = pseq [65,76] inf
 >     ;r = pswitch1 [p,q,pn 800 3] (pseq [2,0,1] inf)}
-> in take 24 r
+> in ptake 24 r

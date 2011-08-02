@@ -118,31 +118,31 @@ denotes the pattern having elements (1,3), (1,4),
 
 * Patterns are Foldable
 
-> import Data.Foldable
+> import Data.Foldable as F
 
 Foldable includes functions for product:
 
-> Data.Foldable.product (pseq [1,3,5] 1)
+> F.product (pseq [1,3,5] 1)
 
 sum:
 
-> Data.Foldable.sum (ptake 12 (pwhite "x" 0.25 0.75))
+> F.sum (ptake 12 (pwhite 'x' 0.25 0.75))
 
 predicates:
 
-> Data.Foldable.any even (pseq [1,3,5] 1)
+> F.any even (pseq [1,3,5] 1)
 
 and search:
 
-> Data.Foldable.elem 5 (pseq [1,3,5] 1)
+> F.elem 5 (pseq [1,3,5] 1)
 
 * Patterns are Traversable
 
 > import Data.Traversable
 
 > let { f i e = (i + e, e * 2)
->     ; (r, p) = Data.Traversable.mapAccumL f 0 (pseq [1,3,5] 1) }
-> in (r, p)
+>     ; (r,p) = Data.Traversable.mapAccumL f 0 (pseq [1,3,5] 1) }
+> in (r,p)
 
 * Patterns are numerical
 
@@ -190,7 +190,7 @@ Right folding with the list constructor (:) and
 the empty list transforms a pattern into a list.
 
 > let p = pser [1, 2, 3] 5 + pseq [0, 10] 3
-> in pfoldr (:) [] p
+> in F.foldr (:) [] p
 
 * Extension
 

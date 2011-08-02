@@ -1,7 +1,8 @@
 zip :: [a] -> [b] -> [(a, b)]
+pzip :: P a -> P b -> P (a, b)
 
-> take 5 (zip (repeat 3) (repeat 4))
+> ptake 5 (pzip (prepeat 3) (prepeat 4))
 
 Stops on shortest pattern.
 
-> zip [0 ..] [0,-1 .. -3]
+> pzip (fromList [0 ..]) (fromList [0,-1 .. -3])

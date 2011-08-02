@@ -1,3 +1,3 @@
-cycle :: [a] -> [a]
+pcycle :: P a -> P a
 
-> take 5 (cycle [1,2,3])
+> ptake 5 (pcycle (pseq [1,2,3] 1))

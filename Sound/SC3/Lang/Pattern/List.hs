@@ -1,32 +1,67 @@
+{-# Language GeneralizedNewtypeDeriving #-}
 module Sound.SC3.Lang.Pattern.List where
 
+import Control.Applicative
 import Control.Monad
 import qualified Data.Array as A
 import Data.Bool
-import Data.Foldable
+import Data.Foldable hiding (toList)
 import Data.List hiding (concat,foldr,find)
 import Data.Maybe
 import Data.Monoid
+import Data.Traversable
 import Prelude hiding (concat,foldr)
-import Sound.SC3.Identifier
-import qualified Sound.SC3.Lang.Collection.Collection as S
-import qualified Sound.SC3.Lang.Collection.SequenceableCollection as S
-import qualified Sound.SC3.Lang.Math.Pitch as S
+import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
+import qualified Sound.SC3.Lang.Math.Pitch as P
 import System.Random
 
 -- * List instances
 
-instance (Num a) => Num [a] where
-    (+) = zipWith (+)
-    (-) = zipWith (-)
-    (*) = zipWith (*)
+newtype P a = P {toList :: [a]}
+    deriving (Eq,Functor,Monoid,Foldable,Traversable,Monad,Show)
+
+ppure :: a -> P a
+ppure = P . repeat
+
+prepeat :: a -> P a
+prepeat = P . repeat
+
+lapply :: [(a -> b)] -> [a] -> [b]
+lapply p = map (\(f,e) -> f e) . zip p
+
+papply :: P (a -> b) -> P a -> P b
+papply (P f) (P e) = P (lapply f e)
+
+instance Applicative P where
+    pure = ppure
+    (<*>) = papply
+
+pmap :: (a -> b) -> P a -> P b
+pmap = fmap
+
+preturn :: a -> P a
+preturn = return
+
+pzip :: P a -> P b -> P (a, b)
+pzip = pzipWith (,)
+
+pzipWith :: (a -> b -> c) -> P a -> P b -> P c
+pzipWith f = liftA2 f
+
+pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
+pzipWith3 f = liftA3 f
+
+instance (Num a) => Num (P a) where
+    (+) = pzipWith (+)
+    (-) = pzipWith (-)
+    (*) = pzipWith (*)
     abs = fmap abs
     signum = fmap signum
     fromInteger = return . fromInteger
     negate = fmap negate
 
-instance (Fractional a) => Fractional [a] where
-    (/) = zipWith (/)
+instance (Fractional a) => Fractional (P a) where
+    (/) = pzipWith (/)
     recip = fmap recip
     fromRational = return . fromRational
 
@@ -49,154 +84,206 @@ headM xs =
       [] -> Nothing
       x:_ -> Just x
 
-rrand :: (Random a1, ID a) => a -> a1 -> a1 -> a1
-rrand n a b =
-    let g = mkStdGen (resolveID n)
+rrand :: (Random a, Enum e) => e -> a -> a -> a
+rrand e a b =
+    let g = mkStdGen (fromEnum e)
     in fst (randomR (a,b) g)
 
 to_exprand :: (Floating b) => b -> b -> b -> b
 to_exprand l r i = l * (log (r / l) * i)
 
+fbool :: (Functor f, Ord a, Num a) => f a -> f Bool
+fbool = fmap (> 0)
+
 -- * Pattern functions
 
-pbool :: (Functor f, Ord a, Num a) => f a -> f Bool
-pbool = fmap (> 0)
+pbool :: (Ord a, Num a) => P a -> P Bool
+pbool = fbool
 
-ptail :: [a] -> [a]
-ptail x = if null x then [] else tail x
+psep :: P a -> (P a,P a)
+psep (P p) =
+    case p of
+      [] -> (P [],P [])
+      [e] -> (P [e],P [])
+      (e:p') -> (P [e],P p')
+
+phead :: P a -> P a
+phead = fst . psep
+
+ptail :: P a -> P a
+ptail = snd . psep
+
+pnull :: P a -> Bool
+pnull = null . toList
+
+ptake :: Int -> P a -> P a
+ptake n = P . take n . toList
+
+pdrop :: Int -> P a -> P a
+pdrop n = P . drop n . toList
+
+unp :: P a -> a
+unp (P p) =
+    case p of
+      (e:_) -> e
+      _ -> error "unp"
 
 -- | Count false values following each true value.
-pcountpost :: [Bool] -> [Int]
+pcountpost :: P Bool -> P Int
 pcountpost =
     let f i [] = [i]
         f i (x:xs) = if not x
                      then f (i + 1) xs
                      else i : f 0 xs
-    in tail . f 0
+    in P . tail . f 0 . toList
 
-pclutch :: [a] -> [Bool] -> [a]
+pclutch :: P a -> P Bool -> P a
 pclutch p q =
     let r = fmap (+ 1) (pcountpost q)
     in pstutter r p
 
-pinterleave :: [a] -> [a] -> [a]
-pinterleave xs ys =
+interleave :: [a] -> [a] -> [a]
+interleave xs ys =
     case (xs,ys) of
       (_,[]) -> xs
       ([],_) -> ys
-      (p:ps,q:qs) -> p : q : pinterleave ps qs
+      (p:ps,q:qs) -> p : q : interleave ps qs
 
-pdegreeToKey :: (RealFrac a) => [a] -> [[a]] -> [a] -> [a]
-pdegreeToKey = zipWith3 S.degree_to_key
+pinterleave :: P a -> P a -> P a
+pinterleave (P p) (P q) = P (interleave p q)
+
+pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
+pdegreeToKey = pzipWith3 P.degree_to_key
 
 -- | Remove successive duplicates.
-prsd :: (Eq a) => [a] -> [a]
+prsd :: (Eq a) => P a -> P a
 prsd =
     let f _ [] = []
         f Nothing (x:xs) = x : f (Just x) xs
         f (Just y) (x:xs) = if x == y
                             then f (Just x) xs
                             else x : f (Just x) xs
-    in f Nothing
+    in P . f Nothing . toList
 
-pstutter :: [Int] -> [a] -> [a]
-pstutter ns = concat . zipWith replicate (cycle ns)
+preplicate :: Int -> a -> P a
+preplicate n = P . replicate n
+
+pcycle :: P a -> P a
+pcycle = P . cycle . toList
+
+pstutter :: P Int -> P a -> P a
+pstutter ns = join . pzipWith preplicate (pcycle ns)
 
 -- | Count false values preceding each true value.
-pcountpre :: [Bool] -> [Int]
+pcountpre :: P Bool -> P Int
 pcountpre =
     let f i [] = if i == 0 then [] else [i]
         f i (x:xs) = if x
                      then i : f 0 xs
                      else f (i + 1) xs
-    in f 0
+    in P . f 0 . toList
 
-ptrigger :: [Bool] -> [a] -> [Maybe a]
+ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q =
     let r = pcountpre p
-        f i x = replicate i Nothing ++ [Just x]
-    in concat (zipWith f r q)
+        f i x = preplicate i Nothing `mappend` return (Just x)
+    in join (pzipWith f r q)
 
-pgeom :: (Num a) => a -> a -> Int -> [a]
-pgeom i s n = S.geom n i s
+pgeom :: (Num a) => a -> a -> Int -> P a
+pgeom i s n = P (C.geom n i s)
 
-pseries :: (Num a) => a -> a -> Int -> [a]
-pseries i s n = S.series n i s
+pseries :: (Num a) => a -> a -> Int -> P a
+pseries i s n = P (C.series n i s)
 
-pn :: [a] -> [Int] -> [a]
-pn xs is =
-    case is of
-      [] -> error "pn"
-      i:_ -> concat (take i (repeat xs))
+pnil :: P a
+pnil = P []
 
-preject :: (a -> Bool) -> [a] -> [a]
-preject f =
-    let g i _ = f i
-    in S.reject g
+pn :: P a -> Int -> P a
+pn p n = if n == 0 then mempty else p `mappend` (pn p (n - 1))
 
-pseq :: [[a]] -> Int -> [a]
+pfilter :: (a -> Bool) -> P a -> P a
+pfilter f = P . filter f . toList
+
+preject :: (a -> Bool) -> P a -> P a
+preject f = pfilter (not . f)
+
+pappend :: P a -> P a -> P a
+pappend (P p) (P q) = P (p ++ q)
+
+pseq :: [P a] -> Int -> P a
 pseq ps n =
     let ps' = concat (replicate n ps)
     in foldr mappend mempty ps'
 
-pser :: [[a]] -> Int -> [a]
-pser ps n = take n (pseq ps inf)
+pser :: [P a] -> Int -> P a
+pser p n = ptake n (pseq p inf)
 
-pswitch :: [[a]] -> [Int] -> [a]
+pswitch :: [P a] -> P Int -> P a
 pswitch l i = i >>= (l !!)
 
-pswitch1 :: [[a]] -> [Int] -> [a]
+pswitch1 :: [P a] -> P Int -> P a
 pswitch1 ps is =
-    case is of
-      [] -> []
-      i:_ -> let (l,r) = splitAt i ps
-                 (p:_) = r
-                 j = tail is
-             in case p of
-                  [] -> pswitch1 ps j
-                  x:_ -> let ps' = l ++ [tail p] ++ tail r
-                         in x : pswitch1 ps' j
+    if pnull is
+    then mempty
+    else let (i,j) = psep is
+             (l,r) = splitAt (unp i) ps
+             p = head r
+         in if pnull p
+            then pswitch1 ps j
+            else let x = phead p
+                     ps' = l ++ [ptail p] ++ tail r
+                 in x `mappend` pswitch1 ps' j
 
-pchoose :: ID n => n -> [a] -> [a]
-pchoose n p =
-    let g = mkStdGen (resolveID n)
-    in choosea g (A.listArray (0, length p - 1) p)
+pchoose :: Enum e => e -> [P a] -> P a
+pchoose e p =
+    let g = mkStdGen (fromEnum e)
+    in mconcat (choosea g (A.listArray (0, length p - 1) p))
 
-prand :: ID n => n -> [[a]] -> Int -> [a]
+fromList :: [a] -> P a
+fromList = P
+
+prand :: Enum e => e -> [P a] -> Int -> P a
 prand s ps n =
-    let g = mkStdGen (resolveID s)
+    let g = mkStdGen (fromEnum s)
         qs = choosea g (A.listArray (0, length ps - 1) ps)
-    in foldr (++) [] (take n qs)
+    in foldr mappend mempty (take n qs)
 
-prand_b :: (Random a) => StdGen -> [(a,a)] -> [a]
+prand_b :: (Random a) => StdGen -> P (a,a) -> P a
 prand_b g i =
-    case i of
-      [] -> []
-      (b:i') -> let (x,g') = randomR b g
-                in x : prand_b g' i'
+    if pnull i
+    then mempty
+    else let (h,t) = psep i
+             (x,g') = randomR (unp h) g
+         in return x `mappend` prand_b g' t
 
-pwhite :: (ID n,Random a) => n -> [a] -> [a] -> [a]
+pwhite :: (Enum e,Random a) => e -> P a -> P a -> P a
 pwhite n l r =
-    let b = zip (cycle l) (cycle r)
-        g = mkStdGen (resolveID n)
+    let b = pzip (pcycle l) (pcycle r)
+        g = mkStdGen (fromEnum n)
     in prand_b g b
 
-pexprand :: (ID n,Random a,Floating a) => n -> [a] -> [a] -> [a]
-pexprand n l r = zipWith3 to_exprand (cycle l) (cycle r) (pwhite n l r)
+pexprand :: (Enum n,Random a,Floating a) => n -> P a -> P a -> P a
+pexprand n l r = pzipWith3 to_exprand (pcycle l) (pcycle r) (pwhite n l r)
 
-wlookup :: (Ord n,Fractional n) => [a] -> [n] -> n -> a
-wlookup x w i =
-    let f (j,_) = i < j
-    in snd (fromJust (find f (zip (scanl1 (+) w) x)))
+windex :: (Ord a, Num a) => [a] -> a -> Int
+windex w n = fromJust (findIndex (n <) (C.integrate w))
 
-pwrand :: (ID n, Random a, Ord a, Fractional a) => n -> [b] -> [a] -> [b]
-pwrand n x w = map (wlookup x w) (pwhite n 0 1)
+pindex :: P a -> Int -> P a
+pindex p n = phead (pdrop n p)
 
-pwrand' :: (ID n) => n -> [b] -> [Double] -> [b]
+wlookup :: (Ord n,Fractional n) => P a -> [n] -> n -> P a
+wlookup x w i = x `pindex` windex w i
+
+pwrand :: (Enum e, Random n, Ord n, Fractional n) => e -> P a -> [n] -> P a
+pwrand n x w = join (fmap (wlookup x w) (pwhite n 0 1))
+
+{-
+pwrand' :: (Enum n) => n -> P b -> [Double] -> P b
 pwrand' n x w = map (wlookup x w) (pwhite n 0 1)
+-}
 
-pif :: (a -> Bool) -> [a] -> [d] -> [d] -> [d]
-pif f = zipWith3 (\x z y -> if f x then y else z)
+pif :: (a -> Bool) -> P a -> P b -> P b -> P b
+pif f = pzipWith3 (\x z y -> if f x then y else z)
 
 -- * Extension (list & pattern)
 

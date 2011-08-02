@@ -149,11 +149,7 @@ clumps m s =
 
 -- | dx -> d
 integrate :: (Num a) => [a] -> [a]
-integrate xs =
-    case xs of
-      [] -> []
-      x:xs' -> let f p c = (p + c, p + c)
-               in x : snd (mapAccumL f x xs')
+integrate = scanl1 (+)
 
 -- | d -> dx
 differentiate :: (Num a) => [a] -> [a]

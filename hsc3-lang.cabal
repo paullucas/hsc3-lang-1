@@ -36,6 +36,7 @@ Library
                    Sound.SC3.Lang.Math.Pitch
                    Sound.SC3.Lang.Math.SimpleNumber
                    Sound.SC3.Lang.Pattern.List
+                   Sound.SC3.Lang.Pattern.Parallel
                    Sound.SC3.Lang.Pattern.Step
 
 Source-Repository  head
