@@ -14,15 +14,13 @@ rand n = randomRIO (0,n)
 rand2 :: (Random n,Num n) => n -> IO n
 rand2 n = randomRIO (-n,n)
 
-coin :: (Random n,Fractional n,Ord n) => n -> IO Bool
-coin n = do
-  i <- randomRIO (0.0,1.0)
-  return (i < n)
-
 coin' :: (RandomGen g, Random a, Ord a, Fractional a) => a -> g -> (Bool,g)
 coin' n g =
   let (i,g') = randomR (0.0,1.0) g
   in (i < n,g')
+
+coin :: (Random n,Fractional n,Ord n) => n -> IO Bool
+coin = getStdRandom . coin'
 
 {-
 import Control.Monad
