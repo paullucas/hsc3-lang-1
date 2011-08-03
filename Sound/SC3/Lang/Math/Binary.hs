@@ -14,7 +14,7 @@ bitChar c =
 parseBits :: Bits a => String -> a
 parseBits x =
     let x' = filter (id . bitChar . snd) (zip [0..] (reverse x))
-    in foldr1 (.|.) (map (bit . fst) x')
+    in foldr (.|.) 0 (map (bit . fst) x')
 
 {-
 (parseBits "101")::Int
