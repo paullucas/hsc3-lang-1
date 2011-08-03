@@ -154,8 +154,9 @@ h p6
 s' p6
 -}
 
--- * Common (to List and Parallel)
+-- COMMON (to List and Parallel)
 
+-- | Patterns are numbers
 instance (Num a) => Num (P a) where
     (+) = liftA2 (+)
     (-) = liftA2 (-)
@@ -165,79 +166,86 @@ instance (Num a) => Num (P a) where
     fromInteger = return . fromInteger
     negate = fmap negate
 
+-- | Patterns are fractional
 instance (Fractional a) => Fractional (P a) where
     (/) = liftA2 (/)
     recip = fmap recip
     fromRational = return . fromRational
 
+-- | A very large positive integer
+inf :: Int
+inf = maxBound
+
+-- | Array choose
+achoose :: RandomGen g => g -> A.Array Int a -> [a]
+achoose g r =
+    let (i,g') = randomR (A.bounds r) g
+        x = r A.! i
+    in x : achoose g' r
+
+-- | Functor bool
+fbool :: (Functor f, Ord a, Num a) => f a -> f Bool
+fbool = fmap (> 0)
+
+-- | Foldable choose
+fchoose :: (Foldable f,Monoid a,Enum e) => e -> f a -> a
+fchoose e p =
+    let g = mkStdGen (fromEnum e)
+        l = toList p
+    in mconcat (achoose g (A.listArray (0,length l - 1) l))
+
+-- | Foldable rand
+frand :: (Foldable f,Monoid b,Enum a) => a -> f b -> Int -> b
+frand s p n =
+    let g = mkStdGen (fromEnum s)
+        l = toList p
+        q = achoose g (A.listArray (0, length l - 1) l)
+    in mconcat (take n q)
+
+-- | Applicative if
 aif ::  Applicative f => (a -> Bool) -> f a -> f d -> f d -> f d
 aif f = liftA3 (\x z y -> if f x then y else z)
 
+-- | Applicative zip
 azip ::  Applicative f => f a -> f b -> f (a,b)
 azip = liftA2 (,)
 
+-- | Applicative degreeToKey
 adegreeToKey :: (Applicative p,RealFrac a) => p a -> p [a] -> p a -> p a
 adegreeToKey = liftA3 P.degree_to_key
 
-mcons :: (Monoid (m a), Monad m) => a -> m a -> m a
-mcons e p = return e `mappend` p
+-- | Applicative stutter
+astutter :: (Monoid (m n),Monoid (m a),Applicative m,Num n,Monad m) =>
+            m n -> m a -> m a
+astutter ns = join . liftA2 mreplicate (mcycle ns)
 
-mreplicate :: (Monoid (m a), Num n, Monad m) => n -> a -> m a
-mreplicate n a = if n == 0 then mempty else a `mcons` mreplicate (n-1) a
-
-mn :: (Monoid a, Num b) => a -> b -> a
+-- | Monoidal n-of
+mn :: (Monoid a,Num n) => a -> n -> a
 mn p n = if n == 0 then mempty else p `mappend` (mn p (n - 1))
 
-mnull :: (Monoid a, Eq a) => a -> Bool
-mnull e = e == mempty
+-- | Monadic cons
+mcons :: (Monoid (m a),Monad m) => a -> m a -> m a
+mcons e p = return e `mappend` p
 
+-- | Monoidal cycle
 mcycle :: Monoid a => a -> a
 mcycle a = a `mappend` mcycle a
 
-mstutter :: (Monoid (m n), Monoid (m a), Applicative m, Num n, Monad m) =>
-            m n -> m a -> m a
-mstutter ns = join . liftA2 mreplicate (mcycle ns)
+-- | Monadic replicate
+mreplicate :: (Monoid (m a),Num n,Monad m) => n -> a -> m a
+mreplicate n a = if n == 0 then mempty else a `mcons` mreplicate (n-1) a
 
+-- | Monadic null (Eq constraint)
+mnull :: (Monoid a,Eq a) => a -> Bool
+mnull e = e == mempty
+
+-- | Monadic switch
 mswitch :: Monad m => [m b] -> m Int -> m b
 mswitch l i = i >>= (l !!)
 
-mchoose :: (Monoid a, Enum e) => e -> [a] -> a
-mchoose e p =
-    let g = mkStdGen (fromEnum e)
-    in mconcat (choosea g (A.listArray (0, length p - 1) p))
-
-mrand :: (Monoid b, Enum a) => a -> [b] -> Int -> b
-mrand s ps n =
-    let g = mkStdGen (fromEnum s)
-        qs = choosea g (A.listArray (0, length ps - 1) ps)
-    in F.foldr mappend mempty (take n qs)
-
+-- | Monoidal seq
 mseq :: Monoid b => [b] -> Int -> b
-mseq ps n =
-    let ps' = F.concat (replicate n ps)
-    in F.foldr mappend mempty ps'
-
--- | A very large positive integer
-inf :: Int
-inf = 83886028
-
--- | Choose an element of an array at random
-choosea :: StdGen -> A.Array Int a -> [a]
-choosea g r =
-    let (i, g') = randomR (A.bounds r) g
-        x = r A.! i
-    in x : choosea g' r
-
-rrand :: (Random a, Enum e) => e -> a -> a -> a
-rrand e a b =
-    let g = mkStdGen (fromEnum e)
-    in fst (randomR (a,b) g)
-
-to_exprand :: (Floating b) => b -> b -> b -> b
-to_exprand l r i = l * (log (r / l) * i)
-
-fbool :: (Functor f, Ord a, Num a) => f a -> f Bool
-fbool = fmap (> 0)
+mseq ps n = mconcat (mconcat (replicate n ps))
 
 phead :: P a -> P a
 phead = fst . psep
@@ -273,7 +281,7 @@ pcountpost =
 pclutch :: P a -> P Bool -> P a
 pclutch p q =
     let r = fmap (+ 1) (pcountpost q)
-    in mstutter r p
+    in astutter r p
 
 -- | Count false values preceding each true value.
 pcountpre :: P Bool -> P Int
@@ -349,6 +357,9 @@ pwhite n l r =
         g = mkStdGen (fromEnum n)
     in prand_b g b
 
+to_exprand :: (Floating b) => b -> b -> b -> b
+to_exprand l r i = l * (log (r / l) * i)
+
 pexprand :: (Enum n,Random a,Floating a) => n -> P a -> P a -> P a
 pexprand n l r = liftA3 to_exprand (mcycle l) (mcycle r) (pwhite n l r)
 
@@ -412,16 +423,16 @@ preplicate :: Int -> a -> P a
 preplicate = mreplicate
 
 pstutter :: P Int -> P a -> P a
-pstutter = mstutter
+pstutter = astutter
 
 pswitch :: [P a] -> P Int -> P a
 pswitch = mswitch
 
 pchoose :: Enum e => e -> [P a] -> P a
-pchoose = mchoose
+pchoose = fchoose
 
 prand :: Enum e => e -> [P a] -> Int -> P a
-prand = mrand
+prand = frand
 
 pif :: (a -> Bool) -> P a -> P b -> P b -> P b
 pif = aif
