@@ -32,6 +32,7 @@ Library
   Exposed-modules: Sound.SC3.Lang.Collection.Collection
                    Sound.SC3.Lang.Collection.Numerical
                    Sound.SC3.Lang.Collection.SequenceableCollection
+                   Sound.SC3.Lang.Math.Binary
                    Sound.SC3.Lang.Math.Duration
                    Sound.SC3.Lang.Math.Pitch
                    Sound.SC3.Lang.Math.SimpleNumber
