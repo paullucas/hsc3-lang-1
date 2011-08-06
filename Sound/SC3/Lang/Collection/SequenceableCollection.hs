@@ -209,7 +209,7 @@ lZipWith_c f a b =
     in g a b (False,False)
 
 instance Extending [] where
-    zipWith_c = zipWith_c
+    zipWith_c = lZipWith_c
 
 (+.) :: (Extending f,Num a) => f a -> f a -> f a
 (+.) = zipWith_c (+)
