@@ -214,6 +214,35 @@ series i s n = C.series n i s
 pseries :: (Num a) => a -> a -> Int -> P a
 pseries i s = P . series i s
 
+-- l < i <= r
+wrap :: (Num a,Ord a) => (a,a) -> a -> a
+wrap (l,r) i =
+    let d = r - l
+        f = wrap (l,r)
+    in if i < l then f (i + d) else if i >= r then f (i - d) else i
+
+{-
+map (wrap (0,4)) [0..12]
+-}
+
+-- k = length a
+segment :: [a] -> Int -> (Int,Int) -> [a]
+segment a k (l,r) =
+    let i = map (wrap (0,k)) [l .. r]
+    in map (a !!) i
+
+slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
+slide a n j s i wr =
+    let k = length a
+        l = enumFromThen i (i + s)
+        r = map (+ (j - 1)) l
+    in if wr
+       then L.concat (take n (map (segment a k) (zip l r)))
+       else error "slide: non-wrap variant not implemented"
+
+pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
+pslide a n j s i = P . slide a n j s i
+
 -- * Type specific aliases
 
 pappend :: P a -> P a -> P a
