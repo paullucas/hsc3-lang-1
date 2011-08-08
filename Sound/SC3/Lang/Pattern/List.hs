@@ -4,6 +4,7 @@ module Sound.SC3.Lang.Pattern.List where
 import Control.Applicative
 import Data.Foldable as F
 import Data.List as L
+import qualified Data.Map as M
 import Data.Monoid
 import Data.Traversable
 import Sound.SC3.Lang.Collection.Numerical.Extending ()
@@ -249,6 +250,7 @@ slide a n j s i wr =
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
 pslide a n j s i = P . slide a n j s i
 
+-- flop is strict!
 lace :: [[a]] -> Int -> [a]
 lace a n =
     let i = length a
@@ -262,6 +264,18 @@ switch l i = i >>= (l !!)
 
 pswitch :: [P a] -> P Int -> P a
 pswitch l = liftP (switch (map unP l))
+
+switch1 :: [[a]] -> [Int] -> [a]
+switch1 ps =
+    let go _ [] = []
+        go m (i:is) = case M.lookup i m of
+                        Nothing -> []
+                        Just [] -> []
+                        Just (x:xs) -> x : go (M.insert i xs m) is
+    in go (M.fromList (zip [0..] ps))
+
+pswitch1 :: [P a] -> P Int -> P a
+pswitch1 l = liftP (switch1 (map unP l))
 
 -- * Type specific aliases
 
