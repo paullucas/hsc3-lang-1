@@ -24,6 +24,7 @@ Library
   Build-Depends:   array,
                    base == 4.*,
                    containers,
+                   hosc == 0.10,
                    hsc3 == 0.10,
                    split,
                    random,
@@ -33,6 +34,7 @@ Library
                    Sound.SC3.Lang.Collection.Numerical
                    Sound.SC3.Lang.Collection.SequenceableCollection
                    Sound.SC3.Lang.Math.Binary
+                   Sound.SC3.Lang.Math.Datum
                    Sound.SC3.Lang.Math.Duration
                    Sound.SC3.Lang.Math.Pitch
                    Sound.SC3.Lang.Math.SimpleNumber
