@@ -228,3 +228,7 @@ zip_c = zipWith_c (,)
 
 zap_c :: [a -> b] -> [a] -> [b]
 zap_c = zipWith_c (\f e -> f e)
+
+{-
+zap_c [(+1)] [1..10]
+-}

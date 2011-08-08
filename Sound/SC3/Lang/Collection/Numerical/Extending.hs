@@ -1,4 +1,4 @@
-module Sound.SC3.Lang.Collection.Numerical where
+module Sound.SC3.Lang.Collection.Numerical.Extending where
 
 import Sound.SC3.Lang.Collection.SequenceableCollection (zipWith_c)
 
@@ -35,3 +35,9 @@ instance Floating a => Floating [a] where
     asinh = map asinh
     acosh = map acosh
     atanh = map atanh
+
+
+{-
+[1,2,3] * [4,5]
+[1,2,3] * 2
+-}
