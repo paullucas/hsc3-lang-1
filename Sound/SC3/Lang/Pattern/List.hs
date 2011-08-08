@@ -257,6 +257,12 @@ lace a n =
 place :: [P a] -> Int -> P a
 place a n = P (lace (map unP a) n)
 
+switch :: [[a]] -> [Int] -> [a]
+switch l i = i >>= (l !!)
+
+pswitch :: [P a] -> P Int -> P a
+pswitch l = liftP (switch (map unP l))
+
 -- * Type specific aliases
 
 pappend :: P a -> P a -> P a
