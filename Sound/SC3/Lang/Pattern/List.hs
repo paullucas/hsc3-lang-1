@@ -2,24 +2,44 @@
 module Sound.SC3.Lang.Pattern.List where
 
 import Control.Applicative
-import Control.Monad
-import qualified Data.Array as A
 import Data.Foldable as F
-import Data.Maybe
+import Data.List as L
 import Data.Monoid
 import Data.Traversable
-import Sound.SC3.Lang.Collection.SequenceableCollection as C
-import Sound.SC3.Lang.Math.Pitch as P
+import Sound.SC3.Lang.Collection.Numerical.Extending ()
+import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 import System.Random
 
--- * P type
+-- * P type and instances
 
 newtype P a = P {unP :: [a]}
-    deriving (Eq,Functor,Monoid,Foldable,Traversable,Monad,Show)
+    deriving (Eq
+             ,Functor
+             ,Monoid
+             ,Foldable
+             ,Traversable
+             ,Monad
+             ,Num
+             ,Fractional
+             ,Floating
+             ,Show)
 
 instance Applicative P where
-    pure = P . repeat
-    P f <*> P e = P (map (\(f',e') -> f' e') (zip f e))
+    pure = P . return
+    P f <*> P e = P (map (\(f',e') -> f' e') (C.zip_c f e))
+
+-- * P lifting
+
+liftP :: ([a] -> [b]) -> P a -> P b
+liftP f = P . f . toList
+
+liftP2 :: ([a] -> [b] -> [c]) -> P a -> P b -> P c
+liftP2 f a b = P (f (toList a) (toList b))
+
+liftP3 :: ([a] -> [b] -> [c] -> [d]) -> P a -> P b -> P c -> P d
+liftP3 f a b c = P (f (toList a) (toList b) (toList c))
+
+-- * P functions
 
 pnull :: P a -> Bool
 pnull = null . toList
@@ -31,323 +51,176 @@ psep (P p) =
       [e] -> (P [e],P [])
       (e:p') -> (P [e],P p')
 
-pfilter :: (a -> Bool) -> P a -> P a
-pfilter f = P . filter f . toList
-
 fromList :: [a] -> P a
 fromList = P
 
--- COMMON (to List and Parallel)
+pfilter :: (a -> Bool) -> P a -> P a
+pfilter f = liftP (filter f)
 
--- | Patterns are numbers
-instance (Num a) => Num (P a) where
-    (+) = liftA2 (+)
-    (-) = liftA2 (-)
-    (*) = liftA2 (*)
-    abs = fmap abs
-    signum = fmap signum
-    fromInteger = return . fromInteger
-    negate = fmap negate
+pconcat :: [P a] -> P a
+pconcat = P . L.concat . map unP
 
--- | Patterns are fractional
-instance (Fractional a) => Fractional (P a) where
-    (/) = liftA2 (/)
-    recip = fmap recip
-    fromRational = return . fromRational
+seq :: [[a]] -> Int -> [a]
+seq a i = L.concat (L.concat (replicate i a))
 
--- | A very large positive integer
+pseq :: [P a] -> Int -> P a
+pseq a i = pconcat (L.concat (replicate i a))
+
+pcycle :: P a -> P a
+pcycle = liftP cycle
+
+ser :: [[a]] -> Int -> [a]
+ser a i = take i (cycle (L.concat a))
+
+pser :: [P a] -> Int -> P a
+pser a i = ptake i (pcycle (pconcat a))
+
+concatReplicate :: Int -> [a] -> [a]
+concatReplicate i = L.concat . replicate i
+
+ln :: [a] -> Int -> [a]
+ln = flip concatReplicate
+
+pconcatReplicate :: Int -> P a -> P a
+pconcatReplicate i = pconcat . replicate i
+
+pn :: P a -> Int -> P a
+pn = flip pconcatReplicate
+
 inf :: Int
 inf = maxBound
 
--- | Array choose
-achoose :: RandomGen g => g -> A.Array Int a -> [a]
-achoose g r =
-    let (i,g') = randomR (A.bounds r) g
-        x = r A.! i
-    in x : achoose g' r
-
--- | Functor bool
-fbool :: (Functor f, Ord a, Num a) => f a -> f Bool
-fbool = fmap (> 0)
-
--- | Foldable choose
-fchoose :: (Foldable f,Monoid a,Enum e) => e -> f a -> a
-fchoose e p =
-    let g = mkStdGen (fromEnum e)
-        l = toList p
-    in mconcat (achoose g (A.listArray (0,length l - 1) l))
-
--- | Foldable rand
-frand :: (Foldable f,Monoid b,Enum a) => a -> f b -> Int -> b
-frand s p n =
-    let g = mkStdGen (fromEnum s)
-        l = toList p
-        q = achoose g (A.listArray (0, length l - 1) l)
-    in mconcat (take n q)
-
--- | Applicative if
-aif ::  Applicative f => (a -> Bool) -> f a -> f d -> f d -> f d
-aif f = liftA3 (\x z y -> if f x then y else z)
-
--- | Applicative zip
-azip ::  Applicative f => f a -> f b -> f (a,b)
-azip = liftA2 (,)
-
--- | Applicative degreeToKey
-adegreeToKey :: (Applicative p,RealFrac a) => p a -> p [a] -> p a -> p a
-adegreeToKey = liftA3 P.degree_to_key
-
--- | Applicative stutter
-astutter :: (Monoid (m n),Monoid (m a),Applicative m,Num n,Monad m) =>
-            m n -> m a -> m a
-astutter ns = join . liftA2 mreplicate (mcycle ns)
-
--- | Monoidal n-of
-mn :: (Monoid a,Num n) => a -> n -> a
-mn p n = if n == 0 then mempty else p `mappend` (mn p (n - 1))
-
--- | Monadic cons
-mcons :: (Monoid (m a),Monad m) => a -> m a -> m a
-mcons e p = return e `mappend` p
-
--- | Monoidal cycle
-mcycle :: Monoid a => a -> a
-mcycle a = a `mappend` mcycle a
-
--- | Monadic replicate
-mreplicate :: (Monoid (m a),Num n,Monad m) => n -> a -> m a
-mreplicate n a = if n == 0 then mempty else a `mcons` mreplicate (n-1) a
-
--- | Monadic null (Eq constraint)
-mnull :: (Monoid a,Eq a) => a -> Bool
-mnull e = e == mempty
-
--- | Monadic switch
-mswitch :: Monad m => [m b] -> m Int -> m b
-mswitch l i = i >>= (l !!)
-
--- | Monoidal seq
-mseq :: Monoid b => [b] -> Int -> b
-mseq ps n = mconcat (mconcat (replicate n ps))
-
-phead :: P a -> P a
-phead = fst . psep
-
-ptail :: P a -> P a
-ptail = snd . psep
-
 ptake :: Int -> P a -> P a
-ptake n p =
-    if n > 0
-    then let (h,t) = psep p
-         in h `mappend` ptake (n - 1) t
-    else mempty
+ptake n = liftP (take n)
 
-pdrop :: Int -> P a -> P a
-pdrop n p = if n > 0 then pdrop (n - 1) (ptail p) else p
+white :: (Random n, Enum e) => e -> n -> n -> Int -> [n]
+white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
-psep' :: P a -> P (a, P a)
-psep' p =
-    let (x,xs) = psep p
-    in x >>= \x' -> return (x',xs)
+pwhite :: (Random n, Enum e) => e -> n -> n -> Int -> P n
+pwhite e l r = P . white e l r
 
--- | Count false values following each true value.
-pcountpost :: P Bool -> P Int
-pcountpost =
-    let f i p = if mnull p
-                then return i
-                else do (x,xs) <- psep' p
-                        let r = return i `mappend` f 0 xs
-                        if not x then f (i + 1) xs else r
-    in ptail . f 0
+white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
+white' e l r =
+    let g = mkStdGen (fromEnum e)
+        n = zip l r
+        f a b = let (a',b') = randomR b a in (b',a')
+    in snd (L.mapAccumL f g n)
 
-pclutch :: P a -> P Bool -> P a
-pclutch p q =
-    let r = fmap (+ 1) (pcountpost q)
-    in astutter r p
-
--- | Count false values preceding each true value.
-pcountpre :: P Bool -> P Int
-pcountpre =
-    let f i p = if mnull p
-                then if i == 0 then mempty else return i
-                else do (x,xs) <- psep' p
-                        let r = return i `mappend` f 0 xs
-                        if x then r else f (i + 1) xs
-    in f 0
-
-ptrigger :: P Bool -> P a -> P (Maybe a)
-ptrigger p q =
-    let r = pcountpre p
-        f i x = mreplicate i Nothing `mappend` return (Just x)
-    in join (liftA2 f r q)
-
--- | Remove successive duplicates.
-prsd :: (Eq a) => P a -> P a
-prsd =
-    let f i p = let (h,t) = psep p
-                in if mnull h
-                   then mempty
-                   else let t' = f (Just h) t
-                        in case i of
-                          Nothing -> h `mappend` t'
-                          Just j -> if j == h then t' else h `mappend` t'
-    in f Nothing
-
-pser :: [P a] -> Int -> P a
-pser ps n = ptake n (mseq ps inf)
-
-pgeom :: (Num a) => a -> a -> Int -> P a
-pgeom i s n = fromList (C.geom n i s)
-
-pseries :: (Num a) => a -> a -> Int -> P a
-pseries i s n = fromList (C.series n i s)
-
-pinterleave :: Eq a => P a -> P a -> P a
-pinterleave p q =
-    let ((a,p'),(b,q')) = (psep p,psep q)
-    in if mnull b
-       then p
-       else if mnull a
-            then q
-            else a `mappend` b `mappend` pinterleave p' q'
-
-preject :: (a -> Bool) -> P a -> P a
-preject f = pfilter (not . f)
-
-pswitch1 :: Eq a => [P a] -> P Int -> P a
-pswitch1 ps is =
-    if mnull is
-    then mempty
-    else do (i,j) <- psep' is
-            let (l,r) = splitAt i ps
-                p = head r
-                x = phead p
-                ps' = l ++ [ptail p] ++ tail r
-            if mnull p then pswitch1 ps j else x `mappend` pswitch1 ps' j
-
-prand_b :: (Eq a,Random a) => StdGen -> P (a,a) -> P a
-prand_b g i =
-    if mnull i
-    then mempty
-    else do (h,t) <- psep' i
-            let (x,g') = randomR h g
-            return x `mappend` prand_b g' t
-
-pwhite :: (Enum e,Random a,Eq a) => e -> P a -> P a -> P a
-pwhite n l r =
-    let b = azip (mcycle l) (mcycle r)
-        g = mkStdGen (fromEnum n)
-    in prand_b g b
-
-to_exprand :: (Floating b) => b -> b -> b -> b
-to_exprand l r i = l * (log (r / l) * i)
-
-pexprand :: (Enum n,Random a,Floating a) => n -> P a -> P a -> P a
-pexprand n l r = liftA3 to_exprand (mcycle l) (mcycle r) (pwhite n l r)
-
-pindex :: P a -> Int -> P a
-pindex p n = phead (pdrop n p)
-
-wlookup :: (Ord n,Fractional n) => P a -> [n] -> n -> P a
-wlookup x w i = x `pindex` fromJust (C.windex w i)
-
-pwrand :: (Enum e, Random n, Ord n, Fractional n) => e -> P a -> [n] -> P a
-pwrand n x w = join (fmap (wlookup x w) (pwhite n 0 1))
-
-psplitAt :: Int -> P a -> (P a,P a)
-psplitAt n p = (ptake n p,pdrop n p)
-
--- * P specialised
-
-pcons :: a -> P a -> P a
-pcons = mcons
-
-ppure :: a -> P a
-ppure = pure
+pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
+pwhite' e = liftP2 (white' e)
 
 prepeat :: a -> P a
-prepeat = pure
+prepeat = P . repeat
 
-papply :: P (a -> b) -> P a -> P b
-papply = (<*>)
+pzipWith :: (a -> b -> c) -> P a -> P b -> P c
+pzipWith f = liftP2 (C.zipWith_c f)
+
+pzip :: P a -> P b -> P (a,b)
+pzip = liftP2 C.zip_c
+
+countpre :: [Bool] -> [Int]
+countpre =
+    let f i p = if null p
+                then if i == 0 then [] else [i]
+                else let (x:xs) = p
+                         r = i : f 0 xs
+                     in if x then r else f (i + 1) xs
+    in f 0
+
+pcountpre :: P Bool -> P Int
+pcountpre = liftP countpre
+
+trigger :: [Bool] -> [a] -> [Maybe a]
+trigger p q =
+    let r = countpre p
+        f i x = replicate i Nothing ++ [Just x]
+    in L.concat (C.zipWith_c f r q)
+
+ptrigger :: P Bool -> P a -> P (Maybe a)
+ptrigger = liftP2 trigger
+
+-- | Functor bool
+bool :: (Functor f, Ord a, Num a) => f a -> f Bool
+bool = fmap (> 0)
+
+countpost :: [Bool] -> [Int]
+countpost =
+    let f i p = if null p
+                then [i]
+                else let (x:xs) = p
+                         r = i : f 0 xs
+                     in if not x then f (i + 1) xs else r
+    in tail . f 0
+
+pcountpost :: P Bool -> P Int
+pcountpost = liftP countpost
+
+stutter :: [Int] -> [a] -> [a]
+stutter ns = L.concat . C.zipWith_c replicate ns
+
+pstutter :: P Int -> P a -> P a
+pstutter = liftP2 stutter
+
+clutch :: [a] -> [Bool] -> [a]
+clutch p q =
+    let r = map (+ 1) (countpost q)
+    in stutter r p
+
+pclutch :: P a -> P Bool -> P a
+pclutch = liftP2 clutch
+
+rand' :: Enum e => e -> [[a]] -> [a]
+rand' e a =
+    let k = length a - 1
+        f g = let (i,g') = randomR (0,k) g
+              in (a !! i) ++ f g'
+    in f (mkStdGen (fromEnum e))
+
+rand :: Enum e => e -> [[a]] -> Int -> [a]
+rand e a n = take n (rand' e a)
+
+prand :: Enum e => e -> [P a] -> Int -> P a
+prand e a n = P (rand e (map unP a) n)
+
+shuf :: Enum e => e -> [a] -> Int -> [a]
+shuf e a n =
+    let (a',_) = C.scramble' a (mkStdGen (fromEnum e))
+    in concatReplicate n a'
+
+pshuf :: Enum e => e -> [a] -> Int -> P a
+pshuf e a n = P (shuf e a n)
+
+wrand' :: (Enum e,Random n,Ord n,Fractional n) => e -> [[a]] -> [n] -> [a]
+wrand' e a w =
+    let f g = let (r,g') = C.wchoose' a w g
+              in r ++ f g'
+    in f (mkStdGen (fromEnum e))
+
+wrand :: (Enum e,Random n,Ord n,Fractional n) => e->[[a]]->[n]->Int->[a]
+wrand e a w n = take n (wrand' e a w)
+
+pwrand :: (Enum e,Random n,Ord n,Fractional n) => e->[P a]->[n]->Int->P a
+pwrand e a w n = P (wrand e (map unP a) w n)
+
+geom :: (Num a) => a -> a -> Int -> [a]
+geom i s n = C.geom n i s
+
+pgeom :: (Num a) => a -> a -> Int -> P a
+pgeom i s = P . geom i s
+
+series :: (Num a) => a -> a -> Int -> [a]
+series i s n = C.series n i s
+
+pseries :: (Num a) => a -> a -> Int -> P a
+pseries i s = P . series i s
+
+-- * Type specific aliases
 
 pappend :: P a -> P a -> P a
 pappend = mappend
 
-pmap :: (a -> b) -> P a -> P b
-pmap = fmap
-
-preturn :: a -> P a
-preturn = return
-
-pzipWith :: (a -> b -> c) -> P a -> P b -> P c
-pzipWith = liftA2
-
-pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
-pzipWith3 = liftA3
-
-pzip :: P a -> P b -> P (a, b)
-pzip = azip
-
 pbool :: (Ord a, Num a) => P a -> P Bool
-pbool = fbool
-
-pnil :: P a
-pnil = mempty
-
-pcycle :: P a -> P a
-pcycle = mcycle
-
-pn :: P a -> Int -> P a
-pn = mn
-
-preplicate :: Int -> a -> P a
-preplicate = mreplicate
-
-pstutter :: P Int -> P a -> P a
-pstutter = astutter
-
-pswitch :: [P a] -> P Int -> P a
-pswitch = mswitch
-
-pchoose :: Enum e => e -> [P a] -> P a
-pchoose = fchoose
-
-prand :: Enum e => e -> [P a] -> Int -> P a
-prand = frand
-
-pif :: (a -> Bool) -> P a -> P b -> P b -> P b
-pif = aif
-
-pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
-pdegreeToKey = adegreeToKey
-
-pseq :: [P a] -> Int -> P a
-pseq = mseq
+pbool = bool
 
 pempty :: P a
 pempty = mempty
-
--- * _c
-
-pzipWith_c :: (a -> b -> c) -> P a -> P b -> P c
-pzipWith_c f ip iq =
-    let go l r p q =
-            let l' = l || pnull p
-                r' = r || pnull q
-                p' = if pnull p then ip else p
-                q' = if pnull q then iq else q
-            in if l' && r
-               then mempty
-               else let (ph,pt) = psep p'
-                    in if r' && l
-                       then mempty
-                       else let (qh,qt) = psep q'
-                            in do ph' <- ph
-                                  qh' <- qh
-                                  f ph' qh' `pcons` go l' r' pt qt
-    in go False False ip iq
-
-instance Extending P where
-    zipWith_c = pzipWith_c

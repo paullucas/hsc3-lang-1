@@ -1,11 +1,12 @@
-zip :: [a] -> [b] -> [(a, b)]
-pzip :: P a -> P b -> P (a, b)
+zip :: [a] -> [b] -> [(a,b)]
+pzip :: P a -> P b -> P (a,b)
 
-> import Sound.SC3.Lang.Pattern.List
-> import Sound.SC3.Lang.Pattern.Parallel
+> import Sound.SC3.Lang.Pattern.List as P
 
+> take 5 (zip (repeat 3) (repeat 4))
 > ptake 5 (pzip (prepeat 3) (prepeat 4))
 
-Stops on shortest pattern.
+Note that zip is truncating wheras pzip extending.
 
-> pzip (fromList [0 ..]) (fromList [0,-1 .. -3])
+> zip [1 .. 6] [-1,-2,-3]
+> pzip (fromList [1 .. 6]) (fromList [-1,-2,-3])

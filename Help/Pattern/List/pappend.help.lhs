@@ -1,5 +1,6 @@
 (++) :: [a] -> [a] -> [a]
 pappend :: P a -> P a -> P a
+mappend :: Monoid a => a -> a -> a
 
 Sequence two patterns.  This is the mappend instance of Monoid.
 
@@ -8,6 +9,12 @@ Sequence two patterns.  This is the mappend instance of Monoid.
 > import Sound.SC3.Lang.Pattern.List
 > import Sound.SC3.Lang.Pattern.Parallel
 
+> [1,2] ++ [2,3]
+> fromList [1,2] `pappend` fromList [2,3]
 > fromList [1,2] `mappend` fromList [2,3]
-> pnull (mempty `mappend` mempty)
-> ptake 5 (pure 3 `mappend` pure 4)
+
+> take 5 (repeat 3 ++ repeat 4)
+> ptake 5 (prepeat 3 `pappend` prepeat 4)
+
+> let e = mempty :: P ()
+> e `mappend` e == e
