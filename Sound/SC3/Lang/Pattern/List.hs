@@ -57,6 +57,12 @@ fromList = P
 pfilter :: (a -> Bool) -> P a -> P a
 pfilter f = liftP (filter f)
 
+reject :: (a -> Bool) -> [a] -> [a]
+reject f = filter (not . f)
+
+preject :: (a -> Bool) -> P a -> P a
+preject f = liftP (reject f)
+
 pconcat :: [P a] -> P a
 pconcat = P . L.concat . map unP
 
