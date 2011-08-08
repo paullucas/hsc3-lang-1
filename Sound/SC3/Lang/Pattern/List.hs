@@ -249,6 +249,14 @@ slide a n j s i wr =
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
 pslide a n j s i = P . slide a n j s i
 
+lace :: [[a]] -> Int -> [a]
+lace a n =
+    let i = length a
+    in take (n * i) (cycle (L.concat (C.flop a)))
+
+place :: [P a] -> Int -> P a
+place a n = P (lace (map unP a) n)
+
 -- * Type specific aliases
 
 pappend :: P a -> P a -> P a
