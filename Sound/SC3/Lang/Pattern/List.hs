@@ -7,6 +7,7 @@ import Data.List as L
 import qualified Data.Map as M
 import Data.Monoid
 import Data.Traversable
+import Sound.OpenSoundControl.Type
 import Sound.SC3.Lang.Collection.Numerical.Extending ()
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 import Sound.SC3.Lang.Math.Pitch as P
@@ -62,6 +63,16 @@ pzip :: P a -> P b -> P (a,b)
 pzip = liftP2 C.zip_c
 
 -- * SC3 patterns
+
+type Event = [(String,Datum)]
+
+bind :: [(String,[Datum])] -> [Event]
+bind xs =
+    let xs' = map (\(k,v) -> zip (repeat k) v) xs
+    in C.flop xs'
+
+pbind :: [(String,P Datum)] -> P Event
+pbind xs = P (bind (map (\(k,v) -> (k,unP v)) xs))
 
 clutch :: [a] -> [Bool] -> [a]
 clutch p q =
