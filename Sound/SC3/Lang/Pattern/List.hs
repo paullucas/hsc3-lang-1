@@ -277,6 +277,19 @@ switch1 ps =
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
 
+xrand' :: Enum e => e -> [[a]] -> [a]
+xrand' e a =
+    let k = length a - 1
+        f j g = let (i,g') = randomR (0,k) g
+                in if i == j then f j g' else (a !! i) ++ f i g'
+    in f (-1) (mkStdGen (fromEnum e))
+
+xrand :: Enum e => e -> [[a]] -> Int -> [a]
+xrand e a n = take n (xrand' e a)
+
+pxrand :: Enum e => e -> [P a] -> Int -> P a
+pxrand e a n = P (xrand e (map unP a) n)
+
 -- * Type specific aliases
 
 pappend :: P a -> P a -> P a

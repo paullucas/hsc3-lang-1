@@ -1,3 +1,4 @@
+rand' :: Enum e => n -> [[a]] -> [a]
 rand :: Enum e => n -> [[a]] -> Int -> [a]
 prand :: Enum e => e -> [P a] -> Int -> P a
 
@@ -6,6 +7,7 @@ Returns one item from a finite pattern at random for each step.
 > import Sound.SC3.Lang.Math.SimpleNumber
 > import Sound.SC3.Lang.Pattern.List as P
 
+> take 15 (rand' 'a' [1,[2,3],[4,5,6]])
 > P.rand 'a' [1,[2,3],[4,5,6]] 15
 > prand 'a' [1,fromList [2,3],fromList [4,5,6]] 15
 
