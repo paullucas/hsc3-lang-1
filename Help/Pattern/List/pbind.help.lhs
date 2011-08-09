@@ -1,6 +1,6 @@
 > import Sound.SC3.Lang.Collection.Numerical.Extending
 > import Sound.SC3.Lang.Math.Datum
-> import Sound.SC3.Lang.Pattern.List
+> import Sound.SC3.Lang.Pattern.List as P
 
 > bind [("freq",440)]
 > bind [("freq",440.0)]
@@ -18,3 +18,7 @@ be written.
 > pbind [("freq",440.0)]
 > pbind [("freq",fromList [440,550.0])]
 > pbind [("freq",440),("amp",fromList [0.1,0.2]),("pan",fromList [-1,0,1])]
+
+> e_play (bind [("freq",P.seq [440,550,660,770] 2)
+>              ,("dur",[0.1,0.15,0.1])
+>              ,("amp",[0.1,0.05])])

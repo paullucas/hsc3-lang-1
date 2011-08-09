@@ -5,12 +5,14 @@ import Control.Applicative
 import Data.Foldable as F
 import Data.List as L
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Monoid
 import Data.Traversable
-import Sound.OpenSoundControl.Type
+import Sound.OpenSoundControl
+import Sound.SC3.Server
 import Sound.SC3.Lang.Collection.Numerical.Extending ()
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-import Sound.SC3.Lang.Math.Pitch as P
+import qualified Sound.SC3.Lang.Math.Pitch as P
 import System.Random
 
 -- * P type and instances
@@ -62,9 +64,68 @@ pzipWith f = liftP2 (C.zipWith_c f)
 pzip :: P a -> P b -> P (a,b)
 pzip = liftP2 C.zip_c
 
--- * SC3 patterns
+-- * Datum
+
+datum_r :: Datum -> Maybe Double
+datum_r d =
+    case d of
+      Double n -> Just n
+      Float n -> Just n
+      Int n -> Just (fromIntegral n)
+      _ -> Nothing
+
+datum_r' :: Datum -> Double
+datum_r' = fromJust . datum_r
+
+datum_str :: Datum -> Maybe String
+datum_str d =
+    case d of
+      String s -> Just s
+      _ -> Nothing
+
+datum_str' :: Datum -> String
+datum_str' = fromJust . datum_str
+
+-- * Event
 
 type Event = [(String,Datum)]
+
+e_lookup :: Datum -> String -> Event -> Datum
+e_lookup v k e =
+    case lookup k e of
+      Nothing -> v
+      Just v' -> v'
+
+e_dur :: Event -> Datum
+e_dur = e_lookup (Double 1) "dur"
+
+e_dur' :: Event -> Double
+e_dur' = datum_r' . e_dur
+
+e_legato :: Event -> Datum
+e_legato = e_lookup (Double 0.8) "legato"
+
+e_legato' :: Event -> Double
+e_legato' = datum_r' . e_legato
+
+e_instrument :: Event -> Datum
+e_instrument = e_lookup (String "default") "instrument"
+
+e_instrument' :: Event -> String
+e_instrument' = datum_str' . e_instrument
+
+e_reserved :: [String]
+e_reserved = ["dur","legato","instrument"]
+
+e_arg :: (String,Datum) -> Maybe (String,Double)
+e_arg (k,v) =
+    case datum_r v of
+      Nothing -> Nothing
+      Just v' -> if k `L.elem` e_reserved
+                 then Nothing
+                 else Just (k,v')
+
+-- * SC3 patterns
 
 bind :: [(String,[Datum])] -> [Event]
 bind xs =
@@ -354,3 +415,30 @@ trigger p q =
 
 ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger = liftP2 trigger
+
+-- * Pattern audition
+
+-- s = instrument name, i = node id
+
+-- t = time, dt = delta-time, rt = release time, a = parameters
+e_osc :: Double -> Double -> Int -> Event -> (OSC,OSC)
+e_osc t dt i e =
+    let s = e_instrument' e
+        rt = dt * e_legato' e
+        a = mapMaybe e_arg e
+    in (Bundle (UTCr t) [s_new s i AddToTail 1 a]
+       ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
+
+e_play :: [Event] -> IO ()
+e_play xs = do
+  let act _ _ [] _ = return ()
+      act _ [] _ _ = error "e_play: no id?"
+      act t (i:is) (e:es) fd = do let dt = e_dur' e
+                                      (p,q) = e_osc t dt i e
+                                  send fd p
+                                  send fd q
+                                  pauseThreadUntil (t + dt)
+                                  act (t + dt) is es fd
+  st <- utcr
+  withSC3 (act st [100..] xs)
+
