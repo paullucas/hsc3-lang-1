@@ -27,7 +27,7 @@ geom :: (Num a) => Int -> a -> a -> [a]
 geom n i j =
     case n of
       0 -> []
-      _ -> i : series (n - 1) (i * j) j
+      _ -> i : geom (n - 1) (i * j) j
 
 -- | Fibonacci series (size, initial step, start)
 fib :: (Num a) => Int -> a -> a -> [a]
