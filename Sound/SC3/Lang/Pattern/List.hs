@@ -55,9 +55,6 @@ psep (P p) =
 fromList :: [a] -> P a
 fromList = P
 
-pfilter :: (a -> Bool) -> P a -> P a
-pfilter f = liftP (filter f)
-
 reject :: (a -> Bool) -> [a] -> [a]
 reject f = filter (not . f)
 
@@ -67,20 +64,8 @@ preject f = liftP (reject f)
 pconcat :: [P a] -> P a
 pconcat = P . L.concat . map unP
 
-seq :: [[a]] -> Int -> [a]
-seq a i = L.concat (L.concat (replicate i a))
-
-pseq :: [P a] -> Int -> P a
-pseq a i = pconcat (L.concat (replicate i a))
-
 pcycle :: P a -> P a
 pcycle = liftP cycle
-
-ser :: [[a]] -> Int -> [a]
-ser a i = take i (cycle (L.concat a))
-
-pser :: [P a] -> Int -> P a
-pser a i = ptake i (pcycle (pconcat a))
 
 concatReplicate :: Int -> [a] -> [a]
 concatReplicate i = L.concat . replicate i
@@ -99,22 +84,6 @@ inf = maxBound
 
 ptake :: Int -> P a -> P a
 ptake n = liftP (take n)
-
-white :: (Random n, Enum e) => e -> n -> n -> Int -> [n]
-white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
-
-pwhite :: (Random n, Enum e) => e -> n -> n -> Int -> P n
-pwhite e l r = P . white e l r
-
-white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
-white' e l r =
-    let g = mkStdGen (fromEnum e)
-        n = zip l r
-        f a b = let (a',b') = randomR b a in (b',a')
-    in snd (L.mapAccumL f g n)
-
-pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
-pwhite' e = liftP2 (white' e)
 
 prepeat :: a -> P a
 prepeat = P . repeat
@@ -162,12 +131,6 @@ countpost =
 pcountpost :: P Bool -> P Int
 pcountpost = liftP countpost
 
-stutter :: [Int] -> [a] -> [a]
-stutter ns = L.concat . C.zipWith_c replicate ns
-
-pstutter :: P Int -> P a -> P a
-pstutter = liftP2 stutter
-
 clutch :: [a] -> [Bool] -> [a]
 clutch p q =
     let r = map (+ 1) (countpost q)
@@ -189,31 +152,65 @@ rand e a n = take n (rand' e a)
 prand :: Enum e => e -> [P a] -> Int -> P a
 prand e a n = P (rand e (map unP a) n)
 
-shuf :: Enum e => e -> [a] -> Int -> [a]
-shuf e a n =
-    let (a',_) = C.scramble' a (mkStdGen (fromEnum e))
-    in concatReplicate n a'
-
-pshuf :: Enum e => e -> [a] -> Int -> P a
-pshuf e a n = P (shuf e a n)
-
-wrand' :: (Enum e,Random n,Ord n,Fractional n) => e -> [[a]] -> [n] -> [a]
-wrand' e a w =
-    let f g = let (r,g') = C.wchoose' a w g
-              in r ++ f g'
-    in f (mkStdGen (fromEnum e))
-
-wrand :: (Enum e,Random n,Ord n,Fractional n) => e->[[a]]->[n]->Int->[a]
-wrand e a w n = take n (wrand' e a w)
-
-pwrand :: (Enum e,Random n,Ord n,Fractional n) => e->[P a]->[n]->Int->P a
-pwrand e a w n = P (wrand e (map unP a) w n)
-
 geom :: (Num a) => a -> a -> Int -> [a]
 geom i s n = C.geom n i s
 
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s = P . geom i s
+
+-- k = length a
+segment :: [a] -> Int -> (Int,Int) -> [a]
+segment a k (l,r) =
+    let i = map (wrap' (0,k)) [l .. r]
+    in map (a !!) i
+
+-- flop is strict!
+lace :: [[a]] -> Int -> [a]
+lace a n =
+    let i = length a
+    in take (n * i) (cycle (L.concat (C.flop a)))
+
+place :: [P a] -> Int -> P a
+place a n = P (lace (map unP a) n)
+
+rorate_n' :: Num a => a -> a -> [a]
+rorate_n' p i = [i * p,i * (1 - p)]
+
+rorate_n :: Num a => [a] -> [a] -> [a]
+rorate_n p = L.concat . C.zipWith_c rorate_n' p
+
+rorate_l' :: Num a => [a] -> a -> [a]
+rorate_l' p i = map (* i) p
+
+rorate_l :: Num a => [[a]] -> [a] -> [a]
+rorate_l p = L.concat . C.zipWith_c rorate_l' p
+
+rorate' :: Num a => Either a [a] -> a -> [a]
+rorate' p =
+    case p of
+      Left p' -> rorate_n' p'
+      Right p' -> rorate_l' p'
+
+rorate :: Num a => [Either a [a]] -> [a] -> [a]
+rorate p = L.concat . C.zipWith_c rorate' p
+
+prorate :: Num a => P (Either a [a]) -> P a -> P a
+prorate = liftP2 rorate
+
+pselect :: (a -> Bool) -> P a -> P a
+pselect f = liftP (filter f)
+
+seq :: [[a]] -> Int -> [a]
+seq a i = L.concat (L.concat (replicate i a))
+
+pseq :: [P a] -> Int -> P a
+pseq a i = pconcat (L.concat (replicate i a))
+
+ser :: [[a]] -> Int -> [a]
+ser a i = take i (cycle (L.concat a))
+
+pser :: [P a] -> Int -> P a
+pser a i = ptake i (pcycle (pconcat a))
 
 series :: (Num a) => a -> a -> Int -> [a]
 series i s n = C.series n i s
@@ -221,11 +218,13 @@ series i s n = C.series n i s
 pseries :: (Num a) => a -> a -> Int -> P a
 pseries i s = P . series i s
 
--- k = length a
-segment :: [a] -> Int -> (Int,Int) -> [a]
-segment a k (l,r) =
-    let i = map (wrap' (0,k)) [l .. r]
-    in map (a !!) i
+shuf :: Enum e => e -> [a] -> Int -> [a]
+shuf e a n =
+    let (a',_) = C.scramble' a (mkStdGen (fromEnum e))
+    in concatReplicate n a'
+
+pshuf :: Enum e => e -> [a] -> Int -> P a
+pshuf e a n = P (shuf e a n)
 
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
 slide a n j s i wr =
@@ -239,14 +238,11 @@ slide a n j s i wr =
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
 pslide a n j s i = P . slide a n j s i
 
--- flop is strict!
-lace :: [[a]] -> Int -> [a]
-lace a n =
-    let i = length a
-    in take (n * i) (cycle (L.concat (C.flop a)))
+stutter :: [Int] -> [a] -> [a]
+stutter ns = L.concat . C.zipWith_c replicate ns
 
-place :: [P a] -> Int -> P a
-place a n = P (lace (map unP a) n)
+pstutter :: P Int -> P a -> P a
+pstutter = liftP2 stutter
 
 switch :: [[a]] -> [Int] -> [a]
 switch l i = i >>= (l !!)
@@ -265,6 +261,34 @@ switch1 ps =
 
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
+
+white :: (Random n, Enum e) => e -> n -> n -> Int -> [n]
+white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
+
+pwhite :: (Random n, Enum e) => e -> n -> n -> Int -> P n
+pwhite e l r = P . white e l r
+
+white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
+white' e l r =
+    let g = mkStdGen (fromEnum e)
+        n = zip l r
+        f a b = let (a',b') = randomR b a in (b',a')
+    in snd (L.mapAccumL f g n)
+
+pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
+pwhite' e = liftP2 (white' e)
+
+wrand' :: (Enum e,Random n,Ord n,Fractional n) => e -> [[a]] -> [n] -> [a]
+wrand' e a w =
+    let f g = let (r,g') = C.wchoose' a w g
+              in r ++ f g'
+    in f (mkStdGen (fromEnum e))
+
+wrand :: (Enum e,Random n,Ord n,Fractional n) => e->[[a]]->[n]->Int->[a]
+wrand e a w n = take n (wrand' e a w)
+
+pwrand :: (Enum e,Random n,Ord n,Fractional n) => e->[P a]->[n]->Int->P a
+pwrand e a w n = P (wrand e (map unP a) w n)
 
 -- l < i <= r
 wrap' :: (Num a,Ord a) => (a,a) -> a -> a
@@ -306,3 +330,8 @@ pbool = bool
 
 pempty :: P a
 pempty = mempty
+
+-- * Haskell/SC3 aliases
+
+pfilter :: (a -> Bool) -> P a -> P a
+pfilter = pselect
