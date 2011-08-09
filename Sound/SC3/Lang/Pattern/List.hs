@@ -9,6 +9,7 @@ import Data.Monoid
 import Data.Traversable
 import Sound.SC3.Lang.Collection.Numerical.Extending ()
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
+import Sound.SC3.Lang.Math.Pitch as P
 import System.Random
 
 -- * P type and instances
@@ -121,17 +122,14 @@ clutch p q =
 pclutch :: P a -> P Bool -> P a
 pclutch = liftP2 clutch
 
+pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
+pdegreeToKey = liftA3 P.degree_to_key
+
 geom :: (Num a) => a -> a -> Int -> [a]
 geom i s n = C.geom n i s
 
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s = P . geom i s
-
--- k = length a
-segment :: [a] -> Int -> (Int,Int) -> [a]
-segment a k (l,r) =
-    let i = map (wrap' (0,k)) [l .. r]
-    in map (a !!) i
 
 lace :: [[a]] -> Int -> [a]
 lace a n =
@@ -224,6 +222,12 @@ shuf e a n =
 
 pshuf :: Enum e => e -> [a] -> Int -> P a
 pshuf e a n = P (shuf e a n)
+
+-- k = length a
+segment :: [a] -> Int -> (Int,Int) -> [a]
+segment a k (l,r) =
+    let i = map (wrap' (0,k)) [l .. r]
+    in map (a !!) i
 
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
 slide a n j s i wr =
