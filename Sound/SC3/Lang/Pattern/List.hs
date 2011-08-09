@@ -55,29 +55,11 @@ psep (P p) =
 fromList :: [a] -> P a
 fromList = P
 
-reject :: (a -> Bool) -> [a] -> [a]
-reject f = filter (not . f)
-
-preject :: (a -> Bool) -> P a -> P a
-preject f = liftP (reject f)
-
 pconcat :: [P a] -> P a
 pconcat = P . L.concat . map unP
 
 pcycle :: P a -> P a
 pcycle = liftP cycle
-
-concatReplicate :: Int -> [a] -> [a]
-concatReplicate i = L.concat . replicate i
-
-ln :: [a] -> Int -> [a]
-ln = flip concatReplicate
-
-pconcatReplicate :: Int -> P a -> P a
-pconcatReplicate i = pconcat . replicate i
-
-pn :: P a -> Int -> P a
-pn = flip pconcatReplicate
 
 inf :: Int
 inf = maxBound
@@ -139,6 +121,38 @@ clutch p q =
 pclutch :: P a -> P Bool -> P a
 pclutch = liftP2 clutch
 
+geom :: (Num a) => a -> a -> Int -> [a]
+geom i s n = C.geom n i s
+
+pgeom :: (Num a) => a -> a -> Int -> P a
+pgeom i s = P . geom i s
+
+-- k = length a
+segment :: [a] -> Int -> (Int,Int) -> [a]
+segment a k (l,r) =
+    let i = map (wrap' (0,k)) [l .. r]
+    in map (a !!) i
+
+lace :: [[a]] -> Int -> [a]
+lace a n =
+    let i = length a
+    in take (n * i) (cycle (L.concat (C.flop a)))
+
+place :: [P a] -> Int -> P a
+place a n = P (lace (map unP a) n)
+
+concatReplicate :: Int -> [a] -> [a]
+concatReplicate i = L.concat . replicate i
+
+ln :: [a] -> Int -> [a]
+ln = flip concatReplicate
+
+pconcatReplicate :: Int -> P a -> P a
+pconcatReplicate i = pconcat . replicate i
+
+pn :: P a -> Int -> P a
+pn = flip pconcatReplicate
+
 rand' :: Enum e => e -> [[a]] -> [a]
 rand' e a =
     let k = length a - 1
@@ -152,26 +166,11 @@ rand e a n = take n (rand' e a)
 prand :: Enum e => e -> [P a] -> Int -> P a
 prand e a n = P (rand e (map unP a) n)
 
-geom :: (Num a) => a -> a -> Int -> [a]
-geom i s n = C.geom n i s
+reject :: (a -> Bool) -> [a] -> [a]
+reject f = filter (not . f)
 
-pgeom :: (Num a) => a -> a -> Int -> P a
-pgeom i s = P . geom i s
-
--- k = length a
-segment :: [a] -> Int -> (Int,Int) -> [a]
-segment a k (l,r) =
-    let i = map (wrap' (0,k)) [l .. r]
-    in map (a !!) i
-
--- flop is strict!
-lace :: [[a]] -> Int -> [a]
-lace a n =
-    let i = length a
-    in take (n * i) (cycle (L.concat (C.flop a)))
-
-place :: [P a] -> Int -> P a
-place a n = P (lace (map unP a) n)
+preject :: (a -> Bool) -> P a -> P a
+preject f = liftP (reject f)
 
 rorate_n' :: Num a => a -> a -> [a]
 rorate_n' p i = [i * p,i * (1 - p)]

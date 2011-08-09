@@ -104,13 +104,20 @@ drop' n l =
     then take (length l + n) l
     else drop n l
 
-extendSequences :: [[a]] -> [[a]]
-extendSequences l =
-    let n = maximum (map length l)
-    in map (take n . cycle) l
+extension :: [[a]] -> [()]
+extension x =
+    if null x
+    then []
+    else let x' = filter (not . null) (map tail x)
+         in () : extension x'
 
 flop :: [[a]] -> [[a]]
-flop = transpose . extendSequences
+flop l =
+    let l' = map cycle l
+    in zipWith (\_ x -> x) (extension l) (transpose l')
+
+extendSequences :: [[a]] -> [[a]]
+extendSequences = transpose . flop
 
 choose' :: RandomGen g => [a] -> g -> (a,g)
 choose' l g =
