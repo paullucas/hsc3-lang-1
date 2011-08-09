@@ -46,21 +46,8 @@ liftP3 f a b c = P (f (toList a) (toList b) (toList c))
 pnull :: P a -> Bool
 pnull = null . toList
 
-psep :: P a -> (P a,P a)
-psep (P p) =
-    case p of
-      [] -> (P [],P [])
-      [e] -> (P [e],P [])
-      (e:p') -> (P [e],P p')
-
 fromList :: [a] -> P a
 fromList = P
-
-pconcat :: [P a] -> P a
-pconcat = P . L.concat . map unP
-
-pcycle :: P a -> P a
-pcycle = liftP cycle
 
 inf :: Int
 inf = maxBound
@@ -77,42 +64,9 @@ pzipWith f = liftP2 (C.zipWith_c f)
 pzip :: P a -> P b -> P (a,b)
 pzip = liftP2 C.zip_c
 
-countpre :: [Bool] -> [Int]
-countpre =
-    let f i p = if null p
-                then if i == 0 then [] else [i]
-                else let (x:xs) = p
-                         r = i : f 0 xs
-                     in if x then r else f (i + 1) xs
-    in f 0
-
-pcountpre :: P Bool -> P Int
-pcountpre = liftP countpre
-
-trigger :: [Bool] -> [a] -> [Maybe a]
-trigger p q =
-    let r = countpre p
-        f i x = replicate i Nothing ++ [Just x]
-    in L.concat (C.zipWith_c f r q)
-
-ptrigger :: P Bool -> P a -> P (Maybe a)
-ptrigger = liftP2 trigger
-
 -- | Functor bool
 bool :: (Functor f, Ord a, Num a) => f a -> f Bool
 bool = fmap (> 0)
-
-countpost :: [Bool] -> [Int]
-countpost =
-    let f i p = if null p
-                then [i]
-                else let (x:xs) = p
-                         r = i : f 0 xs
-                     in if not x then f (i + 1) xs else r
-    in tail . f 0
-
-pcountpost :: P Bool -> P Int
-pcountpost = liftP countpost
 
 clutch :: [a] -> [Bool] -> [a]
 clutch p q =
@@ -336,5 +290,49 @@ pempty = mempty
 
 -- * Haskell/SC3 aliases
 
+pcollect :: (a -> b) -> P a -> P b
+pcollect = fmap
+
 pfilter :: (a -> Bool) -> P a -> P a
 pfilter = pselect
+
+-- * Non-SC3 patterns
+
+pconcat :: [P a] -> P a
+pconcat = P . L.concat . map unP
+
+countpost :: [Bool] -> [Int]
+countpost =
+    let f i p = if null p
+                then [i]
+                else let (x:xs) = p
+                         r = i : f 0 xs
+                     in if not x then f (i + 1) xs else r
+    in tail . f 0
+
+pcountpost :: P Bool -> P Int
+pcountpost = liftP countpost
+
+countpre :: [Bool] -> [Int]
+countpre =
+    let f i p = if null p
+                then if i == 0 then [] else [i]
+                else let (x:xs) = p
+                         r = i : f 0 xs
+                     in if x then r else f (i + 1) xs
+    in f 0
+
+pcountpre :: P Bool -> P Int
+pcountpre = liftP countpre
+
+pcycle :: P a -> P a
+pcycle = liftP cycle
+
+trigger :: [Bool] -> [a] -> [Maybe a]
+trigger p q =
+    let r = countpre p
+        f i x = replicate i Nothing ++ [Just x]
+    in L.concat (C.zipWith_c f r q)
+
+ptrigger :: P Bool -> P a -> P (Maybe a)
+ptrigger = liftP2 trigger

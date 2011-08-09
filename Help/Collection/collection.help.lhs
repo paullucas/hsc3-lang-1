@@ -20,36 +20,36 @@ instances for the standard haskell
 numerical type classes with the same
 extension behaviour, so that:
 
-> import Sound.SC3.Lang.Collection.Numerical
+> import Sound.SC3.Lang.Collection.Numerical.Extending
 
-> [1, 2] + [3, 4, 5]
+> [1,2] + [3,4,5]
 
 has the same value as in the supercollider
 language, and as distinct from the value of:
 
-> zipWith (+) [1, 2] [3, 4, 5]
+> zipWith (+) [1,2] [3,4,5]
 
-which is the two element list [4, 6].
+which is the two element list [4,6].
 
 The function underlying the list numerical
 instances is zipWith_c:
 
 > import Sound.SC3.Lang.Collection.SequenceableCollection
 
-> zipWith_c (+) [1, 2] [3, 4, 5]
+> zipWith_c (+) [1,2] [3,4,5]
 
 Since literals are interpreted as single
 element lists, the expression:
 
-> [1, 2, 3] * 4
+> [1,2,3] * 4
 
-denotes the list [4, 8, 12].
+denotes the list [4,8,12].
 
 * Sequencable Collection (Sanity Check)
 
 > series 5 1 2 == [1,3..9]
 
-> geom 5 3 6 == [3,18,24,30,36]
+> geom 5 3 6 == [3,18,108,648,3888]
 
 > fib 5 1 1 == [1,2,3,5,8]
 
@@ -84,3 +84,9 @@ denotes the list [4, 8, 12].
 > clumps [1,2,3,4] [1..10] == [[1],[2,3],[4,5,6],[7,8,9,10]]
 
 > clumps [1,2,3] [1..10] == [[1],[2,3],[4,5,6],[7],[8,9],[10]]
+
+> flop [[1..3],[4..5],[6..9]] == [[1,4,6],[2,5,7],[3,4,8],[1,5,9]]
+
+> take 4 (flop [[1..3],[4..]]) == [[1,4],[2,5],[3,6],[1,7]]
+
+> map (take 4) (extendSequences [[1..3],[4..]]) == [[1,2,3,1],[4,5,6,7]]
