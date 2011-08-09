@@ -221,21 +221,10 @@ series i s n = C.series n i s
 pseries :: (Num a) => a -> a -> Int -> P a
 pseries i s = P . series i s
 
--- l < i <= r
-wrap :: (Num a,Ord a) => (a,a) -> a -> a
-wrap (l,r) i =
-    let d = r - l
-        f = wrap (l,r)
-    in if i < l then f (i + d) else if i >= r then f (i - d) else i
-
-{-
-map (wrap (0,4)) [0..12]
--}
-
 -- k = length a
 segment :: [a] -> Int -> (Int,Int) -> [a]
 segment a k (l,r) =
-    let i = map (wrap (0,k)) [l .. r]
+    let i = map (wrap' (0,k)) [l .. r]
     in map (a !!) i
 
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
@@ -276,6 +265,23 @@ switch1 ps =
 
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
+
+-- l < i <= r
+wrap' :: (Num a,Ord a) => (a,a) -> a -> a
+wrap' (l,r) i =
+    let d = r - l
+        f = wrap' (l,r)
+    in if i < l then f (i + d) else if i >= r then f (i - d) else i
+
+{-
+map (wrap' (0,4)) [0..12]
+-}
+
+wrap :: (Num a,Ord a) => [a] -> a -> a -> [a]
+wrap xs l r = map (wrap' (l,r)) xs
+
+pwrap :: (Ord a, Num a) => P a -> a -> a -> P a
+pwrap xs l r = P (wrap (unP xs) l r)
 
 xrand' :: Enum e => e -> [[a]] -> [a]
 xrand' e a =
