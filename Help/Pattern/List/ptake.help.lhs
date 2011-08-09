@@ -1,6 +1,8 @@
 take :: Int -> [a] -> [a]
 ptake :: Int -> P a -> P a
 
+finval and pfinval are aliases for take and ptake.
+
 > import Sound.SC3.Lang.Collection.Numerical.Extending
 > import Sound.SC3.Lang.Pattern.List as P
 

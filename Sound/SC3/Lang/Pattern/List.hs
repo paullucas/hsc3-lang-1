@@ -52,9 +52,6 @@ fromList = P
 inf :: Int
 inf = maxBound
 
-ptake :: Int -> P a -> P a
-ptake n = liftP (take n)
-
 prepeat :: a -> P a
 prepeat = P . repeat
 
@@ -64,9 +61,7 @@ pzipWith f = liftP2 (C.zipWith_c f)
 pzip :: P a -> P b -> P (a,b)
 pzip = liftP2 C.zip_c
 
--- | Functor bool
-bool :: (Functor f, Ord a, Num a) => f a -> f Bool
-bool = fmap (> 0)
+-- * SC3 patterns
 
 clutch :: [a] -> [Bool] -> [a]
 clutch p q =
@@ -78,6 +73,12 @@ pclutch = liftP2 clutch
 
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = liftA3 P.degree_to_key
+
+finval :: Int -> [a] -> [a]
+finval = take
+
+pfinval :: Int -> P a -> P a
+pfinval = ptake
 
 geom :: (Num a) => a -> a -> Int -> [a]
 geom i s n = C.geom n i s
@@ -282,9 +283,6 @@ pxrand e a n = P (xrand e (map unP a) n)
 pappend :: P a -> P a -> P a
 pappend = mappend
 
-pbool :: (Ord a, Num a) => P a -> P Bool
-pbool = bool
-
 pempty :: P a
 pempty = mempty
 
@@ -296,7 +294,16 @@ pcollect = fmap
 pfilter :: (a -> Bool) -> P a -> P a
 pfilter = pselect
 
+ptake :: Int -> P a -> P a
+ptake n = liftP (take n)
+
 -- * Non-SC3 patterns
+
+bool :: (Functor f, Ord a, Num a) => f a -> f Bool
+bool = fmap (> 0)
+
+pbool :: (Ord a, Num a) => P a -> P Bool
+pbool = bool
 
 pconcat :: [P a] -> P a
 pconcat = P . L.concat . map unP
