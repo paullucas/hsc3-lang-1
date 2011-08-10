@@ -108,10 +108,14 @@ instance Ord Datum where
 instance Enum Datum where
     fromEnum d =
         case d of
-          Int n -> n
-          Float n -> floor n
-          Double n -> floor n
+          Int n -> fromEnum n
+          Float n -> fromEnum n
+          Double n -> fromEnum n
           _ -> error "datum,enum,partial"
+    enumFrom = error "datum,enum,partial"
+    enumFromThen = error "datum,enum,partial"
+    enumFromTo = error "datum,enum,partial"
+    enumFromThenTo = error "datum,enum,partial"
     toEnum n = Int n
 
 instance Random Datum where
