@@ -100,6 +100,11 @@ instance Floating Datum where
     acosh = datum_lift' acosh
     atanh = datum_lift' atanh
 
+instance Ord Datum where
+    p < q = case (datum_r p,datum_r q) of
+              (Just i,Just j) -> i < j
+              _ -> error "datum,ord,partial"
+
 instance Enum Datum where
     fromEnum d =
         case d of
