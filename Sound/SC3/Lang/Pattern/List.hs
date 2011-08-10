@@ -89,6 +89,15 @@ pclutch = liftP2 clutch
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = liftA3 P.degree_to_key
 
+to_exprand :: (Floating b) => b -> b -> b -> b
+to_exprand l r i = l * (log (r / l) * i)
+
+exprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> [a]
+exprand e l r n = fmap (to_exprand l r) (white e l r n)
+
+pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
+pexprand e l r n = fmap (to_exprand l r) (pwhite e l r n)
+
 finval :: Int -> [a] -> [a]
 finval = take
 
