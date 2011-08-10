@@ -85,7 +85,7 @@ e_instrument' :: Event -> String
 e_instrument' = datum_str' . e_instrument
 
 e_reserved :: [String]
-e_reserved = ["dur","legato","instrument"]
+e_reserved = ["dur","instrument","legato","note","octave","sustain"]
 
 e_arg :: (String,Datum) -> Maybe (String,Double)
 e_arg (k,v) =
