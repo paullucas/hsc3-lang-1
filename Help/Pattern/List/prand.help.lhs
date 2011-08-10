@@ -4,7 +4,7 @@ prand :: Enum e => e -> [P a] -> Int -> P a
 
 Returns one item from a finite pattern at random for each step.
 
-> import Sound.SC3.Lang.Math.SimpleNumber
+> import Sound.SC3.Lang.Collection.Numerical.Extending
 > import Sound.SC3.Lang.Pattern.List as P
 
 > take 15 (rand' 'a' [1,[2,3],[4,5,6]])
@@ -15,6 +15,8 @@ The below cannot be written as intended with the list
 based pattern library.  This is precisely because the
 noise patterns are values, not processes with a state
 threaded non-locally.
+
+> import Sound.SC3.Lang.Math.SimpleNumber
 
 > do { n0 <- rrand 2 5
 >    ; n1 <- rrand 3 9

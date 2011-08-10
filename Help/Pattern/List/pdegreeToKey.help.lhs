@@ -9,15 +9,13 @@ Derive notes from an index into a scale.
 > import Control.Applicative
 > import Sound.SC3.Lang.Pattern.List
 
-> let { p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2
->     ; q = pure [0,2,4,5,7,9,11]
->     ; r = pure 12 }
-> in pdegreeToKey p q r
+> let {p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2
+>     ;q = pure [0,2,4,5,7,9,11]}
+> in pdegreeToKey p q (pure 12)
 
-> let { p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2
->     ; q = pseq (map return [[0,2,4,5,7,9,11],[0,2,3,5,7,8,11]]) 1
->     ; r = pure 12 }
-> in pdegreeToKey p (pstutter 14 q) r
+> let {p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2
+>     ;q = pseq (map return [[0,2,4,5,7,9,11],[0,2,3,5,7,8,11]]) 1}
+> in pdegreeToKey p (pstutter 14 q) (pure 12)
 
 The degree_to_key function is also given.
 

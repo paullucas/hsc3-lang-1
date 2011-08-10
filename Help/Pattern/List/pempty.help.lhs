@@ -5,11 +5,11 @@ mempty :: Monoid a => a
 The empty pattern. (The instance for Monoid mempty.)
 
 > import Data.Monoid
-> import Sound.SC3.Lang.Pattern.List
+> import Sound.SC3.Lang.Pattern.List as P
 
 > [] == mempty
 > pempty == mempty
 
 > let e = mempty :: P a
-> e `mappend` e
+> e `mappend` e == e
 > e `mappend` 1 == 1 `mappend` e

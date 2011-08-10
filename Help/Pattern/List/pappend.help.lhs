@@ -7,7 +7,6 @@ Sequence two patterns.  This is the mappend instance of Monoid.
 > import Control.Applicative
 > import Data.Monoid
 > import Sound.SC3.Lang.Pattern.List
-> import Sound.SC3.Lang.Pattern.Parallel
 
 > [1,2] ++ [2,3]
 > fromList [1,2] `pappend` fromList [2,3]

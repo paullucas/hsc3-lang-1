@@ -8,4 +8,4 @@ Constrain the range of output values by wrapping.
 
 > map (wrap' (200,1000.0)) (geom 200 1.07 26)
 > wrap (geom 200 1.07 26) 200 1000.0
-> pwrap (pgeom 200 1.07 96) 200 1000.0
+> pwrap (pgeom 200 1.07 26) 200 1000.0

@@ -36,6 +36,10 @@ be written.
 >                ,("dur",[0.1,0.15,0.1])
 >                ,("amp",[0.1,0.05])])
 
+> audition (pbind [("freq",pseq [440,550,660,770] 2)
+>                 ,("dur",pseq [0.1,0.15,0.1] 1)
+>                 ,("amp",pseq [0.1,0.05] 1)])
+
 A nil in SC3 Pbind stops the pattern...
 
 > bind [("x",P.seq [1,2,3] 1),("y",rand 'a' [100,300,200] inf),("zzz",99)]
@@ -44,8 +48,11 @@ A nil in SC3 Pbind stops the pattern...
 > audition (bind [("freq",rand 'a' [300,500,231.2,399.2] inf),("dur",0.1)])
 > audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf),("dur",0.1)])
 
-> audition (bind [("freq",rand 'a' [300,500,231.2,399.2] inf),("dur",rand 'b' [0.1,0.3] inf)])
-> audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf),("dur",prand 'b' [0.1,0.3] inf)])
+> audition (bind [("freq",rand 'a' [300,500,231.2,399.2] inf)
+>                 ,("dur",rand 'b' [0.1,0.3] inf)])
+
+> audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf)
+>                  ,("dur",prand 'b' [0.1,0.3] inf)])
 
 > audition (bind [("freq",rand 'a' [1,1.2,2,2.5,3,4] inf * 200),("dur",0.1)])
 > audition (pbind [("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200),("dur",0.1)])
