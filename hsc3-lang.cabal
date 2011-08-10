@@ -31,6 +31,7 @@ Library
                    random-shuffle
   GHC-Options:     -Wall -fwarn-tabs
   Exposed-modules: Sound.SC3.Lang.Collection.Collection
+                   Sound.SC3.Lang.Collection.Event
                    Sound.SC3.Lang.Collection.Numerical.Extending
                    Sound.SC3.Lang.Collection.Numerical.Truncating
                    Sound.SC3.Lang.Collection.SequenceableCollection
