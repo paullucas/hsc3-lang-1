@@ -110,6 +110,18 @@ geom i s n = C.geom n i s
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s = P . geom i s
 
+ifF :: Bool -> a -> a -> a
+ifF x y z = if x then y else z
+
+ifF' :: (Bool,a,a) -> a
+ifF' (x,y,z) = if x then y else z
+
+lif :: [Bool] -> [a] -> [a] -> [a]
+lif a b c = map ifF' (C.zip3_c a b c)
+
+pif :: P Bool -> P a -> P a -> P a
+pif = liftP3 lif
+
 lace :: [[a]] -> Int -> [a]
 lace a n =
     let i = length a
