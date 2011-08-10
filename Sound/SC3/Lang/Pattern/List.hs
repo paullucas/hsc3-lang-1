@@ -62,6 +62,9 @@ prepeat = P . repeat
 pzipWith :: (a -> b -> c) -> P a -> P b -> P c
 pzipWith f = liftP2 (C.zipWith_c f)
 
+pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
+pzipWith3 f = liftP3 (C.zipWith3_c f)
+
 pzip :: P a -> P b -> P (a,b)
 pzip = liftP2 C.zip_c
 
