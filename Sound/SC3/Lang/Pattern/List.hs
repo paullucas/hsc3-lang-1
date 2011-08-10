@@ -1,4 +1,4 @@
-{-# Language GeneralizedNewtypeDeriving #-}
+{-# Language GeneralizedNewtypeDeriving,FlexibleInstances #-}
 module Sound.SC3.Lang.Pattern.List where
 
 import Control.Applicative
@@ -292,10 +292,10 @@ switch1 ps =
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
 
-white :: (Random n, Enum e) => e -> n -> n -> Int -> [n]
+white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
 white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
-pwhite :: (Random n, Enum e) => e -> n -> n -> Int -> P n
+pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite e l r = P . white e l r
 
 white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
@@ -334,7 +334,7 @@ map (wrap' (0,4)) [0..12]
 wrap :: (Num a,Ord a) => [a] -> a -> a -> [a]
 wrap xs l r = map (wrap' (l,r)) xs
 
-pwrap :: (Ord a, Num a) => P a -> a -> a -> P a
+pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
 pwrap xs l r = P (wrap (unP xs) l r)
 
 xrand' :: Enum e => e -> [[a]] -> [a]
@@ -371,10 +371,10 @@ ptake n = liftP (take n)
 
 -- * Non-SC3 patterns
 
-bool :: (Functor f, Ord a, Num a) => f a -> f Bool
+bool :: (Functor f,Ord a,Num a) => f a -> f Bool
 bool = fmap (> 0)
 
-pbool :: (Ord a, Num a) => P a -> P Bool
+pbool :: (Ord a,Num a) => P a -> P Bool
 pbool = bool
 
 pconcat :: [P a] -> P a
@@ -418,9 +418,8 @@ ptrigger = liftP2 trigger
 
 -- * Pattern audition
 
--- s = instrument name, i = node id
-
--- t = time, dt = delta-time, rt = release time, a = parameters
+-- t = time, dt = delta-time, i = node id, s = instrument name
+-- rt = release time, a = parameters
 e_osc :: Double -> Double -> Int -> Event -> (OSC,OSC)
 e_osc t dt i e =
     let s = e_instrument' e
@@ -429,16 +428,21 @@ e_osc t dt i e =
     in (Bundle (UTCr t) [s_new s i AddToTail 1 a]
        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
 
-e_play :: [Event] -> IO ()
-e_play xs = do
-  let act _ _ [] _ = return ()
-      act _ [] _ _ = error "e_play: no id?"
-      act t (i:is) (e:es) fd = do let dt = e_dur' e
-                                      (p,q) = e_osc t dt i e
-                                  send fd p
-                                  send fd q
-                                  pauseThreadUntil (t + dt)
-                                  act (t + dt) is es fd
+e_play :: Transport t => t -> [Event] -> IO ()
+e_play fd xs = do
+  let act _ _ [] = return ()
+      act _ [] _ = error "e_play: no id?"
+      act t (i:is) (e:es) = do let dt = e_dur' e
+                                   (p,q) = e_osc t dt i e
+                               send fd p
+                               send fd q
+                               pauseThreadUntil (t + dt)
+                               act (t + dt) is es
   st <- utcr
-  withSC3 (act st [100..] xs)
+  act st [100..] xs
 
+instance Audible [Event] where
+    play = e_play
+
+instance Audible (P Event) where
+    play fd = e_play fd . unP

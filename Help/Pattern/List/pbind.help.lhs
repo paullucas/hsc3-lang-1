@@ -19,6 +19,8 @@ be written.
 > pbind [("freq",fromList [440,550.0])]
 > pbind [("freq",440),("amp",fromList [0.1,0.2]),("pan",fromList [-1,0,1])]
 
-> e_play (bind [("freq",P.seq [440,550,660,770] 2)
->              ,("dur",[0.1,0.15,0.1])
->              ,("amp",[0.1,0.05])])
+> import Sound.SC3
+
+> audition (bind [("freq",P.seq [440,550,660,770] 2)
+>                ,("dur",[0.1,0.15,0.1])
+>                ,("amp",[0.1,0.05])])
