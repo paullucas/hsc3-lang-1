@@ -233,6 +233,20 @@ instance Extending [] where
 zip_c :: [a] -> [b] -> [(a,b)]
 zip_c = zipWith_c (,)
 
+zipWith3_c :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
+zipWith3_c f p q r =
+    let g = map (const ())
+        l = [g p,g q,g r]
+        f' _ = f
+    in zipWith4 f' (extension l) (cycle p) (cycle q) (cycle r)
+
+zip3_c :: [a] -> [b] -> [c] -> [(a,b,c)]
+zip3_c = zipWith3_c (\a b c -> (a,b,c))
+
+{-
+zip3_c [1..2] [3..5] [6..9]
+-}
+
 zap_c :: [a -> b] -> [a] -> [b]
 zap_c = zipWith_c (\f e -> f e)
 
