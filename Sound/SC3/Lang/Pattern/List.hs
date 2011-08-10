@@ -272,17 +272,20 @@ white' e l r =
 pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
 pwhite' e = liftP2 (white' e)
 
-wrand' :: (Enum e,Random n,Ord n,Fractional n) => e -> [[a]] -> [n] -> [a]
-wrand' e a w =
+wrand'Generic :: (Enum e,Random n,Ord n,Fractional n) => e -> [[a]] -> [n] -> [a]
+wrand'Generic e a w =
     let f g = let (r,g') = C.wchoose' a w g
               in r ++ f g'
     in f (mkStdGen (fromEnum e))
 
-wrand :: (Enum e,Random n,Ord n,Fractional n) => e->[[a]]->[n]->Int->[a]
-wrand e a w n = take n (wrand' e a w)
+wrandGeneric :: (Enum e,Random n,Ord n,Fractional n) => e->[[a]]->[n]->Int->[a]
+wrandGeneric e a w n = take n (wrand'Generic e a w)
 
-pwrand :: (Enum e,Random n,Ord n,Fractional n) => e->[P a]->[n]->Int->P a
-pwrand e a w n = P (wrand e (map unP a) w n)
+pwrandGeneric :: (Enum e,Random n,Ord n,Fractional n) => e->[P a]->[n]->Int->P a
+pwrandGeneric e a w n = P (wrandGeneric e (map unP a) w n)
+
+pwrand :: Enum e => e -> [P a] -> [Double] -> Int -> P a
+pwrand = pwrandGeneric
 
 -- l < i <= r
 wrap' :: (Num a,Ord a) => (a,a) -> a -> a
