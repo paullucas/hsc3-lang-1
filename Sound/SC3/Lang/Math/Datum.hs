@@ -152,9 +152,12 @@ at_d3 fi fr d1 d2 d3 =
 instance Enum Datum where
     fromEnum = at_d1 fromEnum fromEnum
     enumFrom = at_d1 (map Int . enumFrom) (map Double . enumFrom)
-    enumFromThen = at_d2 (\a -> map Int . enumFromThen a) (\a -> map Double . enumFromThen a)
-    enumFromTo = at_d2 (\a -> map Int . enumFromTo a) (\a -> map Double . enumFromTo a)
-    enumFromThenTo = at_d3 (\a b ->  map Int . enumFromTo a) (\a b ->  map Double . enumFromTo a)
+    enumFromThen = at_d2 (\a -> map Int . enumFromThen a)
+                         (\a -> map Double . enumFromThen a)
+    enumFromTo = at_d2 (\a -> map Int . enumFromTo a)
+                       (\a -> map Double . enumFromTo a)
+    enumFromThenTo = at_d3 (\a b ->  map Int . enumFromThenTo a b)
+                           (\a b ->  map Double . enumFromThenTo a b)
     toEnum n = Int n
 
 instance Random Datum where
