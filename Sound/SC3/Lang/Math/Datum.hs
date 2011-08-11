@@ -1,6 +1,7 @@
 module Sound.SC3.Lang.Math.Datum where
 
 import Data.Maybe
+import Data.Ratio
 import GHC.Exts (IsString(..))
 import Sound.OpenSoundControl.Type (Datum(..))
 import System.Random
@@ -99,6 +100,14 @@ instance Floating Datum where
     asinh = datum_lift' asinh
     acosh = datum_lift' acosh
     atanh = datum_lift' atanh
+
+instance Real Datum where
+    toRational d =
+        case d of
+          Int n -> fromIntegral n % 1
+          Float n -> toRational n
+          Double n -> toRational n
+          _ -> error "datum,real,partial"
 
 instance Ord Datum where
     p < q = case (datum_r p,datum_r q) of
