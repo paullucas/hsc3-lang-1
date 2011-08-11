@@ -114,17 +114,40 @@ instance Ord Datum where
               (Just i,Just j) -> i < j
               _ -> error "datum,ord,partial"
 
+at_d1 :: (Int -> a) -> (Double -> a) -> Datum -> a
+at_d1 fi fr d =
+    case d of
+      Int n -> fi n
+      Float n -> fr n
+      Double n -> fr n
+      _ -> error "at_d1,partial"
+
+at_d2 :: (Int -> Int -> a) ->
+         (Double -> Double -> a) ->
+         Datum -> Datum -> a
+at_d2 fi fr d1 d2 =
+    case (d1,d2) of
+      (Int n1,Int n2) -> fi n1 n2
+      (Float n1,Float n2) -> fr n1 n2
+      (Double n1,Double n2) -> fr n1 n2
+      _ -> error "at_d2,partial"
+
+at_d3 :: (Int -> Int -> Int -> a) ->
+         (Double -> Double -> Double -> a) ->
+         Datum -> Datum -> Datum -> a
+at_d3 fi fr d1 d2 d3 =
+    case (d1,d2,d3) of
+      (Int n1,Int n2,Int n3) -> fi n1 n2 n3
+      (Float n1,Float n2,Float n3) -> fr n1 n2 n3
+      (Double n1,Double n2,Double n3) -> fr n1 n2 n3
+      _ -> error "at_d3,partial"
+
 instance Enum Datum where
-    fromEnum d =
-        case d of
-          Int n -> fromEnum n
-          Float n -> fromEnum n
-          Double n -> fromEnum n
-          _ -> error "datum,enum,partial"
-    enumFrom = error "datum,enum,partial"
-    enumFromThen = error "datum,enum,partial"
-    enumFromTo = error "datum,enum,partial"
-    enumFromThenTo = error "datum,enum,partial"
+    fromEnum = at_d1 fromEnum fromEnum
+    enumFrom = at_d1 (map Int . enumFrom) (map Double . enumFrom)
+    enumFromThen = at_d2 (\a -> map Int . enumFromThen a) (\a -> map Double . enumFromThen a)
+    enumFromTo = at_d2 (\a -> map Int . enumFromTo a) (\a -> map Double . enumFromTo a)
+    enumFromThenTo = at_d3 (\a b ->  map Int . enumFromTo a) (\a b ->  map Double . enumFromTo a)
     toEnum n = Int n
 
 instance Random Datum where
