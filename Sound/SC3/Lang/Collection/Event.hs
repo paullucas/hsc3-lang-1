@@ -1,40 +1,47 @@
 module Sound.SC3.Lang.Collection.Event where
 
-import Sound.OpenSoundControl
-import Sound.SC3.Lang.Math.Datum
+import qualified Data.Map as M
+import Data.Maybe
+import GHC.Exts (IsString(..))
 import Sound.SC3.Lang.Math.Pitch
 
 type Key = String
-type Event = [(Key,Datum)]
+data Event a = Event {unE :: M.Map Key a} deriving (Show)
 
-e_lookup :: Key -> Event -> Maybe Datum
-e_lookup = lookup
+e_lookup :: Key -> Event a -> Maybe a
+e_lookup k e = M.lookup k (unE e)
 
-e_lookup_v :: Datum -> Key -> Event -> Datum
+e_lookup_v :: a -> Key -> Event a -> a
 e_lookup_v v k e =
     case e_lookup k e of
       Nothing -> v
       Just v' -> v'
 
-e_lookup_f :: (Event -> Datum) -> Key -> Event -> Datum
+e_lookup_f :: (Event a -> a) -> Key -> Event a -> a
 e_lookup_f f k e =
     case e_lookup k e of
       Nothing -> f e
       Just v' -> v'
 
-e_lookup_r :: Double -> Key -> Event -> Double
-e_lookup_r v k = datum_r' . e_lookup_v (Double v) k
+e_insert :: Key -> a -> Event a -> Event a
+e_insert k v e = Event (M.insert k v (unE e))
 
-e_lookup_m :: a -> (Datum -> a) -> Key -> Event -> a
+to_r :: Real a => a -> Double
+to_r = fromRational . toRational
+
+e_lookup_r :: Real a => a -> Key -> Event a -> Double
+e_lookup_r v k = to_r . e_lookup_v v k
+
+e_lookup_m :: b -> (a -> b) -> Key -> Event a -> b
 e_lookup_m v f k e =
     case e_lookup k e of
       Nothing -> v
       Just v' -> f v'
 
-e_pitch :: Event -> Pitch Double
+e_pitch :: Real a => Event a -> Pitch Double
 e_pitch e =
     let get_r v k = e_lookup_r v k e
-        get_m v k = e_lookup_m v (const . datum_r') k e
+        get_m v k = e_lookup_m v (const . to_r) k e
     in Pitch {mtranspose = get_r 0 "mtranspose"
              ,gtranspose = get_r 0 "gtranspose"
              ,ctranspose = get_r 0 "ctranspose"
@@ -49,49 +56,61 @@ e_pitch e =
              ,midinote_f = get_m default_midinote_f "midinote"
              ,note_f = get_m default_note_f "note"}
 
-e_freq :: Event -> Double
+e_freq :: Real a => Event a -> Double
 e_freq = freq . e_pitch
 
-e_dur :: Event -> Datum
-e_dur = e_lookup_v (Double 1) "dur"
+e_dur :: Num a => Event a -> a
+e_dur = e_lookup_v 1 "dur"
 
-e_dur' :: Event -> Double
-e_dur' = datum_r' . e_dur
+e_dur' :: Real a => Event a -> Double
+e_dur' = to_r . e_dur
 
-e_legato :: Event -> Datum
-e_legato = e_lookup_v (Double 0.8) "legato"
+e_legato :: Fractional a => Event a -> a
+e_legato = e_lookup_v 0.8 "legato"
 
-e_legato' :: Event -> Double
-e_legato' = datum_r' . e_legato
+e_legato' :: (Fractional a,Real a) => Event a -> Double
+e_legato' = to_r . e_legato
 
-e_stretch :: Event -> Datum
-e_stretch = e_lookup_v (Double 1) "stretch"
+e_stretch :: Num a => Event a -> a
+e_stretch = e_lookup_v 1 "stretch"
 
-e_stretch' :: Event -> Double
-e_stretch' = datum_r' . e_stretch
+e_stretch' :: Real a => Event a -> Double
+e_stretch' = to_r . e_stretch
 
-e_sustain :: Event -> Datum
+e_sustain :: Fractional a => Event a -> a
 e_sustain =
     let f e = e_dur e * e_legato e * e_stretch e
     in e_lookup_f f "sustain"
 
-e_sustain' :: Event -> Double
-e_sustain' = datum_r' . e_sustain
+e_sustain' :: (Real a,Fractional a) => Event a -> Double
+e_sustain' = to_r . e_sustain
 
-e_instrument :: Event -> Datum
-e_instrument = e_lookup_v (String "default") "instrument"
+e_instrument :: IsString s => Event s -> s
+e_instrument = e_lookup_v (fromString "default") "instrument"
 
-e_instrument' :: Event -> String
-e_instrument' = datum_str' . e_instrument
+--e_instrument' :: Event -> String
+--e_instrument' = datum_str' . e_instrument
 
-e_reserved :: [String]
+e_reserved :: [Key]
 e_reserved = ["dur","instrument","legato","note","octave","sustain"]
 
-e_arg :: (String,Datum) -> Maybe (String,Double)
-e_arg (k,v) =
-    case datum_r v of
-      Nothing -> Nothing
-      Just v' -> if k `elem` e_reserved
-                 then Nothing
-                 else Just (k,v')
+e_arg' :: Real a => (Key,a) -> Maybe (Key,Double)
+e_arg' (k,v) =
+    if k `elem` e_reserved
+    then Nothing
+    else Just (k,to_r v)
 
+e_arg :: Real a => Event a -> [(Key,Double)]
+e_arg = mapMaybe e_arg' . M.toList . unE
+
+e_edit :: Key -> (a -> a) -> Event a -> Event a
+e_edit k f e =
+    case e_lookup k e of
+      Just n -> e_insert k (f n) e
+      Nothing -> e
+
+e_to_list :: Event a -> [(Key,a)]
+e_to_list = M.toList . unE
+
+e_from_list :: [(Key,a)] -> Event a
+e_from_list = Event . M.fromList
