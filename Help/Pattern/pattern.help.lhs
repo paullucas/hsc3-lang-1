@@ -1,5 +1,4 @@
-> import Sound.SC3.Lang.Pattern.List
-> import Sound.SC3.Lang.Pattern.Parallel
+> import Sound.SC3.Lang.Pattern.Plain
 
 * Beginning
 
@@ -19,8 +18,7 @@ data and process is quite clear.
 In non-strict and purely functional languages
 ordinary data types may be of indefinite extent.
 
-> let ones = 1 : ones
-> in take 5 ones
+> let ones = 1 : ones in take 5 ones
 
 Since there is no mutation in haskell the
 pattern and stream distinction is less
@@ -47,6 +45,8 @@ with elements of type a.
 Patterns are constructed, manipulated and destructured
 using the functions provided.
 
+> fromList [1,2,3]
+
 * Patterns are Monoids
 
 > class Monoid a where
@@ -65,7 +65,7 @@ patterns.
 Patterns are an instance of Functor.  fmap applies
 a function to each element of a pattern.
 
-> fmap (\n -> n * 2) (pseq [1,2,3,4,5] 1)
+> fmap (* 2) (fromList [1..5])
 
 * Patterns are Applicative
 
@@ -83,9 +83,15 @@ Consider summing two patterns:
 
 > import Control.Applicative
 
-> let { p = pseq [1, 3, 5] 1
->     ; q = pseq [6, 4, 2] 1 }
-> in pure (+) <*> p <*> q
+> pure (+) <*> fromList [1,3,5] <*> fromList [6,4,2]
+
+This is distinct from the List instance of Applicative which is
+monadic, ie. pure is return and <*> is ap.
+
+> import Control.Monad
+
+> pure (+) <*> [1,3,5] <*> [6,4,2]
+> return (+) `ap` [1,3,5] `ap` [6,4,2]
 
 * Patterns are Monads
 
@@ -103,16 +109,16 @@ single element pattern.
 The monad instance for Patterns follows the
 standard monad instance for lists, for example:
 
-> pseq [1, 2] 1 >>= \x ->
->  pseq [3, 4, 5] 1 >>= \y ->
->   return (x, y)
+> pseq [1,2] 1 >>= \x ->
+>  pseq [3,4,5] 1 >>= \y ->
+>   return (x,y)
 
 which may be written using the haskell do notation
 as:
 
-> do { x <- pseq [1, 2] 1
->    ; y <- pseq [3, 4, 5] 1
->    ; return (x, y) }
+> do { x <- pseq [1,2] 1
+>    ; y <- pseq [3,4,5] 1
+>    ; return (x,y) }
 
 denotes the pattern having elements (1,3), (1,4),
 (1,5), (2,3), (2,4) and (2,5).
@@ -121,28 +127,34 @@ denotes the pattern having elements (1,3), (1,4),
 
 > import Data.Foldable as F
 
+Right folding with the list constructor (:) and
+the empty list transforms a pattern into a list.
+
+> let p = pser [1,2,3] 5 + pseq [0,10] 3
+> in F.foldr (:) [] p
+
 Foldable includes functions for product:
 
-> F.product (pseq [1,3,5] 1)
+> F.product (fromList [1,3,5])
 
 sum:
 
-> F.sum (ptake 12 (pwhite 'x' 0.25 0.75))
+> F.sum (ptake 100 (pwhite 'x' 0.25 0.75 inf))
 
 predicates:
 
-> F.any even (pseq [1,3,5] 1)
+> F.any even (fromList [1,3,5])
 
 and search:
 
-> F.elem 5 (pseq [1,3,5] 1)
+> F.elem 5 (fromList [1,3,5])
 
 * Patterns are Traversable
 
 > import Data.Traversable
 
-> let { f i e = (i + e, e * 2)
->     ; (r,p) = Data.Traversable.mapAccumL f 0 (pseq [1,3,5] 1) }
+> let { f i e = (i + e,e * 2)
+>     ; (r,p) = Data.Traversable.mapAccumL f 0 (fromList [1,3,5]) }
 > in (r,p)
 
 * Patterns are numerical
@@ -170,28 +182,10 @@ applicative notation above, and the numerical
 pattern (return x) can be written as the literal
 'x':
 
-> let { p = pseq [1, 3, 5] 1
->     ; q = pseq [6, 4, 2] 1 }
-> in p + q
+> fromList [1,3,5] + fromList [6,4,2]
 
 The numerical instances are written using the
 applicative functions pure and <*>.
-
-* Destructuring, folding
-
-A pattern has an ordinary right fold, with the
-additional requirement of an initial state value.
-
-> pfoldr :: s -> (a -> b -> b) -> b -> P a -> b
-
-pfoldr is the primitive traversal function for
-a pattern.
-
-Right folding with the list constructor (:) and
-the empty list transforms a pattern into a list.
-
-> let p = pser [1, 2, 3] 5 + pseq [0, 10] 3
-> in F.foldr (:) [] p
 
 * Extension
 
@@ -216,9 +210,9 @@ extended in a cycle, so that the expression:
 computes a list of three elements, [1, 3], [2, 4]
 and [1, 5].
 
-> zipWith_c (,) (fromList [1,2]) (fromList [3,4,5])
+> pzipWith (,) (fromList [1,2]) (fromList [3,4,5])
 
-> fromList [1,2] *. fromList [3,4,5]
+> fromList [1,2] * fromList [3,4,5]
 
 * Patterns/Step
 

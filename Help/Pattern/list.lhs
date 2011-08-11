@@ -1,12 +1,20 @@
 > import Control.Applicative
+> import qualified Data.Foldable as F
 > import Data.Monoid
 > import Sound.OpenSoundControl
 > import Sound.SC3
-> import Sound.SC3.Lang.Collection.Numerical.Extending
 > import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 > import Sound.SC3.Lang.Math.Datum
-> import Sound.SC3.Lang.Pattern.Plain {- List,Plain -}
+> import Sound.SC3.Lang.Pattern.Plain
 > :set -XOverloadedStrings
+
+## padd
+
+- Padd(\freq,801,Pbind(\freq,100)).asStream.next(());
+> padd "freq" 801 (pbind [("freq",100)])
+
+- Padd(\freq,Pseq([401,801],2),Pbind(\freq,100)).asStream.nextN(4,())
+> padd "freq" (pseq [401,801] 2) (pbind [("freq",100)])
 
 ## pappend
 
@@ -46,11 +54,14 @@ be written.
 
 A nil in SC3 Pbind stops the pattern...
 
-> pbind [("x",pseq [1,2,3] 1),("y",prand 'a' [100,300,200] inf),("zzz",99)]
+- Pbind(\x,Pseq([1,2,3]),\y,Prand([100,300,200],inf),\zzz,99).asStream.nextN(3,())
+> pbind [("x",pseq [1,2,3] 1),("y",prand 'a' [100,300,200] 3),("zzz",99)]
 
-> audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf)
->                 ,("dur",0.1)])
+- Pbind(\freq,Prand([300,500,231.2,399.2],inf),\dur,0.1).play;
+> audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf),("dur",0.1)])
 
+- Pbind(\freq,Prand([300,500,231.2,399.2],inf),
+-       \dur,Prand([0.1,0.3],inf)).play
 > audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf)
 >                 ,("dur",prand 'b' [0.1,0.3] inf)])
 
@@ -88,6 +99,15 @@ A nil in SC3 Pbind stops the pattern...
 >     ; o = out 0 (pan2 s pan e) }
 > in withSC3 (\fd -> async fd (d_recv (synthdef "acid" o)))
 
+- Pbind(\instrument,\acid,
+-       \dur,Pseq([0.25,0.5,0.25],4),
+-       \root,-24,
+-       \degree,Pseq([0,3,5,7,9,11,5,1],inf),
+-       \pan,Pfunc({1.0.rand2}),
+-       \cut,Pxrand([1000,500,2000,300],inf),
+-       \rez,Pfunc({0.7.rand +0.3}),
+-       \amp,0.2).play
+
 > audition (pbind [("instrument",prepeat "acid")
 >                 ,("dur",pseq [0.25,0.5,0.25] inf)
 >                 ,("root",-12)
@@ -97,9 +117,26 @@ A nil in SC3 Pbind stops the pattern...
 >                 ,("res",pwhite 'c' 0.3 1.0 inf)
 >                 ,("amp",0.2)])
 
+- Pseq([Pbind(\instrument,\acid,
+-             \dur,Pseq([0.25,0.5,0.25],4),
+-             \root,-24,
+-             \degree,Pseq([0,3,5,7,9,11,5,1],inf),
+-             \pan,Pfunc({1.0.rand2}),
+-             \cut,Pxrand([1000,500,2000,300],inf),
+-             \rez,Pfunc({0.7.rand + 0.3}),
+-             \amp,0.2),
+-       Pbind(\instrument,\acid,
+-             \dur,Pseq([0.25],6),
+-             \root,-24,
+-             \degree,Pseq([18,17,11,9],inf),
+-             \pan,Pfunc({1.0.rand2}),
+-             \cut,1500,
+-             \rez,Pfunc({0.7.rand + 0.3}),
+-             \amp,0.16)],inf).play
+
 > audition (pseq [pbind [("instrument",pn (return "acid") 12)
 >                       ,("dur",pseq [0.25,0.5,0.25] 4)
->                       ,("root",-12)
+>                       ,("root",-24)
 >                       ,("degree",pseq [0,3,5,7,9,11,5,1] 1)
 >                       ,("pan",pwhite 'a' (-1.0) 1.0 12)
 >                       ,("cut",pxrand 'b' [1000,500,2000,300] 12)
@@ -107,11 +144,11 @@ A nil in SC3 Pbind stops the pattern...
 >                       ,("amp",0.2)]
 >                ,pbind [("instrument",pn (return  "acid") 6)
 >                       ,("dur",pseq [0.25] 6)
->                       ,("root",0)
+>                       ,("root",-24)
 >                       ,("degree",pser [18,17,11,9] 6)
->                       ,("pan",pwhite 'a' (-1.0) 1.0 6)
+>                       ,("pan",pwhite 'd' (-1.0) 1.0 6)
 >                       ,("cut",1500)
->                       ,("res",pwhite 'c' 0.3 1.0 6)
+>                       ,("res",pwhite 'e' 0.3 1.0 6)
 >                       ,("amp",0.16)]] inf)
 
 ## pbool
@@ -126,9 +163,9 @@ step the value pattern, else hold the previous value.
  i - input
  c - clutch
 
-> let {p = pseq [1,2,3,4,5] 3
->     ;q = pbool (pseq [1,0,1,0,0,0,1,1] 1)}
-> in pclutch p q
+- Pclutch(Pseq([1,2,3,4,5],3),Pseq([1,0,1,0,0,0,1,1],inf)).asStream.nextN(31)
+> pclutch (pseq [1,2,3,4,5] 3) (pbool (pseq [1,0,1,0,0,0,1,1] 1))
+[1,1,2,2,2,2,3,4,5,5,1,1,1,1,2,3,4,4,5,5,5,5,1,2,3,3,4,4,4,4,5]
 
 Note the initialization behavior,nothing
 is generated until the first true value.
@@ -141,8 +178,21 @@ is generated until the first true value.
 
 Patterns are functors.
 
-> fmap (* 3) (fromList [1,2,3])
-> pcollect (* 3) (fromList [1,2,3])
+- Pcollect({arg item;item * 3},Pseq(#[1,2,3],inf)).asStream.nextN(9)
+> pcollect (* 3) (pseq [1,2,3] 3)
+
+- Pseq(#[1,2,3],3).collect({arg item;item * 3}).asStream.nextN(9)
+> fmap (* 3) (pseq [1,2,3] 3)
+
+## pconst
+
+Constrain the sum of a numerical pattern.  Is equal `p' until the
+accumulated sum is within `t' of `n'.  At that point, the difference
+between the specified sum and the ccumulated sum concludes the
+pattern.
+
+- Pconst(10,Prand([1,2,0.5,0.1],inf),0.001).asStream.nextN(15,())
+> let p = pconst 10 (prand 'a' [1,2,0.5,0.1] inf) 0.001 in (p,F.sum p)
 
 ## pcountpost
 
@@ -165,6 +215,20 @@ Derive notes from an index into a scale.
           scale - list of divisions (ie. [0,2,4,5,7,9,11])
  stepsPerOctave - division of octave (ie. 12)
 
+- Pbind(\note,PdegreeToKey(Pseq([1,2,3,2,5,4,3,4,2,1],2),#[0,2,3,6,7,9],12),\dur,0.25).play
+
+> let {n = pdegreeToKey (pseq [1,2,3,2,5,4,3,4,2,1] 2) (return [0,2,3,6,7,9]) (return 12)}
+> in audition (pbind [("note",n),("dur",0.25)])
+
+- s = #[[0,2,3,6,7,9],[0,1,5,6,7,9,11],[0,2,3]];
+- d = [1,2,3,2,5,4,3,4,2,1];
+- Pbind(\note,PdegreeToKey(Pseq(d,4),Pstutter(3,Prand(s,inf)),12),\dur,0.25).play;
+
+> let {s = map return [[0,2,3,6,7,9],[0,1,5,6,7,9,11],[0,2,3]]
+>     ;d = [1,2,3,2,5,4,3,4,2,1]}
+> in audition (pbind [("note",pdegreeToKey (pseq d 4) (pstutter 3 (prand 'a' s 14)) (pn 12 40))
+>                    ,("dur",0.25)])
+
 > let {p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2
 >     ;q = return [0,2,4,5,7,9,11]}
 > in pdegreeToKey p q (return 12)
@@ -178,6 +242,21 @@ The degree_to_key function is also given.
 > import qualified Sound.SC3.Lang.Math.Pitch as P
 
 > map (\n -> P.degree_to_key n [0,2,4,5,7,9,11] 12) [0,2,4,7,4,2,0]
+
+## pdurStutter
+
+Partition a value into n equal subdivisions.  Subdivides each duration
+by each stutter and yields that value stutter times.  A stutter of 0
+will skip the duration value, a stutter of 1 yields the duration value
+unaffected.
+
+- s = Pseq(#[1,1,1,1,1,2,2,2,2,2,0,1,3,4,0],inf);
+- d = Pseq(#[0.5,1,2,0.25,0.25],inf);
+- PdurStutter(s,d).asStream.nextN(24)
+
+> let {s = pseq [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0] inf
+>     ;d = pseq [0.5,1,2,0.25,0.25] inf}
+> in ptake 24 (pdurStutter s d)
 
 ## pempty
 
@@ -203,6 +282,8 @@ Take the first n elements of the pattern.  Aliased to pfin.
   x - value pattern
 
 > ptake 5 (pseq [1,2,3] inf)
+
+- Pfinval(5,Pseq(#[1,2,3],inf)).asStream.nextN(5)
 > pfinval 5 (pseq [1,2,3] inf)
 
 Note that ptake does not extend the input pattern, unlike pser.
@@ -218,18 +299,27 @@ Geometric series pattern.
    grow - multiplication factor
  length - number of values produced
 
+- Pgeom(3,6,5).asStream.nextN(5)
+> pgeom 3 6 5
 > pgeom 1 2 12
 
 Real numbers work as well.
 
 > pgeom 1.0 1.1 6
 
+There is a list variant also.
+
+- 5.geom(3,6)
+> C.geom 5 3 6
+
 ## pif
+
+- Pif(Pfunc({0.3.coin}),Pwhite(0,9,inf),Pwhite(10,19,inf)).asStream.nextN(9)
 
 > let {a = fmap (< 0.3) (pwhite 'a' 0.0 1.0 inf)
 >     ;b = pwhite 'b' 0 9 inf
->     ;c = pwhite 'c' 100 109 inf}
-> in ptake 20 (pif a b c)
+>     ;c = pwhite 'c' 10 19 inf}
+> in ptake 9 (pif a b c)
 
 ## pinterleave
 
@@ -247,7 +337,8 @@ pattern continues until it also ends.
 
 Interlaced embedding of subarrays.
 
-> place [1,fromList [2,5],fromList [3,6]] 3
+- Place(#[1,[2,5],[3,6]],2).asStream.nextN(6)
+> place [1,fromList [2,5],fromList [3,6]] 2
 > place [1,fromList [2,5],pseries 3 3 inf] 5
 
 ## pn
@@ -263,6 +354,9 @@ Repeats the enclosed pattern a number of times.
 ## prand
 
 Returns one item from a finite pattern at random for each step.
+
+- Prand([1,Pseq([10,20,30]),2,3,4,5],6).asStream.nextN(6)
+> prand 'a' [1,fromList [10,20,30],2,3,4,5] 6
 
 > prand 'a' [1,fromList [2,3],fromList [4,5,6]] 15
 
@@ -310,7 +404,13 @@ Compare to pn:
 
 ## prorate
 
+- Prorate(Pseq([0.35,0.5,0.8]),1).asStream.nextN(6)
 > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) 1
+
+- Prorate(Pseq([0.35,0.5,0.8]),Prand([20,1],inf)).asStream.nextN(6)
+> prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) (prand 'a' [20,1] 3)
+
+- Prorate(Pseq([[1,2],[5,7],[4,8,9]]).collect(_.normalizeSum),1).asStream.nextN(8)
 > prorate (fromList (map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]])) 1
 
 ## prsd
@@ -363,6 +463,7 @@ An arithmetric series.
 Sequentially embed values in a list in constant, but random order.
 Returns a shuffled version of the list item by item, with n repeats.
 
+- Pshuf([1,2,3,4,5],3).asStream.nextN(15);
 > pshuf 'a' [1,2,3,4,5] 3
 
 ## pslide
@@ -374,6 +475,7 @@ Returns a shuffled version of the list item by item, with n repeats.
      start - index to start at
       wrap - must be True
 
+- Pslide([1,2,3,4,5],inf,3,1,0).asStream.nextN(13)
 > pslide [1,2,3,4,5] 6 3 1 0 True
 > pslide [1,2,3,4,5] 6 3 (-1) 0 True
 
@@ -405,12 +507,8 @@ entirety.  pswitch1 switches every value.
   list - patterns to index
  which - index
 
-> pswitch1 [fromList [1,2,3],fromList [65,76],pcycle 8] (pseq [2,2,0,1] inf)
-
-> let {p = pseq [1,2,3] inf
->     ;q = pseq [65,76] inf}
-> in ptake 28 (pswitch1 [p,q,pn 8 inf] (pseq [2,2,0,1] inf))
-
+- Pswitch1([Pseq([1,2,3],inf),Pseq([65,76],inf),8],Pseq([2,2,0,1],inf)).asStream.nextN(24)
+> pswitch1 [pseq [1,2,3] inf,pseq [65,76] inf,pn 8 inf] (pser [2,2,0,1] 24)
 
 ## pswitch
 
@@ -475,13 +573,16 @@ list at random for each repeat, the probability for each item is
 determined by a list of weights which should sum to 1.0.
 
 > pwrand 'a' [1,2,3] (C.normalizeSum [1,3,5]) 6
-> pwrand 'a' [1,2,fromList [3,4]] (C.normalizeSum [1,3,5]) 12
+
+- Pwrand.new([1,2,Pseq([3,4],1)],[1,3,5].normalizeSum,6).asStream.nextN(6)
+> pwrand 'a' [1,2,pseq [3,4] 1] (C.normalizeSum [1,3,5]) 6
 
 ## pwrap
 
 Constrain the range of output values by wrapping.
 
-> pwrap (pgeom 200 1.07 26) 200 1000.0
+- Pn(Pwrap(Pgeom(200,1.07,26),200,1000.0),inf).asStream.nextN(26)
+> pwrap (pgeom 200 1.07 26) 200 1000
 
 ## pxrand
 
@@ -504,13 +605,11 @@ Note that zipWith is truncating, whereas the numerical instances are
 extending.
 
 > zipWith (*) [1,2,3,4] [5,6,7]
+> pzipWith (*) (fromList [1,2,3,4]) (fromList [5,6,7])
 > fromList [1,2,3,4] * fromList [5,6,7]
 
 Note that the list instance of applicative is combinatorial
 (ie. Monadic).
 
 > pure (*) <*> [1,2,3,4] <*> [5,6,7]
-
-> pzipWith (*) (fromList [1,2,3,4]) (fromList [5,6,7])
 > pure (*) <*> fromList [1,2,3,4] <*> fromList [5,6,7]
-> fromList [1,2,3,4] * fromList [5,6,7]
