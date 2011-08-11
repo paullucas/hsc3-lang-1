@@ -5,7 +5,6 @@ import Control.Applicative
 import Data.Foldable as F
 import Data.List as L
 import qualified Data.Map as M
-import Data.Maybe
 import Data.Monoid
 import Data.Traversable
 import Sound.OpenSoundControl
@@ -13,6 +12,7 @@ import Sound.SC3.Server
 import Sound.SC3.Lang.Collection.Event
 import Sound.SC3.Lang.Collection.Numerical.Extending ()
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
+import Sound.SC3.Lang.Math.Datum ()
 import qualified Sound.SC3.Lang.Math.Pitch as P
 import System.Random
 
@@ -70,12 +70,12 @@ pzip = liftP2 C.zip_c
 
 -- * SC3 patterns
 
-bind :: [(String,[Datum])] -> [Event]
+bind :: [(Key,[Datum])] -> [Event Datum]
 bind xs =
     let xs' = map (\(k,v) -> zip (repeat k) v) xs
-    in C.flop xs'
+    in map e_from_list (C.flop xs')
 
-pbind :: [(String,P Datum)] -> P Event
+pbind :: [(String,P Datum)] -> P (Event Datum)
 pbind xs = P (bind (map (\(k,v) -> (k,unP v)) xs))
 
 clutch :: [a] -> [Bool] -> [a]
@@ -88,6 +88,9 @@ pclutch = liftP2 clutch
 
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = liftA3 P.degree_to_key
+
+pedit :: Key -> (a -> a) -> P (Event a) -> P (Event a)
+pedit k f = fmap (e_edit k f)
 
 to_exprand :: (Floating b) => b -> b -> b -> b
 to_exprand l r i = l * (log (r / l) * i)
@@ -387,16 +390,16 @@ ptrigger = liftP2 trigger
 
 -- t = time, dt = delta-time, i = node id, s = instrument name
 -- rt = release time, a = parameters
-e_osc :: Double -> Double -> Int -> Event -> (OSC,OSC)
+e_osc :: Double -> Double -> Int -> Event Datum -> (OSC,OSC)
 e_osc t dt i e =
-    let s = e_instrument' e
+    let (String s) = e_instrument e
         rt = dt * e_sustain' e
         f = e_freq e
-        a = ("freq",f) : mapMaybe e_arg e
+        a = ("freq",f) : e_arg e
     in (Bundle (UTCr t) [s_new s i AddToTail 1 a]
        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
 
-e_play :: Transport t => t -> [Event] -> IO ()
+e_play :: Transport t => t -> [Event Datum] -> IO ()
 e_play fd xs = do
   let act _ _ [] = return ()
       act _ [] _ = error "e_play: no id?"
@@ -409,8 +412,8 @@ e_play fd xs = do
   st <- utcr
   act st [100..] xs
 
-instance Audible [Event] where
+instance Audible [Event Datum] where
     play = e_play
 
-instance Audible (P Event) where
+instance Audible (P (Event Datum)) where
     play fd = e_play fd . unP
