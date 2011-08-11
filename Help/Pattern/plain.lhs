@@ -5,7 +5,7 @@
 > import Sound.SC3.Lang.Collection.Numerical.Extending
 > import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 > import Sound.SC3.Lang.Math.Datum
-> import Sound.SC3.Lang.Pattern.List {- List,Plain -}
+> import Sound.SC3.Lang.Pattern.Plain {- List,Plain -}
 > :set -XOverloadedStrings
 
 ## pappend

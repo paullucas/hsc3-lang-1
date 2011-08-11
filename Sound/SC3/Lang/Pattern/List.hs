@@ -294,10 +294,10 @@ ptrigger p q =
     in L.concat (C.zipWith_c f r q)
 
 pzip :: P a -> P b -> P (a,b)
-pzip = zip_c
+pzip = C.zip_c
 
 pzipWith :: (a -> b -> c) -> P a -> P b -> P c
-pzipWith = zipWith_c
+pzipWith = C.zipWith_c
 
 -- * Pattern audition
 
