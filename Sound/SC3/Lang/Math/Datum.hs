@@ -109,6 +109,13 @@ instance Real Datum where
           Double n -> toRational n
           _ -> error "datum,real,partial"
 
+instance RealFrac Datum where
+  properFraction d = let (i,j) = properFraction (datum_r' d) in (i,Double j)
+  truncate = truncate . datum_r'
+  round = round . datum_r'
+  ceiling = ceiling . datum_r'
+  floor = floor . datum_r'
+
 instance Ord Datum where
     p < q = case (datum_r p,datum_r q) of
               (Just i,Just j) -> i < j
