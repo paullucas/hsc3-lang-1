@@ -17,8 +17,7 @@ Cabal-Version:     >= 1.8
 Data-files:        README
                    Help/Collection/*.help.lhs
                    Help/Math/*.help.lhs
-                   Help/Pattern/List/*.help.lhs
-                   Help/Pattern/Step/*.help.lhs
+                   Help/Pattern/*.lhs
 
 Library
   Build-Depends:   array,
@@ -42,6 +41,7 @@ Library
                    Sound.SC3.Lang.Math.SimpleNumber
                    Sound.SC3.Lang.Pattern.List
                    Sound.SC3.Lang.Pattern.Parallel
+                   Sound.SC3.Lang.Pattern.Plain
                    Sound.SC3.Lang.Pattern.Step
 
 Source-Repository  head

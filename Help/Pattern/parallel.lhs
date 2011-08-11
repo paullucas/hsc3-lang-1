@@ -1,21 +1,6 @@
-psep :: P a -> (P a,P a)
-phead :: P a -> P a
-ptail :: P a -> P a
-
-Inspect the first element of a pattern.
-
-> import Control.Applicative
-> import Data.Monoid
-> import Sound.SC3.Lang.Pattern.List
 > import Sound.SC3.Lang.Pattern.Parallel
 
-> fromList [1,2,3]
-> fromList [1..]
-
-> psep (fromList [1,2,3])
-> psep mempty
-
-The parallel variant.
+## phead
 
 > phead (fromList [1..] `par` fromList [2..])
 > psep (fromList [1,2] `par` fromList [2,3])

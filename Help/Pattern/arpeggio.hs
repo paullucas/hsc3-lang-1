@@ -5,7 +5,7 @@ import Control.Monad
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lang.Collection.Event
-import Sound.SC3.Lang.Pattern.List
+import Sound.SC3.Lang.Pattern
 
 instr :: Synthdef
 instr =
@@ -38,14 +38,14 @@ audition (pbind [("instrument",pn (return "analogarpeggio") inf)
 
 -}
 
-pinterp :: Fractional a => Int -> a -> a -> P a
+pinterp :: (Fractional a) => Int -> a -> a -> P a
 pinterp n s e = pseries s ((e - s) / fromIntegral n) n
 
 pinterp' :: (Fractional a) => P Int -> P a -> P a -> P a
 pinterp' n s e = join (pzipWith3 pinterp n s e)
 
-notes :: [(Key,P Datum)]
-notes =
+arpeggio :: [(Key,P Datum)]
+arpeggio =
     [("instrument",prepeat "analogarpeggio")
     ,("dur"
      ,let d = pwrand 'n' [0.25,0.125,0.0625] [0.45,0.45,0.1] inf
@@ -63,7 +63,8 @@ notes =
     ,("pan"
      ,let n = prand 'g' [8,16] inf
           s = pwhite 'h' (-1.0) 1.0 inf
-          e = pif (fmap (< 0) s) (pwhite 'i' 0.0 1.0 inf) (pwhite 'i' (-1.0) 0.0 inf)
+          s' = fmap (< 0) s
+          e = pif s' (pwhite 'i' 0.0 1.0 inf) (pwhite 'i' (-1.0) 0.0 inf)
       in pinterp' n s e)
     ,("amp"
      ,let n = prand 'j' [8,16,24,32] inf
@@ -84,5 +85,5 @@ notes =
      ,pstutter 8 (pseq [7,6,5,4,4,5,6,7] inf))]
 
 {-
-let tempo = 157 in audition (pedit "dur" (* (60/tempo)) (pbind notes))
+let n = 60/157 in audition (pedit "dur" (* n) (pbind arpeggio))
 -}

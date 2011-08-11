@@ -2,6 +2,9 @@ module Sound.SC3.Lang.Math.SimpleNumber where
 
 import System.Random {- random -}
 
+exprand :: (Floating b) => b -> b -> b -> b
+exprand l r i = l * (log (r / l) * i)
+
 rrand' :: (Random n, RandomGen g) => n -> n -> g -> (n,g)
 rrand' = curry randomR
 
@@ -21,6 +24,12 @@ coin' n g =
 
 coin :: (Random n,Fractional n,Ord n) => n -> IO Bool
 coin = getStdRandom . coin'
+
+inf :: Bounded a => a
+inf = maxBound
+
+isInf :: (Eq a,Bounded a) => a -> Bool
+isInf = (== inf)
 
 {-
 import Control.Monad
