@@ -12,9 +12,8 @@ import Sound.SC3.Lang.Collection.Event
 import Sound.SC3.Lang.Collection.Numerical.Extending ()
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 import Sound.SC3.Lang.Math.Datum ()
-import qualified Sound.SC3.Lang.Math.Pitch as M
 import qualified Sound.SC3.Lang.Math.SimpleNumber as M
-import Sound.SC3.Lang.Pattern.List as P
+import qualified Sound.SC3.Lang.Pattern.List as L
 import System.Random
 
 -- * P type and instances
@@ -72,13 +71,13 @@ pzip = liftP2 C.zip_c
 -- * SC3 patterns
 
 pbind :: [(String,P Datum)] -> P (Event Datum)
-pbind xs = P (bind (map (\(k,v) -> (k,unP v)) xs))
+pbind xs = P (L.pbind (map (\(k,v) -> (k,unP v)) xs))
 
 pclutch :: P a -> P Bool -> P a
-pclutch = liftP2 clutch
+pclutch = liftP2 L.pclutch
 
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
-pdegreeToKey = liftA3 M.degree_to_key
+pdegreeToKey = liftP3 L.pdegreeToKey
 
 pedit :: Key -> (a -> a) -> P (Event a) -> P (Event a)
 pedit k f = fmap (e_edit k f)
@@ -90,25 +89,25 @@ pfinval :: Int -> P a -> P a
 pfinval = ptake
 
 pgeom :: (Num a) => a -> a -> Int -> P a
-pgeom i s = P . geom i s
+pgeom i s = P . L.pgeom i s
 
 pif :: P Bool -> P a -> P a -> P a
-pif = liftP3 lif
+pif = liftP3 L.pif
 
 place :: [P a] -> Int -> P a
-place a n = P (lace (map unP a) n)
+place a n = P (L.place (map unP a) n)
 
 pn :: P a -> Int -> P a
 pn = flip pconcatReplicate
 
 prand :: Enum e => e -> [P a] -> Int -> P a
-prand e a n = P (rand e (map unP a) n)
+prand e a n = P (L.prand e (map unP a) n)
 
 preject :: (a -> Bool) -> P a -> P a
-preject f = liftP (reject f)
+preject f = liftP (L.preject f)
 
 prorate :: Num a => P (Either a [a]) -> P a -> P a
-prorate = liftP2 rorate
+prorate = liftP2 L.prorate
 
 pselect :: (a -> Bool) -> P a -> P a
 pselect f = liftP (filter f)
@@ -120,37 +119,37 @@ pser :: [P a] -> Int -> P a
 pser a i = ptake i (pcycle (pconcat a))
 
 pseries :: (Num a) => a -> a -> Int -> P a
-pseries i s = P . series i s
+pseries i s = P . L.pseries i s
 
 pshuf :: Enum e => e -> [a] -> Int -> P a
-pshuf e a n = P (shuf e a n)
+pshuf e a n = P (L.pshuf e a n)
 
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
-pslide a n j s i = P . slide a n j s i
+pslide a n j s i = P . L.pslide a n j s i
 
 pstutter :: P Int -> P a -> P a
-pstutter = liftP2 stutter
+pstutter = liftP2 L.pstutter
 
 pswitch :: [P a] -> P Int -> P a
-pswitch l = liftP (switch (map unP l))
+pswitch l = liftP (L.pswitch (map unP l))
 
 pswitch1 :: [P a] -> P Int -> P a
-pswitch1 l = liftP (switch1 (map unP l))
-
-pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
-pwhite e l r = P . white e l r
+pswitch1 l = liftP (L.pswitch1 (map unP l))
 
 pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
-pwhite' e = liftP2 (white' e)
+pwhite' e = liftP2 (L.pwhite' e)
+
+pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
+pwhite e l r = P . L.pwhite e l r
 
 pwrand :: Enum e => e -> [P a] -> [Double] -> Int -> P a
-pwrand e a w n = P (wrand e (map unP a) w n)
+pwrand e a w n = P (L.pwrand e (map unP a) w n)
 
 pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
-pwrap xs l r = P (wrap (unP xs) l r)
+pwrap xs l r = P (L.pwrap (unP xs) l r)
 
 pxrand :: Enum e => e -> [P a] -> Int -> P a
-pxrand e a n = P (xrand e (map unP a) n)
+pxrand e a n = P (L.pxrand e (map unP a) n)
 
 -- * Type specific aliases
 
@@ -174,7 +173,7 @@ ptake n = liftP (take n)
 -- * Non-SC3 patterns
 
 pbool :: (Ord a,Num a) => P a -> P Bool
-pbool = bool
+pbool = L.pbool
 
 pconcat :: [P a] -> P a
 pconcat = P . L.concat . map unP
@@ -183,10 +182,10 @@ pconcatReplicate :: Int -> P a -> P a
 pconcatReplicate i = pconcat . replicate i
 
 pcountpost :: P Bool -> P Int
-pcountpost = liftP countpost
+pcountpost = liftP L.pcountpost
 
 pcountpre :: P Bool -> P Int
-pcountpre = liftP countpre
+pcountpre = liftP L.pcountpre
 
 pcycle :: P a -> P a
 pcycle = liftP cycle
@@ -195,19 +194,19 @@ pdrop :: Int -> P a -> P a
 pdrop n = P . drop n . unP
 
 pinterleave :: P a -> P a -> P a
-pinterleave = liftP2 interleave
+pinterleave = liftP2 L.pinterleave
 
 preplicate :: Int -> a -> P a
 preplicate n = fromList . replicate n
 
 prsd :: Eq a => P a -> P a
-prsd = liftP rsd
+prsd = liftP L.prsd
 
 ptail :: P a -> P a
 ptail = pdrop 1
 
 ptrigger :: P Bool -> P a -> P (Maybe a)
-ptrigger = liftP2 trigger
+ptrigger = liftP2 L.ptrigger
 
 instance Audible (P (Event Datum)) where
-    play fd = e_play fd . unP
+    play fd = L.e_play fd . unP

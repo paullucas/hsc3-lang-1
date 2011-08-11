@@ -1,14 +1,16 @@
+> import Control.Applicative
+> import Data.Monoid
 > import Sound.OpenSoundControl
 > import Sound.SC3
+> import Sound.SC3.Lang.Collection.Numerical.Extending
+> import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 > import Sound.SC3.Lang.Math.Datum
-> import Sound.SC3.Lang.Pattern.Plain
+> import Sound.SC3.Lang.Pattern.List {- List,Plain -}
 > :set -XOverloadedStrings
 
 ## pappend
 
 Sequence two patterns.  This is the mappend instance of Monoid.
-
-> import Data.Monoid
 
 > fromList [1,2] `pappend` fromList [2,3]
 > fromList [1,2] `mappend` fromList [2,3]
@@ -140,6 +142,7 @@ is generated until the first true value.
 Patterns are functors.
 
 > fmap (* 3) (fromList [1,2,3])
+> pcollect (* 3) (fromList [1,2,3])
 
 ## pcountpost
 
@@ -180,8 +183,6 @@ The degree_to_key function is also given.
 
 The empty pattern. (The instance for Monoid mempty.)
 
-> import Data.Monoid
-
 > pempty == mempty
 > pempty `mappend` pempty == pempty
 > pempty `mappend` 1 == 1 `mappend` pempty
@@ -202,6 +203,7 @@ Take the first n elements of the pattern.  Aliased to pfin.
   x - value pattern
 
 > ptake 5 (pseq [1,2,3] inf)
+> pfinval 5 (pseq [1,2,3] inf)
 
 Note that ptake does not extend the input pattern, unlike pser.
 
@@ -293,8 +295,6 @@ Data.List.repeat, Data.Applicative.pure
 
 See also pcycle.
 
-> import Control.Applicative
-
 > ptake 5 (prepeat 3)
 > ptake 5 (pure 3)
 
@@ -332,8 +332,6 @@ the number of times to repeat the entire list.
 Unlike Pseq, pseq does not have an offset argument to
 give a starting offset into the list.
 
-> import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-
 > pseq (C.rotate 3 [1,2,3,4]) 3
 
 There is an 'infinite' value for the repeats variable.
@@ -366,8 +364,6 @@ Sequentially embed values in a list in constant, but random order.
 Returns a shuffled version of the list item by item, with n repeats.
 
 > pshuf 'a' [1,2,3,4,5] 3
-
-
 
 ## pslide
 
@@ -424,7 +420,6 @@ switch l i = i >>= (l !!)
 
 > pswitch [pseq [1,2,3] 2,pseq [65,76] 1,800] (fromList [2,2,0,1])
 
-
 ## ptail
 
 Drop first element from pattern.
@@ -432,9 +427,10 @@ Drop first element from pattern.
 > ptail (fromList [1,2,3])
 > ptail pempty
 
-Note that the haskell tail function is partial.
+Note that the haskell tail function is partial, although drop is not.
 
 > tail []
+> drop 1 []
 
 ## ptake
 
@@ -478,8 +474,6 @@ Embed values randomly chosen from a list.  Returns one item from the
 list at random for each repeat, the probability for each item is
 determined by a list of weights which should sum to 1.0.
 
-> import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-
 > pwrand 'a' [1,2,3] (C.normalizeSum [1,3,5]) 6
 > pwrand 'a' [1,2,fromList [3,4]] (C.normalizeSum [1,3,5]) 12
 
@@ -514,8 +508,6 @@ extending.
 
 Note that the list instance of applicative is combinatorial
 (ie. Monadic).
-
-> import Control.Applicative
 
 > pure (*) <*> [1,2,3,4] <*> [5,6,7]
 

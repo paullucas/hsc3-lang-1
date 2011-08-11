@@ -8,8 +8,14 @@ import Sound.SC3.Server
 import Sound.SC3.Lang.Collection.Event
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 import Sound.SC3.Lang.Math.Datum ()
+import qualified Sound.SC3.Lang.Math.Pitch as N
 import qualified Sound.SC3.Lang.Math.SimpleNumber as N
 import System.Random
+
+type P a = [a]
+
+fromList :: [a] -> P a
+fromList = id
 
 -- * Utilities
 
@@ -34,22 +40,25 @@ bindExtending xs =
     let xs' = map (\(k,v) -> zip (repeat k) v) xs
     in map e_from_list (C.flop xs')
 
-bind :: [(Key,[Datum])] -> [Event Datum]
-bind = bindExtending
+pbind :: [(Key,[Datum])] -> P (Event Datum)
+pbind = bindExtending
 
-clutch :: [a] -> [Bool] -> [a]
-clutch p q =
-    let r = map (+ 1) (countpost q)
-    in stutter r p
+pclutch :: P a -> P Bool -> P a
+pclutch p q =
+    let r = map (+ 1) (pcountpost q)
+    in pstutter r p
 
-exprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> [a]
-exprand e l r n = fmap (N.exprand l r) (white e l r n)
+pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
+pdegreeToKey = C.zipWith3_c N.degree_to_key
 
-finval :: Int -> [a] -> [a]
-finval = take
+pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
+pexprand e l r n = fmap (N.exprand l r) (pwhite e l r n)
 
-geom :: (Num a) => a -> a -> Int -> [a]
-geom i s n = C.geom n i s
+pfinval :: Int -> P a -> P a
+pfinval = take
+
+pgeom :: (Num a) => a -> a -> Int -> P a
+pgeom i s n = C.geom n i s
 
 ifTruncating :: [Bool] -> [a] -> [a] -> [a]
 ifTruncating  a b c = map ifF' (zip3 a b c)
@@ -57,29 +66,29 @@ ifTruncating  a b c = map ifF' (zip3 a b c)
 ifExtending :: [Bool] -> [a] -> [a] -> [a]
 ifExtending a b c = map ifF' (C.zip3_c a b c)
 
-lif :: [Bool] -> [a] -> [a] -> [a]
-lif = ifExtending
+pif :: P Bool -> P a -> P a -> P a
+pif = ifExtending
 
-lace :: [[a]] -> Int -> [a]
-lace a n =
+place :: [P a] -> Int -> P a
+place a n =
     let i = length a
     in take (n * i) (cycle (L.concat (C.flop a)))
 
-ln :: [a] -> Int -> [a]
-ln = flip concatReplicate
+pn :: P a -> Int -> P a
+pn = flip pconcatReplicate
 
-rand' :: Enum e => e -> [[a]] -> [a]
-rand' e a =
+prand' :: Enum e => e -> [[a]] -> [a]
+prand' e a =
     let k = length a - 1
         f g = let (i,g') = randomR (0,k) g
               in (a !! i) ++ f g'
     in f (mkStdGen (fromEnum e))
 
-rand :: Enum e => e -> [[a]] -> Int -> [a]
-rand e a n = take n (rand' e a)
+prand :: Enum e => e -> [P a] -> Int -> P a
+prand e a n = take n (prand' e a)
 
-reject :: (a -> Bool) -> [a] -> [a]
-reject f = filter (not . f)
+preject :: (a -> Bool) -> P a -> P a
+preject f = filter (not . f)
 
 rorate_n' :: Num a => a -> a -> [a]
 rorate_n' p i = [i * p,i * (1 - p)]
@@ -93,27 +102,31 @@ rorate_l' p i = map (* i) p
 rorate_l :: Num a => [[a]] -> [a] -> [a]
 rorate_l p = L.concat . C.zipWith_c rorate_l' p
 
-rorate' :: Num a => Either a [a] -> a -> [a]
-rorate' p =
+prorate' :: Num a => Either a [a] -> a -> P a
+prorate' p =
     case p of
       Left p' -> rorate_n' p'
       Right p' -> rorate_l' p'
 
-rorate :: Num a => [Either a [a]] -> [a] -> [a]
-rorate p = L.concat . C.zipWith_c rorate' p
+prorate :: Num a => P (Either a [a]) -> P a -> P a
+prorate p = L.concat . C.zipWith_c prorate' p
 
-seq :: [[a]] -> Int -> [a]
-seq a i = L.concat (L.concat (replicate i a))
-ser :: [[a]] -> Int -> [a]
-ser a i = take i (cycle (L.concat a))
+pseq :: [P a] -> Int -> P a
+pseq a i = L.concat (L.concat (replicate i a))
 
-series :: (Num a) => a -> a -> Int -> [a]
-series i s n = C.series n i s
+pser :: [P a] -> Int -> P a
+pser a i = take i (cycle (L.concat a))
 
-shuf :: Enum e => e -> [a] -> Int -> [a]
-shuf e a n =
+pseries :: (Num a) => a -> a -> Int -> P a
+pseries i s n = C.series n i s
+
+pselect :: (a -> Bool) -> P a -> P a
+pselect = filter
+
+pshuf :: Enum e => e -> [a] -> Int -> P a
+pshuf e a n =
     let (a',_) = C.scramble' a (mkStdGen (fromEnum e))
-    in concatReplicate n a'
+    in pconcatReplicate n a'
 
 -- k = length a
 segment :: [a] -> Int -> (Int,Int) -> [a]
@@ -121,8 +134,8 @@ segment a k (l,r) =
     let i = map (wrap' (0,k)) [l .. r]
     in map (a !!) i
 
-slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
-slide a n j s i wr =
+pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
+pslide a n j s i wr =
     let k = length a
         l = enumFromThen i (i + s)
         r = map (+ (j - 1)) l
@@ -136,14 +149,14 @@ stutterTruncating ns = L.concat . zipWith replicate ns
 stutterExtending :: [Int] -> [a] -> [a]
 stutterExtending ns = L.concat . C.zipWith_c replicate ns
 
-stutter :: [Int] -> [a] -> [a]
-stutter = stutterExtending
+pstutter :: P Int -> P a -> P a
+pstutter = stutterExtending
 
-switch :: [[a]] -> [Int] -> [a]
-switch l i = i >>= (l !!)
+pswitch :: [P a] -> P Int -> P a
+pswitch l i = i >>= (l !!)
 
-switch1 :: [[a]] -> [Int] -> [a]
-switch1 ps =
+pswitch1 :: [P a] -> P Int -> P a
+pswitch1 ps =
     let go _ [] = []
         go m (i:is) = case M.lookup i m of
                         Nothing -> []
@@ -151,15 +164,15 @@ switch1 ps =
                         Just (x:xs) -> x : go (M.insert i xs m) is
     in go (M.fromList (zip [0..] ps))
 
-white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
-white' e l r =
+pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
+pwhite' e l r =
     let g = mkStdGen (fromEnum e)
         n = zip l r
         f a b = let (a',b') = randomR b a in (b',a')
     in snd (L.mapAccumL f g n)
 
-white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
-white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
+pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
+pwhite e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
 wrand'Generic :: (Enum e,Random n,Ord n,Fractional n) =>
                  e -> [[a]] -> [n] -> [a]
@@ -169,11 +182,11 @@ wrand'Generic e a w =
     in f (mkStdGen (fromEnum e))
 
 wrandGeneric :: (Enum e,Random n,Ord n,Fractional n) =>
-                e -> [[a]] -> [n] -> Int -> [a]
+                e -> [P a] -> [n] -> Int -> P a
 wrandGeneric e a w n = take n (wrand'Generic e a w)
 
-wrand :: (Enum e) => e -> [[a]] -> [Double] -> Int -> [a]
-wrand = wrandGeneric
+pwrand :: Enum e => e -> [P a] -> [Double] -> Int -> P a
+pwrand = wrandGeneric
 
 -- l < i <= r
 wrap' :: (Num a,Ord a) => (a,a) -> a -> a
@@ -186,29 +199,49 @@ wrap' (l,r) i =
 map (wrap' (0,4)) [0..12]
 -}
 
-wrap :: (Num a,Ord a) => [a] -> a -> a -> [a]
-wrap xs l r = map (wrap' (l,r)) xs
+pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
+pwrap xs l r = map (wrap' (l,r)) xs
 
-xrand' :: Enum e => e -> [[a]] -> [a]
-xrand' e a =
+pxrand' :: Enum e => e -> [P a] -> P a
+pxrand' e a =
     let k = length a - 1
         f j g = let (i,g') = randomR (0,k) g
                 in if i == j then f j g' else (a !! i) ++ f i g'
     in f (-1) (mkStdGen (fromEnum e))
 
-xrand :: Enum e => e -> [[a]] -> Int -> [a]
-xrand e a n = take n (xrand' e a)
+pxrand :: Enum e => e -> [P a] -> Int -> P a
+pxrand e a n = take n (pxrand' e a)
+
+-- * Haskell/SC3 aliases
+
+pcollect :: (a -> b) -> P a -> P b
+pcollect = fmap
+
+pcycle :: P a -> P a
+pcycle = cycle
+
+pdrop :: Int -> P a -> P a
+pdrop = drop
+
+pfilter :: (a -> Bool) -> P a -> P a
+pfilter = filter
+
+ptake :: Int -> P a -> P a
+ptake = take
 
 -- * Non-SC3 patterns
 
-bool :: (Functor f,Ord a,Num a) => f a -> f Bool
-bool = fmap (> 0)
+pappend :: P a -> P a -> P a
+pappend = (++)
 
-concatReplicate :: Int -> [a] -> [a]
-concatReplicate i = L.concat . replicate i
+pbool :: (Functor f,Ord a,Num a) => f a -> f Bool
+pbool = fmap (> 0)
 
-countpost :: [Bool] -> [Int]
-countpost =
+pconcatReplicate :: Int -> [a] -> [a]
+pconcatReplicate i = L.concat . replicate i
+
+pcountpost :: [Bool] -> [Int]
+pcountpost =
     let f i p = if null p
                 then [i]
                 else let (x:xs) = p
@@ -216,8 +249,8 @@ countpost =
                      in if not x then f (i + 1) xs else r
     in tail . f 0
 
-countpre :: [Bool] -> [Int]
-countpre =
+pcountpre :: [Bool] -> [Int]
+pcountpre =
     let f i p = if null p
                 then if i == 0 then [] else [i]
                 else let (x:xs) = p
@@ -225,15 +258,24 @@ countpre =
                      in if x then r else f (i + 1) xs
     in f 0
 
-interleave :: [a] -> [a] -> [a]
-interleave p q =
+pempty :: P a
+pempty = []
+
+pinterleave :: [a] -> [a] -> [a]
+pinterleave p q =
     case (p,q) of
       ([],_) -> q
       (_,[]) -> p
-      (x:xs,y:ys) -> x : y : interleave xs ys
+      (x:xs,y:ys) -> x : y : pinterleave xs ys
 
-rsd :: (Eq a) => [a] -> [a]
-rsd q =
+prepeat :: a -> [a]
+prepeat = repeat
+
+preplicate :: Int -> a -> P a
+preplicate = replicate
+
+prsd :: (Eq a) => [a] -> [a]
+prsd q =
     case q of
       (i:is) -> let f n p = case p of
                               [] -> []
@@ -241,11 +283,21 @@ rsd q =
                 in i : f i is
       _ -> q
 
-trigger :: [Bool] -> [a] -> [Maybe a]
-trigger p q =
-    let r = countpre p
+-- Data.List.tail is partial
+ptail :: P a -> P a
+ptail = drop 1
+
+ptrigger :: [Bool] -> [a] -> [Maybe a]
+ptrigger p q =
+    let r = pcountpre p
         f i x = replicate i Nothing ++ [Just x]
     in L.concat (C.zipWith_c f r q)
+
+pzip :: P a -> P b -> P (a,b)
+pzip = zip_c
+
+pzipWith :: (a -> b -> c) -> P a -> P b -> P c
+pzipWith = zipWith_c
 
 -- * Pattern audition
 
