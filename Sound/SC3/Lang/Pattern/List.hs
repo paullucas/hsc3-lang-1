@@ -1,9 +1,9 @@
-{-# Language GeneralizedNewtypeDeriving,FlexibleInstances #-}
-module Sound.SC3.Lang.Pattern.Plain where
+{-# Language FlexibleInstances #-}
+module Sound.SC3.Lang.Pattern.List where
 
 import Control.Applicative
 import Control.Monad
-import Data.Foldable
+import Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as M
 import Data.Monoid
@@ -20,73 +20,151 @@ import System.Random
 
 -- * P type and instances
 
-newtype P a = P {unP :: [a]}
-    deriving (Eq
-             ,Functor
-             ,Monoid
-             ,Foldable
-             ,Traversable
-             ,Monad
-             ,Num
-             ,Fractional
-             ,Floating
-             ,Show)
+data M = Stop | Continue deriving (Eq,Show)
+data P a = P {unP :: [a]
+             ,stP :: M}
+    deriving (Eq,Show)
+
+-- in order for mappend to be productive in mconcat on an infinite
+-- list it cannot store the right-hand stop/continue mode
+instance Monoid (P a) where
+--    mappend (P xs _) (P ys st) = P (xs ++ ys) st
+    p `mappend` q = fromList (unP p ++ unP q)
+    mempty = P [] Continue
+
+instance Monad P where
+    m >>= k = F.foldr (mappend . k) mempty m
+    return x = P [x] Continue
+
+instance Functor P where
+    fmap f (P xs st) = P (map f xs) st
+
+instance Foldable P where
+    foldr f i (P xs _) = L.foldr f i xs
 
 instance Applicative P where
-    pure = P . return
-    P f <*> P e = P (map (\(f',e') -> f' e') (C.zip_c f e))
+    pure x = P [x] Continue
+    f <*> e = fmap (\(f',e') -> f' e') (pzip f e)
+
+instance Traversable P where
+    traverse f (P xs st) = pure P <*> traverse f xs <*> pure st
+
+instance (Num a) => Num (P a) where
+    (+) = pzipWith (+)
+    (-) = pzipWith (-)
+    (*) = pzipWith (*)
+    abs = fmap abs
+    signum = fmap signum
+    fromInteger = return . fromInteger
+    negate = fmap negate
+
+instance (Fractional a) => Fractional (P a) where
+    (/) = pzipWith (/)
+    recip = fmap recip
+    fromRational = return . fromRational
 
 inf :: Int
 inf = maxBound
 
+-- * Extension
+
+stP_join :: [M] -> M
+stP_join m = if L.any (== Stop) m then Stop else Continue
+
+pextension :: [P a] -> [()]
+pextension x =
+    let x' = filter ((== Stop) . stP) x
+    in if null x'
+       then C.extension (map toList x)
+       else C.extension (map toList x')
+
+--pextend :: [P a] -> [P a]
+--pextend l = zipWith (\_ x -> x) (pextension l) (map pcycle l)
+
+ptranspose :: [P a] -> P [a]
+ptranspose l =
+    let d = L.transpose (map unP l)
+        s = stP_join (map stP l)
+    in P d s
+
+pflop :: [P a] -> P [a]
+pflop l =
+    let l' = map pcycle l
+    in pzipWith (\_ x -> x) (P (pextension l) Stop) (ptranspose l')
+
 -- * P lifting
 
 liftP :: ([a] -> [b]) -> P a -> P b
-liftP f = fromList . f . toList
+liftP f (P xs st) = P (f xs) st
 
 liftP2 :: ([a] -> [b] -> [c]) -> P a -> P b -> P c
-liftP2 f a b = P (f (toList a) (toList b))
+liftP2 f p q =
+    let P l st = pzip p q
+        (a,b) = unzip l
+    in P (f a b) st
 
 liftP3 :: ([a] -> [b] -> [c] -> [d]) -> P a -> P b -> P c -> P d
-liftP3 f a b c = P (f (toList a) (toList b) (toList c))
+liftP3 f p q r =
+    let P l st = pzip3 p q r
+        (a,b,c) = unzip3 l
+    in P (f a b c) st
 
 -- * P functions
 
 pnull :: P a -> Bool
 pnull = null . toList
 
+stopping :: P a -> P a
+stopping (P xs _) = P xs Stop
+
+stoppingN :: Int -> P a -> P a
+stoppingN n (P xs _) = P xs (if n == inf then Continue else Stop)
+
+continuing :: P a -> P a
+continuing (P xs _) = P xs Continue
+
 fromList :: [a] -> P a
-fromList = P
+fromList xs = P xs Continue
 
 prepeat :: a -> P a
 prepeat = fromList . repeat
 
 pzipWith :: (a -> b -> c) -> P a -> P b -> P c
-pzipWith f = liftP2 (C.zipWith_c f)
+pzipWith f p q =
+    let u = fmap (const ())
+        x = pextension [u p,u q]
+        c = cycle . unP
+        l = zipWith3 (\_ i j -> f i j) x (c p) (c q)
+    in P l (stP_join [stP p,stP q])
 
 pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
-pzipWith3 f = liftP3 (C.zipWith3_c f)
+pzipWith3 f p q r =
+    let u = fmap (const ())
+        x = pextension [u p,u q,u r]
+        c = cycle . unP
+        l = L.zipWith4 (\_ i j k -> f i j k) x (c p) (c q) (c r)
+    in P l (stP_join [stP p,stP q,stP r])
 
 pzip :: P a -> P b -> P (a,b)
-pzip = liftP2 C.zip_c
+pzip = pzipWith (,)
+
+pzip3 :: P a -> P b -> P c -> P (a,b,c)
+pzip3 = pzipWith3 (,,)
 
 -- * SC3 patterns
 
 padd :: Num a => Key -> P a -> P (Event a) -> P (Event a)
 padd k p = pzipWith (\i j -> e_edit k (+ i) j) p
 
-bindTruncating :: [(Key,[Datum])] -> [Event Datum]
-bindTruncating xs =
-    let xs' = map (\(k,v) -> zip (repeat k) v) xs
-    in map e_from_list (L.transpose xs')
-
-bindExtending :: [(Key,[Datum])] -> [Event Datum]
-bindExtending xs =
-    let xs' = map (\(k,v) -> zip (repeat k) v) xs
-    in map e_from_list (C.flop xs')
+pbind1 :: (String,P a) -> P (Event a)
+pbind1 (k,P xs st) =
+    let xs' = map (\i -> e_from_list [(k,i)]) xs
+    in P xs' st
 
 pbind :: [(String,P Datum)] -> P (Event Datum)
-pbind xs = P (bindExtending (map (\(k,v) -> (k,unP v)) xs))
+pbind xs =
+    let xs' = fmap (\(k,v) -> pzip (return k) v) xs
+    in fmap e_from_list (pflop xs')
 
 pclutch :: P a -> P Bool -> P a
 pclutch p q =
@@ -128,7 +206,7 @@ pfinval :: Int -> P a -> P a
 pfinval = ptake
 
 pgeom :: (Num a) => a -> a -> Int -> P a
-pgeom i s n = P (C.geom n i s)
+pgeom i s n = P (C.geom n i s) Stop
 
 ifF :: Bool -> a -> a -> a
 ifF x y z = if x then y else z
@@ -148,7 +226,7 @@ pif = liftP3 ifExtending
 place :: [P a] -> Int -> P a
 place a n =
     let i = length a
-    in P (take (n * i) (cycle (L.concat (C.flop (map unP a)))))
+    in P (take (n * i) (cycle (L.concat (C.flop (map unP a))))) Continue
 
 pn :: P a -> Int -> P a
 pn = flip pconcatReplicate
@@ -159,7 +237,7 @@ prand' e a =
         k = length a - 1
         f g = let (i,g') = randomR (0,k) g
               in (a' !! i) ++ f g'
-    in P (f (mkStdGen (fromEnum e)))
+    in P (f (mkStdGen (fromEnum e))) Continue
 
 prand :: Enum e => e -> [P a] -> Int -> P a
 prand e a n = ptake n (prand' e a)
@@ -192,18 +270,18 @@ pselect :: (a -> Bool) -> P a -> P a
 pselect f = liftP (filter f)
 
 pseq :: [P a] -> Int -> P a
-pseq a i = pconcat (L.concat (replicate i a))
+pseq a i = stoppingN i (pn (pconcat a) i)
 
 pser :: [P a] -> Int -> P a
 pser a i = ptake i (pcycle (pconcat a))
 
 pseries :: (Num a) => a -> a -> Int -> P a
-pseries i s n = P (C.series n i s)
+pseries i s n = P (C.series n i s) Stop
 
 pshuf :: Enum e => e -> [a] -> Int -> P a
 pshuf e a =
     let (a',_) = C.scramble' a (mkStdGen (fromEnum e))
-    in pn (P a')
+    in pn (P a' Continue)
 
 wrap' :: (Num a,Ord a) => (a,a) -> a -> a
 wrap' (l,r) i =
@@ -281,7 +359,7 @@ wrand :: (Enum e) => e -> [[a]] -> [Double] -> Int -> [a]
 wrand e a w n = take n (wrand' e a w)
 
 pwrand :: Enum e => e -> [P a] -> [Double] -> Int -> P a
-pwrand e a w n = P (wrand e (map unP a) w n)
+pwrand e a w n = P (wrand e (map unP a) w n) Continue
 
 pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
 pwrap xs l r = fmap (wrap' (l,r)) xs
@@ -297,7 +375,7 @@ xrand :: Enum e => e -> [[a]] -> Int -> [a]
 xrand e a n = take n (xrand' e a)
 
 pxrand :: Enum e => e -> [P a] -> Int -> P a
-pxrand e a n = P (xrand e (map unP a) n)
+pxrand e a n = P (xrand e (map unP a) n) Continue
 
 -- * Monoid aliases
 
@@ -318,7 +396,7 @@ pjoin = join
 -- * Data.List functions
 
 pcycle :: P a -> P a
-pcycle = liftP cycle
+pcycle = continuing . liftP cycle
 
 pdrop :: Int -> P a -> P a
 pdrop n = liftP (drop n)
@@ -334,7 +412,7 @@ ptail :: P a -> P a
 ptail = pdrop 1
 
 ptake :: Int -> P a -> P a
-ptake n = liftP (take n)
+ptake n = stoppingN n . liftP (take n)
 
 -- * Non-SC3 patterns
 
@@ -342,7 +420,7 @@ pbool :: (Ord a,Num a) => P a -> P Bool
 pbool = fmap (> 0)
 
 pconcatReplicate :: Int -> P a -> P a
-pconcatReplicate i = pconcat . replicate i
+pconcatReplicate i = stoppingN i . pconcat . replicate i
 
 countpost :: [Bool] -> [Int]
 countpost =

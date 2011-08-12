@@ -114,3 +114,6 @@ e_to_list = M.toList . unE
 
 e_from_list :: [(Key,a)] -> Event a
 e_from_list = Event . M.fromList
+
+e_unions :: [Event a] -> Event a
+e_unions = Event . M.unions . map unE

@@ -1,11 +1,12 @@
 > import Control.Applicative
+> import Control.Monad
 > import qualified Data.Foldable as F
 > import Data.Monoid
 > import Sound.OpenSoundControl
 > import Sound.SC3
 > import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 > import Sound.SC3.Lang.Math.Datum
-> import Sound.SC3.Lang.Pattern.Plain
+> import Sound.SC3.Lang.Pattern.List
 > :set -XOverloadedStrings
 
 ## padd
@@ -23,6 +24,7 @@ Sequence two patterns.  This is the mappend instance of Monoid.
 > fromList [1,2] `pappend` fromList [2,3]
 > fromList [1,2] `mappend` fromList [2,3]
 > ptake 5 (prepeat 3 `pappend` prepeat 4)
+> ptake 5 (mconcat (cycle [prepeat 3]))
 > let e = mempty :: P ()
 > e `mappend` e == e
 
@@ -52,10 +54,10 @@ be written.
 >                 ,("dur",pseq [0.1,0.15,0.1] 1)
 >                 ,("amp",pseq [0.1,0.05] 1)])
 
-A nil in SC3 Pbind stops the pattern...
+A finite binding stops the Event pattern.
 
 - Pbind(\x,Pseq([1,2,3]),\y,Prand([100,300,200],inf),\zzz,99).asStream.nextN(3,())
-> pbind [("x",pseq [1,2,3] 1),("y",prand 'a' [100,300,200] 3),("zzz",99)]
+> pbind [("x",pseq [1,2,3] 1),("y",prand 'a' [100,300,200] inf),("zzz",99)]
 
 - Pbind(\freq,Prand([300,500,231.2,399.2],inf),\dur,0.1).play;
 > audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf),("dur",0.1)])
@@ -78,11 +80,11 @@ A nil in SC3 Pbind stops the pattern...
 >     ; o = offsetOut 0 (pan2 s pan e) }
 > in withSC3 (\fd -> async fd (d_recv (synthdef "test" o)))
 
-> audition (pbind [("instrument",prepeat "test")
+> audition (pbind [("instrument",return "test")
 >                 ,("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200)
 >                 ,("dur",0.1)])
 
-> audition (pbind [("instrument",prepeat "test")
+> audition (pbind [("instrument",return "test")
 >                 ,("nharms",pseq [4,10,40] inf)
 >                 ,("dur",pseq [1,1,2,1] inf / 10)
 >                 ,("freq",pn (pseries 1 1 16 * 50) 4)
@@ -108,8 +110,8 @@ A nil in SC3 Pbind stops the pattern...
 -       \rez,Pfunc({0.7.rand +0.3}),
 -       \amp,0.2).play
 
-> audition (pbind [("instrument",prepeat "acid")
->                 ,("dur",pseq [0.25,0.5,0.25] inf)
+> audition (pbind [("instrument",return "acid")
+>                 ,("dur",pseq [0.25,0.5,0.25] 4)
 >                 ,("root",-12)
 >                 ,("degree",pseq [0,3,5,7,9,11,5,1] inf)
 >                 ,("pan",pwhite 'a' (-1.0) 1.0 inf)
@@ -134,21 +136,21 @@ A nil in SC3 Pbind stops the pattern...
 -             \rez,Pfunc({0.7.rand + 0.3}),
 -             \amp,0.16)],inf).play
 
-> audition (pseq [pbind [("instrument",pn (return "acid") 12)
+> audition (pseq [pbind [("instrument",return "acid")
 >                       ,("dur",pseq [0.25,0.5,0.25] 4)
 >                       ,("root",-24)
->                       ,("degree",pseq [0,3,5,7,9,11,5,1] 1)
->                       ,("pan",pwhite 'a' (-1.0) 1.0 12)
->                       ,("cut",pxrand 'b' [1000,500,2000,300] 12)
->                       ,("res",pwhite 'c' 0.3 1.0 12)
+>                       ,("degree",pseq [0,3,5,7,9,11,5,1] inf)
+>                       ,("pan",pwhite 'a' (-1.0) 1.0 inf)
+>                       ,("cut",pxrand 'b' [1000,500,2000,300] inf)
+>                       ,("res",pwhite 'c' 0.3 1.0 inf)
 >                       ,("amp",0.2)]
->                ,pbind [("instrument",pn (return  "acid") 6)
->                       ,("dur",pseq [0.25] 6)
+>                ,pbind [("instrument",return  "acid")
+>                       ,("dur",pn 0.25 6)
 >                       ,("root",-24)
->                       ,("degree",pser [18,17,11,9] 6)
->                       ,("pan",pwhite 'd' (-1.0) 1.0 6)
+>                       ,("degree",pser [18,17,11,9] inf)
+>                       ,("pan",pwhite 'd' (-1.0) 1.0 inf)
 >                       ,("cut",1500)
->                       ,("res",pwhite 'e' 0.3 1.0 6)
+>                       ,("res",pwhite 'e' 0.3 1.0 inf)
 >                       ,("amp",0.16)]] inf)
 
 ## pbool
@@ -183,6 +185,18 @@ Patterns are functors.
 
 - Pseq(#[1,2,3],3).collect({arg item;item * 3}).asStream.nextN(9)
 > fmap (* 3) (pseq [1,2,3] 3)
+
+## pconcat
+
+pconcat is Data.Monoid.mconcat.  There are currently productivity issues...
+
+> take 3 (join (replicate maxBound [1,2]))
+> ptake 3 (pjoin (preplicate maxBound (fromList [1,2])))
+
+> take 3 (mconcat (replicate maxBound [1,2]))
+> ptake 3 (pconcat (cycle [fromList [1,2]]))
+
+> ptake 3 (pconcat [pseq [1,2] 1,pseq [3,4] 1])
 
 ## pconst
 
@@ -345,8 +359,12 @@ Interlaced embedding of subarrays.
 
 Repeats the enclosed pattern a number of times.
 
+> concat (replicate inf [1])
+> pconcat (replicate inf 1)
+
 > pconcatReplicate 4 1
-> pconcatReplicate 4 (fromList [1])
+> pconcatReplicate 4 (fromList [1,2])
+> pconcatReplicate inf 1
 
 > pn 1 4
 > pn (fromList [1,2,3]) 4

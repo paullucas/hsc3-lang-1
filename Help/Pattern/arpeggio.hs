@@ -5,7 +5,7 @@ import Control.Monad
 import Sound.OpenSoundControl
 import Sound.SC3
 import Sound.SC3.Lang.Collection.Event
-import Sound.SC3.Lang.Pattern
+import Sound.SC3.Lang.Pattern.List
 
 instr :: Synthdef
 instr =
@@ -28,7 +28,7 @@ withSC3 (\fd -> async fd (d_recv instr))
 
 :set -XOverloadedStrings
 
-audition (pbind [("instrument",pn (return "analogarpeggio") inf)
+audition (pbind [("instrument",return "analogarpeggio")
                 ,("dur",pwrand 'a' [0.1,0.25] [2/3,1/2] inf)
                 ,("freq",pwhite 'b' 440.0 1600.0 inf)
                 ,("pan",pwhite 'c' (-1.0) 1.0 inf)
@@ -46,9 +46,9 @@ pinterp' n s e = join (pzipWith3 pinterp n s e)
 
 arpeggio :: [(Key,P Datum)]
 arpeggio =
-    [("instrument",prepeat "analogarpeggio")
+    [("instrument",return "analogarpeggio")
     ,("dur"
-     ,let d = pwrand 'n' [0.25,0.125,0.0625] [0.45,0.45,0.1] inf
+     ,let d = pwrand 'n' [0.25,0.125,0.0625] [0.4875,0.4875,0.025] inf
       in pstutter 32 d)
     ,("cutoffmult"
      ,let n = prand 'a' [8,16,24,32] inf
@@ -84,6 +84,11 @@ arpeggio =
     ,("octave"
      ,pstutter 8 (pseq [7,6,5,4,4,5,6,7] inf))]
 
+main :: IO ()
+main = do
+  let n = 60/157
+  audition (pedit "dur" (* n) (pbind arpeggio))
+
 {-
-let n = 60/157 in audition (pedit "dur" (* n) (pbind arpeggio))
+withSC3 (\fd -> send fd (g_dumpTree [(1,True)]))
 -}

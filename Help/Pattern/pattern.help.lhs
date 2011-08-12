@@ -1,4 +1,9 @@
-> import Sound.SC3.Lang.Pattern.Plain
+> import Control.Applicative
+> import Control.Monad
+> import Data.Foldable as F
+> import Data.Traversable
+> import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
+> import Sound.SC3.Lang.Pattern.List
 
 * Beginning
 
@@ -81,17 +86,14 @@ pattern of values.
 
 Consider summing two patterns:
 
-> import Control.Applicative
 
 > pure (+) <*> fromList [1,3,5] <*> fromList [6,4,2]
 
 This is distinct from the List instance of Applicative which is
 monadic, ie. pure is return and <*> is ap.
 
-> import Control.Monad
-
 > pure (+) <*> [1,3,5] <*> [6,4,2]
-> return (+) `ap` [1,3,5] `ap` [6,4,2]
+> return (+) `ap` fromList [1,3,5] `ap` fromList [6,4,2]
 
 * Patterns are Monads
 
@@ -123,9 +125,15 @@ as:
 denotes the pattern having elements (1,3), (1,4),
 (1,5), (2,3), (2,4) and (2,5).
 
-* Patterns are Foldable
+> take 3 (join [[1..]])
+> ptake 3 (join (fromList [fromList [1..]]))
 
-> import Data.Foldable as F
+*** This is not productive
+
+> take 3 (join (cycle [[1..]]))
+> ptake 3 (join (pcycle (return (fromList [1..]))))
+
+* Patterns are Foldable
 
 Right folding with the list constructor (:) and
 the empty list transforms a pattern into a list.
@@ -150,8 +158,6 @@ and search:
 > F.elem 5 (fromList [1,3,5])
 
 * Patterns are Traversable
-
-> import Data.Traversable
 
 > let { f i e = (i + e,e * 2)
 >     ; (r,p) = Data.Traversable.mapAccumL f 0 (fromList [1,3,5]) }
@@ -196,31 +202,46 @@ truncated.
 
 The haskell expression:
 
-> zip [1, 2] [3, 4, 5]
+> zip [1,2] [3,4,5]
 
-describes a list of two elements, being (1, 3) and
-(2, 4).
+describes a list of two elements, being (1,3) and
+(2,4).
 
 This differs from the ordinary supercollider
 language behaviour, where the shorter sequence is
 extended in a cycle, so that the expression:
 
-| [[1, 2], [3, 4, 5]].flop
+| [[1,2],[3,4,5]].flop
 
-computes a list of three elements, [1, 3], [2, 4]
-and [1, 5].
+computes a list of three elements, [1,3], [2,4]
+and [1,5].
 
-> pzipWith (,) (fromList [1,2]) (fromList [3,4,5])
+> C.flop [[1,2],[3,4,5]]
 
+Patterns have a similar though more subtle extension behaviour.  For
+simple cases the extension works in the same manner.
+
+> C.zip_c [1,2] [3,4,5]
+> pzip (fromList [1,2]) (fromList [3,4,5])
+
+Patterns are either continuing of stopping.
+
+> pwhite 'a' 0.0 1.0 inf * pn (-1) 2
 > fromList [1,2] * fromList [3,4,5]
+
+Infinite patterns are operable.
+
+> let p = fromList [1..]
+> ptake 1 (pdrop 100000 p)
+> pseq [1,2,3] inf
+> ptake 5 (pseq [1,1,2,1] inf)
+> pseq [1,1,2,1] inf / 10
 
 * Patterns/Step
 
 > import Sound.SC3.Lang.Pattern.Step
 
 > evalP (fmap (\n -> n * 2) (pseq [1,2,3,4,5] 1))
-
-> import Control.Applicative
 
 > let { p = pseq [1, 3, 5] 1
 >     ; q = pseq [6, 4, 2] 1 }
