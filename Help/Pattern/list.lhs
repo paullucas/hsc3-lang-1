@@ -256,6 +256,11 @@ The degree_to_key function is also given.
 
 > map (\n -> P.degree_to_key n [0,2,4,5,7,9,11] 12) [0,2,4,7,4,2,0]
 
+## pdrop
+
+- Pseries(1,1,20).drop(5).asStream.nextN(15)
+> pdrop 5 (pseries 1 1 20)
+
 ## pdurStutter
 
 Partition a value into n equal subdivisions.  Subdivides each duration
@@ -286,6 +291,9 @@ See also preject.
 
 > pfilter (< 3) (pseq [1,2,3] 3)
 > pselect (< 3) (pseq [1,2,3] 3)
+
+- Pwhite(0,255,20).select({|x| x.odd}).asStream.all
+> pselect odd (pwhite 'a' 0 255 20)
 
 ## pfin
 
@@ -353,9 +361,22 @@ pattern continues until it also ends.
 
 Interlaced embedding of subarrays.
 
+- Place([0,[1,2],[3,4,5]],3).asStream.all
+> place [[0],[1,2],[3,4,5]] 3
+
 - Place(#[1,[2,5],[3,6]],2).asStream.nextN(6)
-> place [1,fromList [2,5],fromList [3,6]] 2
-> place [1,fromList [2,5],pseries 3 3 inf] 5
+> place [[1],[2,5],[3,6]] 2
+> place [[1],[2,5],[3,6..]] 5
+
+## ppatlace
+
+Note that the current implementation stops late, it cycles the second
+series one place.
+
+- Pbind(\degree,Ppatlace([Pseries(0,1,8),Pseries(2,1,7)],inf),
+-       \dur,0.25).play;
+> audition (pbind [("degree",ppatlace [pseries 0 1 8,pseries 2 1 7] inf)
+>                 ,("dur",0.125)])
 
 ## pn
 
@@ -405,6 +426,9 @@ reject f = filter (not . f)
 
 > preject (== 1) (pseq [1,2,3] 3)
 > pfilter (not . (== 1)) (pseq [1,2,3] 3)
+
+- Pwhite(0,255,20).reject({|x| x.odd}).asStream.all
+> preject odd (pwhite 'a' 0 255 20)
 
 ## prepeat
 
@@ -590,6 +614,15 @@ generate Nothing values.
    x - value pattern
 
 > ptrigger (pbool (fromList [0,0,1,0,0,0,1,1])) (fromList [1,2,3])
+
+## ptuple
+
+- Ptuple([Pseries(7,-1,8),
+-         Pseq([9,7,7,7,4,4,2,2],1),
+-         Pseq([4,4,4,2,2,0,0,-3],1)],1).asStream.nextN(8)
+> ptuple [pseries 7 (-1) 8
+>        ,pseq [9,7,7,7,4,4,2,2] 1
+>        ,pseq [4,4,4,2,2,0,0,-3] 1] 1
 
 ## pwhite
 
