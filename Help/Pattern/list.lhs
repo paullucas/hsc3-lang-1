@@ -42,8 +42,8 @@ The keys used in a Pbind are usually determined by Event's default
 mechanism and the controls defined for the SynthDef to be played.
 
 Note that string Datum can be written as literals in the
-OverloadedStrings language context.  However the list container must
-be written.
+OverloadedStrings language context.  However the pattern container
+must be written.
 
 > pbind [("freq",440)]
 > pbind [("freq",440.0)]
@@ -80,12 +80,12 @@ A finite binding stops the Event pattern.
 >     ; o = offsetOut 0 (pan2 s pan e) }
 > in withSC3 (\fd -> async fd (d_recv (synthdef "test" o)))
 
-> audition (pbind [("instrument",return "test")
->                 ,("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200)
+> audition ("test"
+>          ,pbind [("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200)
 >                 ,("dur",0.1)])
 
-> audition (pbind [("instrument",return "test")
->                 ,("nharms",pseq [4,10,40] inf)
+> audition ("test"
+>          ,pbind [("nharms",pseq [4,10,40] inf)
 >                 ,("dur",pseq [1,1,2,1] inf / 10)
 >                 ,("freq",pn (pseries 1 1 16 * 50) 4)
 >                 ,("sustain",pseq [1/10,0.5,1,2] inf)])
@@ -110,8 +110,8 @@ A finite binding stops the Event pattern.
 -       \rez,Pfunc({0.7.rand +0.3}),
 -       \amp,0.2).play
 
-> audition (pbind [("instrument",return "acid")
->                 ,("dur",pseq [0.25,0.5,0.25] 4)
+> audition ("acid"
+>          ,pbind [("dur",pseq [0.25,0.5,0.25] 4)
 >                 ,("root",-12)
 >                 ,("degree",pseq [0,3,5,7,9,11,5,1] inf)
 >                 ,("pan",pwhite 'a' (-1.0) 1.0 inf)
@@ -136,16 +136,15 @@ A finite binding stops the Event pattern.
 -             \rez,Pfunc({0.7.rand + 0.3}),
 -             \amp,0.16)],inf).play
 
-> audition (pseq [pbind [("instrument",return "acid")
->                       ,("dur",pseq [0.25,0.5,0.25] 4)
+> audition ("acid"
+>          ,pseq [pbind [("dur",pseq [0.25,0.5,0.25] 4)
 >                       ,("root",-24)
 >                       ,("degree",pseq [0,3,5,7,9,11,5,1] inf)
 >                       ,("pan",pwhite 'a' (-1.0) 1.0 inf)
 >                       ,("cut",pxrand 'b' [1000,500,2000,300] inf)
 >                       ,("res",pwhite 'c' 0.3 1.0 inf)
 >                       ,("amp",0.2)]
->                ,pbind [("instrument",return  "acid")
->                       ,("dur",pn 0.25 6)
+>                ,pbind [("dur",pn 0.25 6)
 >                       ,("root",-24)
 >                       ,("degree",pser [18,17,11,9] inf)
 >                       ,("pan",pwhite 'd' (-1.0) 1.0 inf)

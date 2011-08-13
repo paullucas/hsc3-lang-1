@@ -13,7 +13,6 @@ import Sound.SC3.Server
 import Sound.SC3.Lang.Collection.Event
 import Sound.SC3.Lang.Collection.Numerical.Extending ()
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-import Sound.SC3.Lang.Math.Datum ()
 import qualified Sound.SC3.Lang.Math.Pitch as P
 import qualified Sound.SC3.Lang.Math.SimpleNumber as N
 import System.Random
@@ -161,7 +160,7 @@ pbind1 (k,P xs st) =
     let xs' = map (\i -> e_from_list [(k,i)]) xs
     in P xs' st
 
-pbind :: [(String,P Datum)] -> P (Event Datum)
+pbind :: [(String,P a)] -> P (Event a)
 pbind xs =
     let xs' = fmap (\(k,v) -> pzip (return k) v) xs
     in fmap e_from_list (pflop xs')
@@ -481,27 +480,38 @@ ptrigger = liftP2 trigger
 
 -- t = time, dt = delta-time, i = node id, s = instrument name
 -- rt = release time, a = parameters
-e_osc :: Double -> Double -> Int -> Event Datum -> (OSC,OSC)
-e_osc t dt i e =
-    let (String s) = e_instrument e
-        rt = dt * e_sustain' e
+e_osc :: (Fractional n,Real n) =>
+         Double -> Double -> Int -> String -> Event n -> (OSC,OSC)
+e_osc t dt i s e =
+    let rt = dt * e_sustain' e
         f = e_freq e
         a = ("freq",f) : e_arg e
     in (Bundle (UTCr t) [s_new s i AddToTail 1 a]
        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
 
-e_play :: Transport t => t -> [Event Datum] -> IO ()
-e_play fd xs = do
-  let act _ _ [] = return ()
-      act _ [] _ = error "e_play: no id?"
-      act t (i:is) (e:es) = do let dt = e_dur' e
-                                   (p,q) = e_osc t dt i e
-                               send fd p
-                               send fd q
-                               pauseThreadUntil (t + dt)
-                               act (t + dt) is es
+e_play :: (Transport t, Real n, Fractional n) =>
+          t -> [String] -> [Event n] -> IO ()
+e_play fd ls le = do
+  let act _ _ _ [] = return ()
+      act _ _ [] _ = return ()
+      act _ [] _ _ = error "e_play: no id?"
+      act t (i:is) (s:ss) (e:es) = do
+                  let dt = e_dur' e
+                      (p,q) = e_osc t dt i s e
+                  send fd p
+                  send fd q
+                  pauseThreadUntil (t + dt)
+                  act (t + dt) is ss es
   st <- utcr
-  act st [100..] xs
+  act st [100..] ls le
 
-instance Audible (P (Event Datum)) where
-    play fd = e_play fd . unP
+instance (Real n, Fractional n) => Audible (P (Event n)) where
+    play fd = e_play fd (repeat "default") . unP
+
+instance (Real n, Fractional n) => Audible (String,P (Event n)) where
+    play fd (s,p) = e_play fd (repeat s) (unP p)
+
+instance (Real n, Fractional n) => Audible (P (String,Event n)) where
+    play fd p =
+        let (s,e) = unzip (unP p)
+        in e_play fd s e
