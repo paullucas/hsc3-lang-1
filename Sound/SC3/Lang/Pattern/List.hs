@@ -11,7 +11,6 @@ import Data.Traversable
 import Sound.OpenSoundControl
 import Sound.SC3.Server
 import Sound.SC3.Lang.Collection.Event
-import Sound.SC3.Lang.Collection.Numerical.Extending ()
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 import qualified Sound.SC3.Lang.Math.Pitch as P
 import qualified Sound.SC3.Lang.Math.SimpleNumber as N
