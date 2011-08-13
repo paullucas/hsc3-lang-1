@@ -221,10 +221,17 @@ ifExtending a b c = map ifF' (C.zip3_c a b c)
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
-place :: [P a] -> Int -> P a
+place :: [[a]] -> Int -> P a
 place a n =
     let i = length a
-    in P (take (n * i) (cycle (L.concat (C.flop (map unP a))))) Continue
+        f = if n == inf then id else take (n * i)
+    in stoppingN n (fromList (f (L.concat (C.flop a))))
+
+ppatlace :: [P a] -> Int -> P a
+ppatlace a n =
+    let i = length a
+        f = if n == inf then id else take (n * i)
+    in stoppingN n (P (f (L.concat (C.flop (map unP a)))) Continue)
 
 pn :: P a -> Int -> P a
 pn = flip pconcatReplicate
