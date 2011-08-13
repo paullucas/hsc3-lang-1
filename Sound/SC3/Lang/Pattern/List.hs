@@ -341,6 +341,9 @@ switch1 ps =
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
 
+ptuple :: [P a] -> Int -> P [a]
+ptuple p = pseq [pflop p]
+
 white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
 white' e l r =
     let g = mkStdGen (fromEnum e)
