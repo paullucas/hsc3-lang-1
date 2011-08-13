@@ -230,6 +230,9 @@ place a n =
 pn :: P a -> Int -> P a
 pn = flip pconcatReplicate
 
+pnormalizeSum :: Fractional n => P n -> P n
+pnormalizeSum = liftP C.normalizeSum
+
 prand' :: Enum e => e -> [P a] -> P a
 prand' e a =
     let a' = map unP a
@@ -303,7 +306,7 @@ slide a n j s i wr =
        else error "slide: non-wrap variant not implemented"
 
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
-pslide a n j s i = fromList . slide a n j s i
+pslide a n j s i = stoppingN n . fromList . slide a n j s i
 
 stutterTruncating :: [Int] -> [a] -> [a]
 stutterTruncating ns = L.concat . zipWith replicate ns

@@ -325,6 +325,9 @@ There is a list variant also.
 - 5.geom(3,6)
 > C.geom 5 3 6
 
+- Pbind(\degree,Pseries(-7,1,15),\dur,Pgeom(0.5,0.89140193218427,15)).play;
+> audition (pbind [("degree",pseries (-7) 1 15),("dur",pgeom 0.5 0.89140193218427 15)])
+
 ## pif
 
 - Pif(Pfunc({0.3.coin}),Pwhite(0,9,inf),Pwhite(10,19,inf)).asStream.nextN(9)
@@ -392,6 +395,9 @@ threaded non-locally.
 >                   ,prand 'd' [74,75,77,79,81] n1] inf
 >      in return (ptake 24 p) }
 
+- Pbind(\degree,Prand([0,1,2,4,5],inf),\dur,0.25).play
+> audition (pbind [("degree",prand 'a' [0,1,2,4,5] inf),("dur",0.25)])
+
 ## preject
 
 Rejects values for which the predicate is true.
@@ -455,6 +461,13 @@ There is an 'infinite' value for the repeats variable.
 
 > ptake 9 (pdrop 1000000 (pseq [1,2,3] inf))
 
+As scale degrees.
+
+- Pbind(\degree,Pseq(#[0,0,4,4,5,5,4],1),
+-       \dur,Pseq(#[0.5,0.5,0.5,0.5,0.5,0.5,1],1)).play
+> audition (pbind [("degree",pseq [0,0,4,4,5,5,4] 1)
+>                 ,("dur",pseq [0.5,0.5,0.5,0.5,0.5,0.5,1] 1)])
+
 ## pser
 
 pser is like pseq, however the repeats variable gives the number of
@@ -483,6 +496,9 @@ Returns a shuffled version of the list item by item, with n repeats.
 - Pshuf([1,2,3,4,5],3).asStream.nextN(15);
 > pshuf 'a' [1,2,3,4,5] 3
 
+- Pbind(\degree,Pshuf([0,1,2,4,5],inf),\dur,0.25).play
+> audition (pbind [("degree",pshuf 'a' [0,1,2,4,5] inf),("dur",0.25)])
+
 ## pslide
 
       data - list of elements
@@ -495,6 +511,13 @@ Returns a shuffled version of the list item by item, with n repeats.
 - Pslide([1,2,3,4,5],inf,3,1,0).asStream.nextN(13)
 > pslide [1,2,3,4,5] 6 3 1 0 True
 > pslide [1,2,3,4,5] 6 3 (-1) 0 True
+
+- Pbind(\degree,Pslide((-6,-4 .. 12),8,3,1,0),
+-       \dur,Pseq(#[0.1,0.1,0.2],inf),
+-       \sustain,0.15).play
+> audition (pbind [("degree",pslide [-6,-4 .. 12] 8 3 1 0 True)
+>                 ,("dur",pseq [0.05,0.05,0.1] inf)
+>                 ,("sustain",0.15)])
 
 ## pstutter
 
@@ -594,6 +617,10 @@ determined by a list of weights which should sum to 1.0.
 - Pwrand.new([1,2,Pseq([3,4],1)],[1,3,5].normalizeSum,6).asStream.nextN(6)
 > pwrand 'a' [1,2,pseq [3,4] 1] (C.normalizeSum [1,3,5]) 6
 
+- Pbind(\degree,Pwrand((0..7),[4,1,3,1,3,2,1].normalizeSum,inf),\dur,0.25).play;
+> audition (pbind [("degree",pwrand 'a' (C.series 7 0 1) (C.normalizeSum [4,1,3,1,3,2,1]) inf)
+>                 ,("dur",0.25)])
+
 ## pwrap
 
 Constrain the range of output values by wrapping.
@@ -606,6 +633,9 @@ Constrain the range of output values by wrapping.
 Like rand but filters sucessive duplicates.
 
 > pxrand 'a' [1,fromList [2,3],fromList [4,5,6]] 15
+
+- Pbind(\degree,Pxrand([0,1,2,4,5],inf),\dur,0.25).play
+> audition (pbind [("degree",pxrand 'a' [0,1,2,4,5] inf),("dur",0.25)])
 
 ## pzip
 
