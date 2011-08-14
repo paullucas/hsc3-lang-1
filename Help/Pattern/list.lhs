@@ -9,6 +9,14 @@
 > import Sound.SC3.Lang.Pattern.List
 > :set -XOverloadedStrings
 
+## audition
+
+There are play and audition instances for:
+
+  a) P (Event n)
+  b) (String,P (Event n))
+  c) P (String,Event n)
+
 ## padd
 
 - Padd(\freq,801,Pbind(\freq,100)).asStream.next(());
@@ -175,6 +183,16 @@ is generated until the first true value.
 >     ;q = pbool (pseq [0,0,0,0,0,0,1,0,0,1,0,1] 1)}
 > in pclutch p q
 
+- Pbind(\degree,Pstutter(Pwhite(3,10,inf),Pwhite(-4,11,inf)),
+-       \dur,Pclutch(Pwhite(0.1,0.4,inf),Pdiff(Pkey(\degree)).abs > 0),
+-       \legato,0.3).play;
+
+> let {d = pstutter (pwhite 'a' 3 10 inf) (pwhite 'b' (-4) 11 inf)
+>     ;p = [("degree",d)
+>          ,("dur",pclutch (pwhite 'c' 0.1 0.4 inf) (pdiff (abs d) > 0))
+>          ,("legato",0.3)]}
+> in audition (pbind p)
+
 ## pcollect
 
 Patterns are functors.
@@ -311,6 +329,11 @@ Note that ptake does not extend the input pattern, unlike pser.
 
 > ptake 5 (pseq [1,2,3] 1)
 > pser [1,2,3] 5
+
+## pfold
+
+> audition (pbind [("degree",pfold (pseries 4 1 inf) (-7) 11),("dur",0.0625)])
+> audition (pbind [("degree",fmap (\n -> fold_ n (-7) 11) (pseries 4 1 inf)),("dur",0.0625)])
 
 ## pgeom
 
@@ -460,6 +483,11 @@ Compare to pn:
 - Prorate(Pseq([[1,2],[5,7],[4,8,9]]).collect(_.normalizeSum),1).asStream.nextN(8)
 > prorate (fromList (map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]])) 1
 
+- Pbind(\degree,Pseries(4,1,inf).fold(-7,11),
+-       \dur,Prorate(0.6,0.5)).play
+> audition (pbind [("degree",pfold (pseries 4 1 inf) (-7) 11)
+>                 ,("dur",prorate (fmap Left 0.6) 0.25)])
+
 ## prsd
 
 Remove successive duplicates.
@@ -559,6 +587,15 @@ Repeat each element of a pattern n times.
 
 > pstutter (fromList [1,2,3]) (fromList [4,5,6])
 > ptake 12 (pstutter (pseq [2,3] inf) (fromList [1,2,3,4]))
+
+- Pbind(\n,Pwhite(3,10,inf),
+-       \degree,Pstutter(Pkey(\n),Pwhite(-4,11,inf)),
+-       \dur,Pstutter(Pkey(\n),Pwhite(0.1,0.4,inf)),
+-       \legato,0.3).play
+> let n = pwhite 'a' 3 10 inf
+> in audition (pbind [("degree",pstutter n (pwhite 'b' (-4) 11 inf))
+>                    ,("dur",pstutter n (pwhite 'c' 0.1 0.4 inf))
+>                    ,("legato",0.3)])
 
 ## pswitch1
 

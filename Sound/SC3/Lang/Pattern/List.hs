@@ -9,7 +9,7 @@ import qualified Data.Map as M
 import Data.Monoid
 import Data.Traversable
 import Sound.OpenSoundControl
-import Sound.SC3.Server
+import Sound.SC3
 import Sound.SC3.Lang.Collection.Event
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 import qualified Sound.SC3.Lang.Math.Pitch as P
@@ -60,6 +60,7 @@ instance (Fractional a) => Fractional (P a) where
     (/) = pzipWith (/)
     recip = fmap recip
     fromRational = return . fromRational
+
 
 inf :: Int
 inf = maxBound
@@ -149,6 +150,9 @@ pzip = pzipWith (,)
 pzip3 :: P a -> P b -> P c -> P (a,b,c)
 pzip3 = pzipWith3 (,,)
 
+punzip :: P (a,b) -> (P a,P b)
+punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
+
 -- * SC3 patterns
 
 padd :: Num a => Key -> P a -> P (Event a) -> P (Event a)
@@ -183,6 +187,9 @@ pconst n p t =
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3 P.degree_to_key
 
+pdiff :: Num n => P n -> P n
+pdiff p = p - ptail p
+
 durStutter :: Fractional a => [Int] -> [a] -> [a]
 durStutter p =
     let f s d = case s of
@@ -202,6 +209,9 @@ pexprand e l r n = fmap (N.exprand l r) (pwhite e l r n)
 
 pfinval :: Int -> P a -> P a
 pfinval = ptake
+
+pfold :: (RealFrac n) => P n -> n -> n -> P n
+pfold p i j = fmap (\n -> fold_ n i j) p
 
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s n = P (C.geom n i s) Stop
