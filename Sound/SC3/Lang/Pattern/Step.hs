@@ -1,15 +1,15 @@
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ExistentialQuantification,FlexibleInstances #-}
 
 module Sound.SC3.Lang.Pattern.Step where
 
 import qualified Control.Applicative as A
 import qualified Control.Monad as M
 import qualified Data.Array as A
+import qualified Data.Default as D
 import qualified Data.IntMap as M
 import qualified Data.List as L
 import qualified Data.Maybe as M
 import qualified Data.Monoid as M
-import Sound.SC3.Identifier
 import qualified Sound.SC3.Lang.Math.Pitch as S
 import qualified System.Random as R
 
@@ -77,13 +77,16 @@ pfoldr' g f i p =
 evalP :: P () a -> [a]
 evalP = pfoldr' () (:) []
 
-evalR :: ID n => n -> P R.StdGen a -> [a]
+evalR :: (Enum n) => n -> P R.StdGen a -> [a]
 evalR n =
-    let g = R.mkStdGen (resolveID n)
+    let g = R.mkStdGen (fromEnum n)
     in pfoldr' g (:) []
 
-instance (Show a) => Show (P s a) where
-    show _ = show "a pattern"
+instance D.Default R.StdGen where
+    def = R.mkStdGen 0
+
+instance (D.Default s,Show a) => Show (P s a) where
+    show = show . pfoldr' D.def (:) []
 
 instance (Eq a) => Eq (P s a) where
     _ == _ = False
@@ -104,7 +107,7 @@ instance M.Monoid (P s a) where
 pzipWith :: (a -> b -> c) -> P s a -> P s b -> P s c
 pzipWith f p = (A.<*>) (A.pure f A.<*> p)
 
-instance (Num a) => Num (P s a) where
+instance (D.Default s,Num a) => Num (P s a) where
     (+) = pzipWith (+)
     (-) = pzipWith (-)
     (*) = pzipWith (*)
@@ -113,7 +116,7 @@ instance (Num a) => Num (P s a) where
     fromInteger = return . fromInteger
     negate = fmap negate
 
-instance (Fractional a) => Fractional (P s a) where
+instance (D.Default s,Fractional a) => Fractional (P s a) where
     (/) = pzipWith (/)
     recip = fmap recip
     fromRational = return . fromRational
