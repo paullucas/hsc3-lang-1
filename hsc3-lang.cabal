@@ -23,6 +23,7 @@ Library
   Build-Depends:   array,
                    base == 4.*,
                    containers,
+                   data-default,
                    hosc == 0.10,
                    hsc3 == 0.10,
                    split,
