@@ -495,6 +495,14 @@ Remove successive duplicates.
 > prsd (pstutter 2 (fromList [1,2,3]))
 > prsd (pseq [1,2,3] 2)
 
+## pscanl
+
+pscanl is similar to F.foldl, but returns a list of successive reduced
+values from the left.
+
+> F.foldl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1)
+> pscanl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1)
+
 ## pseq
 
 Cycle over a list of patterns. The repeats pattern gives

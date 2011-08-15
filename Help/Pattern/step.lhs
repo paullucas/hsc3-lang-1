@@ -20,7 +20,7 @@ control pattern, step the value pattern, else hold the previous value.
  i - input
  c - clutch
 
-> let {p = pseq [1,2,3,4,5] 3
+> let {p = pseq [1,2,3,4,5] (3::P () Int)
 >     ;q = pseq [1,0,1,0,0,0,1,1] 1}
 > in evalP (pclutch p q)
 
@@ -96,7 +96,7 @@ The empty pattern.
 
 Exponential distribution distribution in given range.
 
-> evalR 'x' (pexprand 0.01 0.99 12)
+> evalR 'x' (pexprand 0.01 0.99 (12::P R.StdGen Int))
 
 > let {l = pseq [1,11] 1
 >     ;r = pseq [2,12] 1
@@ -159,16 +159,15 @@ Geometric series pattern.
 
 Real numbers work as well.
 
-> evalP (pgeom 1.0 1.1 6
+> evalP (pgeom 1.0 1.1 6)
 
 ## phead
 
 Retain only the first element of a pattern.
 
-> evalP (pseq [1,2,3] 1
-> in evalP (phead p)
+> evalP (phead (pseq [1,2,3] 1))
 
-> evalP (pseq [1,2,3] 1
+> let {p = pseq [1,2,3] 1}
 > in evalP (phead p `mappend` ptail p)
 
 > evalP (phead mempty)
@@ -214,20 +213,18 @@ Interleave elements from two patterns.
 >     ;q = pseq [4,5,6,7] 2}
 > in evalP (pinterleave p q)
 
-> evalP (pinterleave (pwhite 1 9 5) (pseries 10 1 10)
-> in evalR 'x' p
+> evalR 'x' (pinterleave (pwhite 1 9 5) (pseries 10 1 10))
 
 ## pn
 
 Repeats the enclosed pattern a number of times.
 
-> evalP (pn (pseq [1,2,3] 1) 4
+> evalP (pn (pseq [1,2,3] 1) 4)
 
 There is a variant with the arguments
 reversed.
 
-> evalP (preplicate 4 (pseq [1,2,3] 1)
-
+> evalP (preplicate 4 (pseq [1,2,3] 1))
 
 ## ppatlace
 
@@ -240,7 +237,7 @@ output in turn.
 
 > let {w = pwhite 1 5 5
 >     ;g = pgeom 10 1.01 10}
-> in evalR 'x' (ppatlace [w,g] 15)
+> in evalR 'x' (ppatlace [w,g] 14)
 
 > let {w = pwhite 1 5 5
 >     ;g = pgeom 10 1.01 10}
@@ -258,18 +255,16 @@ repeats, the ppatlace stream will also be infinite.
 
 Returns one item from the list at random for each repeat.
 
-> evalP (prand [1,2,3,4,5] 6
-> in evalR 'x' p
+> evalR 'x' (prand [1,2,3,4,5] 6)
 
-> evalP (prand [pseq [1,2] 1
->              ,pseq [3,4] 1
->              ,pseq [5,6] 1 ] 9
-> in evalR 'x' p
+> evalR 'x' (prand [pseq [1,2] 1
+>                  ,pseq [3,4] 1
+>                  ,pseq [5,6] 1 ] 9)
 
-> evalP (pseq [prand [mempty,pseq [24,31,36,43,48,55] 1] 1
->             ,pseq [60,prand [63,65] 1
->                   ,67,prand [70,72,74] 1] (prrand 2 5)
->             ,prand [74,75,77,79,81] (prrand 3 9)] pinf
+> let {p = pseq [prand [mempty,pseq [24,31,36,43,48,55] 1] 1
+>               ,pseq [60,prand [63,65] 1
+>                     ,67,prand [70,72,74] 1] (prrand 2 5)
+>               ,prand [74,75,77,79,81] (prrand 3 9)] pinf}
 > in take 24 (evalR 'x' p)
 
 ## preject
@@ -295,14 +290,13 @@ Divide stream proportionally
                to split up the input into n parts.
      pattern - a numerical pattern
 
-> evalP (prorate (pseq [0.35,0.5,0.8] 1) 1
+> evalP (prorate (pseq [0.35,0.5,0.8] 1) 1)
 
 ## prsd
 
 Remove successive duplicates.
 
-> evalP (pseq [1,1,2,2,2,3,3] 1
-> in evalP (prsd p)
+> evalP (prsd (pseq [1,1,2,2,2,3,3] 1))
 
 ## pscan
 
@@ -378,8 +372,7 @@ give a starting offset into the list.
 Because the repeat counter is a pattern one can have
 a random number of repeats.
 
-> let {p = pseq [1,2] (prrand 1 9)}
-> in evalR 'x' p
+> evalR 'x' (pseq [1,2] (prrand 1 9))
 
 For the same reason the pattern is not static when
 re-examined.
@@ -390,9 +383,7 @@ re-examined.
 Further,if the repeat pattern is not singular,
 the sequence will repeat until the pattern is exhausted.
 
-> let {p = pseq [1] 3
->     ;q = pseq [1] p}
-> in evalP q
+> evalP (pseq [1] (pseq [1] 3))
 
 If one specifies the value pinf for the repeats variable,
 then it will repeat indefinitely.
@@ -539,13 +530,9 @@ If x is outside of (l,r) wrap until it lies inside.
  l - lower bound *cycle*
  r - upper bound *cycle*
 
-> let {p = pseries 6 2 9
->     ;q = pwrap p 2 10}
-> in evalP q
+> evalP (pwrap (pseries 6 2 9) 2 10)
 
-> let {p = pseries 6 2 9
->     ;q = pwrap p 1 11}
-> in evalP q
+> evalP (pwrap (pseries 6 2 9) 1 11)
 
 ## pxrand
 
@@ -553,3 +540,50 @@ Like prand, returns one item from the list at random for each step,
 but pxrand never repeats the same element twice in a row.
 
 > evalR 'x' (pxrand [1,2,3] 10)
+
+## Patterns/Step
+
+> import Sound.SC3.Lang.Pattern.Step
+
+> evalP (fmap (\n -> n * 2) (pseq [1,2,3,4,5] 1))
+
+> let { p = pseq [1, 3, 5] 1
+>     ; q = pseq [6, 4, 2] 1 }
+> in evalP (pure (+) <*> p <*> q)
+
+> evalP (pseq [1, 2] 1 >>= \x ->
+>        pseq [3, 4, 5] 1 >>= \y ->
+>        return (x, y))
+
+> evalP (do { x <- pseq [1, 2] 1
+>           ; y <- pseq [3, 4, 5] 1
+>           ; return (x, y) })
+
+> let { p = pseq [1, 3, 5] 1
+>     ; q = pseq [6, 4, 2] 1 }
+> in evalP (p + q)
+
+## Statefullness, Intederminacy, Randomness
+
+A pattern may be given by a function from
+an initial state to a duple of a pattern and
+a derived state.
+
+>| prp :: (s -> (P a, s)) -> P a
+
+## Continuing
+
+pcontinue provides a mechanism to destructure a
+pattern and generate a new pattern based on the
+first element and the 'rest' of the pattern.
+
+>| pcontinue :: P x -> (x -> P x -> P a) -> P a
+
+The bind instance of monad is written in relation
+to pcontinue.
+
+>| (>>=) p f = pcontinue p (\x q -> f x `mappend` pbind q f)
+
+pcontinue can be used to write pfilter the
+basic pattern filter, ptail which discards
+the front element of a pattern, and so on.
