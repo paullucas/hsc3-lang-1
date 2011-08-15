@@ -6,6 +6,7 @@ import Control.Monad
 import Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Monoid
 import Data.Traversable
 import Sound.OpenSoundControl
@@ -416,6 +417,9 @@ pjoin = join
 
 -- * Data.List functions
 
+pcons :: a -> P a -> P a
+pcons i (P j st) = P (i:j) st
+
 pcycle :: P a -> P a
 pcycle = continuing . liftP cycle
 
@@ -427,6 +431,9 @@ pfilter f = liftP (filter f)
 
 preplicate :: Int -> a -> P a
 preplicate n = fromList . replicate n
+
+pscanl :: (a -> b -> a) -> a -> P b -> P a
+pscanl f i = liftP (L.scanl f i)
 
 -- | Data.List.tail is partial
 ptail :: P a -> P a
@@ -478,15 +485,11 @@ pinterleave :: P a -> P a -> P a
 pinterleave = liftP2 interleave
 
 rsd :: (Eq a) => [a] -> [a]
-rsd q =
-    case q of
-      (i:is) -> let f n p = case p of
-                              [] -> []
-                              x:xs -> if x == n then f x xs else x : f x xs
-                in i : f i is
-      _ -> q
+rsd =
+    let f (p,_) i = (Just i,if Just i == p then Nothing else Just i)
+    in mapMaybe snd . scanl f (Nothing,Nothing)
 
-prsd :: Eq a => P a -> P a
+prsd :: (Eq a) => P a -> P a
 prsd = liftP rsd
 
 trigger :: [Bool] -> [a] -> [Maybe a]
