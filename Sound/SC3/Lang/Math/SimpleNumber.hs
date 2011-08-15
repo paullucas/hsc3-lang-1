@@ -31,6 +31,14 @@ inf = maxBound
 isInf :: (Eq a,Bounded a) => a -> Bool
 isInf = (== inf)
 
+linexp :: (Ord a, Floating a) => a -> a -> a -> a -> a -> a
+linexp l r l' r' n =
+    if n <= l
+    then l'
+    else if n >= r
+         then r'
+         else ((r'/l') ** ((n-l')/(r-l))) * l'
+
 {-
 import Control.Monad
 replicateM 12 (coin 0.5)

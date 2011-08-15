@@ -260,24 +260,9 @@ to write a function to remove succesive duplicates from a pattern, to
 count the distance between occurences of an element in a pattern and
 so on.
 
-> pscanl (:) [] (fromList [1..5])
-
-* Continuing
-
-pcontinue provides a mechanism to destructure a
-pattern and generate a new pattern based on the
-first element and the 'rest' of the pattern.
-
-> pcontinue :: P x -> (x -> P x -> P a) -> P a
-
-The bind instance of monad is written in relation
-to pcontinue.
-
-> (>>=) p f = pcontinue p (\x q -> f x `mappend` pbind q f)
-
-pcontinue can be used to write pfilter the
-basic pattern filter, ptail which discards
-the front element of a pattern, and so on.
+> pscanl (flip (:)) [] (fromList [1..5])
+> pscanl (+) 0 (fromList [1..5])
+> F.foldl (+) 0 (fromList [1..5])
 
 * References
 

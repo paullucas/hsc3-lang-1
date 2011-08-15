@@ -183,7 +183,7 @@ pconst n p t =
         f j (i:is) = if i + j < n - t
                      then i : f (j + i) is
                      else [n - j]
-    in fromList (f 0 (unP p))
+    in stopping (fromList (f 0 (unP p)))
 
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3 P.degree_to_key

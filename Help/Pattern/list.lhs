@@ -5,7 +5,7 @@
 > import Sound.OpenSoundControl
 > import Sound.SC3
 > import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-> import Sound.SC3.Lang.Math.Datum
+> import qualified Sound.SC3.Lang.Math.SimpleNumber as N
 > import Sound.SC3.Lang.Pattern.List
 > :set -XOverloadedStrings
 
@@ -205,10 +205,7 @@ Patterns are functors.
 
 ## pconcat
 
-pconcat is Data.Monoid.mconcat.  There are currently productivity issues...
-
-> take 3 (join (replicate maxBound [1,2]))
-> ptake 3 (pjoin (preplicate maxBound (fromList [1,2])))
+pconcat is Data.Monoid.mconcat.  See also pjoin.
 
 > take 3 (mconcat (replicate maxBound [1,2]))
 > ptake 3 (pconcat (cycle [fromList [1,2]]))
@@ -224,6 +221,12 @@ pattern.
 
 - Pconst(10,Prand([1,2,0.5,0.1],inf),0.001).asStream.nextN(15,())
 > let p = pconst 10 (prand 'a' [1,2,0.5,0.1] inf) 0.001 in (p,F.sum p)
+
+- Pbind(\degree,Pseq([-7,Pwhite(0,11,inf)],1),
+-       \dur,Pconst(4,Pwhite(1,4,inf) * 0.25)).play
+> let pwhitei e l r = fmap fromIntegral . pwhite e l r
+> in audition (pbind [("degree",pcons (-7) (pwhitei 'a' 0 11 inf))
+>                    ,("dur",pconst 4 (pwhite 'b' 1 4 inf * 0.25) 0.001)])
 
 ## pcountpost
 
@@ -379,6 +382,13 @@ pattern continues until it also ends.
 
 > ptake 10 (pinterleave (pcycle 1) (pcycle 2))
 > ptake 10 (pinterleave (pwhite 'a' 1 9 inf) (pseries 10 1 5))
+
+## pjoin
+
+pjoin is Control.Monad.join.
+
+> take 3 (join (replicate maxBound [1,2]))
+> ptake 3 (pjoin (preplicate maxBound (fromList [1,2])))
 
 ## place
 
@@ -738,3 +748,35 @@ Note that the list instance of applicative is combinatorial
 
 > pure (*) <*> [1,2,3,4] <*> [5,6,7]
 > pure (*) <*> fromList [1,2,3,4] <*> fromList [5,6,7]
+
+## +.x
+
+The SC3 .x adverb is like to Control.Monad.liftM2.
+
+- Pbind(\midinote,Pwhite(48,72,inf) +.x Pseq(#[0,4,7,11],1),
+-       \dur,0.125).play;
+> let p +. q = join (fmap ((+ q) . return) p)
+> in audition (pbind [("midinote",pwhite 'a' 48 72 inf +. pseq [0,4,7,11] 1)
+>                    ,("dur",0.125)])
+
+> let (+.) = liftM2 (+)
+> in audition (pbind [("midinote",pwhite 'a' 48 72 inf +. pseq [0,4,7,11] 1)
+>                    ,("dur",0.125)])
+
+> let n = do {i <- pwhite 'a' 48 72 inf
+>            ;j <- pseq [0,4,7,11] 1
+>            ;return (i+j)}
+> in audition (pbind [("midinote",n),("dur",0.125)])
+
+## Pkey
+
+There is no pkey function, rather name the pattern using let.
+
+- Pbind(\degree,Pseq([Pseries(-7,1,14),Pseries(7,-1,14)],inf),
+-       \dur,0.25,
+-       \legato,Pkey(\degree).linexp(-7,7,2.0,0.05)).play
+
+> let d = pseq [pseries (-7) 1 14,pseries 7 (-1) 14] inf
+> in audition (pbind [("degree",d)
+>                    ,("dur",0.25)
+>                    ,("legato",fmap (N.linexp (-7) 7 2 0.05) d)])
