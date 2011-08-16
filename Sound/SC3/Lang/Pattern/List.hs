@@ -90,8 +90,10 @@ pextension x =
        then C.extension (map toList x)
        else C.extension (map toList x')
 
---pextend :: [P a] -> [P a]
---pextend l = zipWith (\_ x -> x) (pextension l) (map pcycle l)
+pextend :: [P a] -> [P a]
+pextend l =
+    let f = pzipWith (\_ x -> x) (P (pextension l) Stop) . pcycle
+    in map f l
 
 ptranspose :: [P a] -> P [a]
 ptranspose l =
@@ -355,7 +357,7 @@ pselect :: (a -> Bool) -> P a -> P a
 pselect f = liftP (filter f)
 
 pseq1 :: [P a] -> Int -> P a
-pseq1 a i = pjoin (ptake i (pflop a))
+pseq1 a i = pjoin' (ptake i (pflop a))
 
 pseq :: [P a] -> Int -> P a
 pseq a i = stoppingN i (pn (pconcat a) i)
@@ -435,7 +437,7 @@ switch1 ps =
                         Nothing -> []
                         Just [] -> []
                         Just (x:xs) -> x : go (M.insert i xs m) is
-    in go (M.fromList (zip [0..] ps))
+    in go (M.fromList (zip [0..] (C.extendSequences ps)))
 
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))

@@ -117,7 +117,9 @@ flop l =
     in zipWith (\_ x -> x) (extension l) (transpose l')
 
 extendSequences :: [[a]] -> [[a]]
-extendSequences l = zipWith (\_ x -> x) (extension l) (map cycle l)
+extendSequences l =
+    let f = zipWith (\_ x -> x) (extension l) . cycle
+    in map f l
 
 choose' :: RandomGen g => [a] -> g -> (a,g)
 choose' l g =

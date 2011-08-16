@@ -528,6 +528,10 @@ values from the left.
 
 ## pseq1
 
+> pseq [pseq [1,2] 1,pseq [3,4] 1] 2
+> pseq1 [pseq [1,2] 1,pseq [3,4] 1] 2
+> pseq1 [pseq [1,2] inf,pseq [3,4] inf] 3
+
 > let {n = [prand' 'a' [pempty,fromList [24,31,36,43,48,55]] inf
 >          ,pflop [60,prand 'b' [63,65] inf,67,prand 'c' [70,72,74] inf]
 >          ,psplitPlaces (pwhite 'd' 3 9 inf) (fromList [74,75,77,79,81])]}
@@ -668,16 +672,16 @@ Repeat each element of a pattern n times.
 ## pswitch1
 
 The pattern of indices is used select which pattern to retrieve the
-next value from.  Only one value is selected from each the pattern.
+next value from.  Only one value is selected from each pattern.
 
-This is in comparison to pswitch,which embeds the pattern in its
+This is in comparison to pswitch, which embeds the pattern in its
 entirety.  pswitch1 switches every value.
 
   list - patterns to index
  which - index
 
-- Pswitch1([Pseq([1,2,3],inf),Pseq([65,76],inf),8],Pseq([2,2,0,1],inf)).asStream.nextN(24)
-> pswitch1 [pseq [1,2,3] inf,pseq [65,76] inf,pn 8 inf] (pser [2,2,0,1] 24)
+- Pswitch1([Pseq([1,2,3],inf),Pseq([65,76],inf),8],Pseq([2,2,0,1],6)).asStream.all
+> pswitch1 [pseq [1,2,3] inf,pseq [65,76] inf,8] (pseq [2,2,0,1] 6)
 
 ## pswitch
 
