@@ -437,12 +437,15 @@ Repeats the enclosed pattern a number of times.
 
 ## prand
 
-Returns one item from a finite pattern at random for each step.
+n random selections are made from a list of patterns, the resulting
+pattern is flattened (joined).
 
-- Prand([1,Pseq([10,20,30]),2,3,4,5],6).asStream.nextN(6)
+- Prand([1,Pseq([10,20,30]),2,3,4,5],6).asStream.all
 > prand 'a' [1,fromList [10,20,30],2,3,4,5] 6
 
-> prand 'a' [1,fromList [2,3],fromList [4,5,6]] 15
+There is a variant that does not join the result pattern.
+
+> prand' 'a' [1,fromList [2,3],fromList [4,5,6]] 5
 
 The below cannot be written as intended with the list
 based pattern library.  This is precisely because the
@@ -523,6 +526,13 @@ values from the left.
 > F.foldl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1)
 > pscanl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1)
 
+## pseq1
+
+> let {n = [prand' 'a' [pempty,fromList [24,31,36,43,48,55]] inf
+>          ,pflop [60,prand 'b' [63,65] inf,67,prand 'c' [70,72,74] inf]
+>          ,psplitPlaces (pwhite 'd' 3 9 inf) (fromList [74,75,77,79,81])]}
+> in audition (pbind [("midinote",pjoin (pseq1 n inf)),("dur",0.13)])
+
 ## pseq
 
 Cycle over a list of patterns. The repeats pattern gives
@@ -547,6 +557,10 @@ As scale degrees.
 -       \dur,Pseq(#[0.5,0.5,0.5,0.5,0.5,0.5,1],1)).play
 > audition (pbind [("degree",pseq [0,0,4,4,5,5,4] 1)
 >                 ,("dur",pseq [0.5,0.5,0.5,0.5,0.5,0.5,1] 1)])
+
+- Pseq(#[60,62,63,65,67,63],inf) + Pseq(#[0,0,0,0,-12],inf)
+> let n = pseq [60,62,63,65,67,63] inf + pser [0,0,0,0,-12] 25
+> in audition (pbind [("midinote",n),("dur",0.2)])
 
 ## pseq'
 
@@ -619,6 +633,11 @@ Returns a shuffled version of the list item by item, with n repeats.
 > audition (pbind [("degree",pslide [-6,-4 .. 12] 8 3 1 0 True)
 >                 ,("dur",pseq [0.05,0.05,0.1] inf)
 >                 ,("sustain",0.15)])
+
+## psplitPlaces
+
+> psplitPlaces' (fromList [1,2,3]) (pseries 1 1 6)
+> psplitPlaces (fromList [1,2,3]) (pseries 1 1 6)
 
 ## pstutter
 

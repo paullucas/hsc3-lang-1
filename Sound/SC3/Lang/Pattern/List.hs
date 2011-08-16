@@ -5,6 +5,7 @@ import Control.Applicative
 import Control.Monad
 import Data.Foldable as F
 import qualified Data.List as L
+import qualified Data.List.Split as S
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
@@ -24,12 +25,23 @@ data P a = P {unP :: [a]
              ,stP :: M}
     deriving (Eq,Show)
 
+-- | A variant that preserves the continuation mode but is strict in
+--   it's right argument.
+pappend' :: P a -> P a -> P a
+pappend' (P xs _) (P ys st) = P (xs ++ ys) st
+
+pappend :: P a -> P a -> P a
+pappend p q = fromList (unP p ++ unP q)
+
 -- in order for mappend to be productive in mconcat on an infinite
 -- list it cannot store the right-hand stop/continue mode
 instance Monoid (P a) where
---    mappend (P xs _) (P ys st) = P (xs ++ ys) st
-    p `mappend` q = fromList (unP p ++ unP q)
+    mappend = pappend
     mempty = P [] Continue
+
+-- | A variant using the continuation maintaining pappend' function.
+(>>=*) ::P a -> (a -> P b) -> P b
+m >>=* k = F.foldr (pappend' . k) mempty m
 
 instance Monad P where
     m >>= k = F.foldr (mappend . k) mempty m
@@ -87,10 +99,16 @@ ptranspose l =
         s = stP_join (map stP l)
     in P d s
 
-pflop :: [P a] -> P [a]
-pflop l =
+pflop' :: [P a] -> P [a]
+pflop' l =
     let l' = map pcycle l
     in pzipWith (\_ x -> x) (P (pextension l) Stop) (ptranspose l')
+
+pflop :: [P a] -> P (P a)
+pflop = fmap fromList . pflop'
+
+pflopJoin :: [P a] -> P a
+pflopJoin = join . pflop
 
 -- * P lifting
 
@@ -120,11 +138,14 @@ liftP4 f p q r s =
 pnull :: P a -> Bool
 pnull = null . toList
 
+stp :: Int -> M
+stp n = if n == inf then Continue else Stop
+
 stopping :: P a -> P a
 stopping (P xs _) = P xs Stop
 
 stoppingN :: Int -> P a -> P a
-stoppingN n (P xs _) = P xs (if n == inf then Continue else Stop)
+stoppingN n (P xs _) = P xs (stp n)
 
 continuing :: P a -> P a
 continuing (P xs _) = P xs Continue
@@ -184,7 +205,7 @@ pbind1 (k,P xs st) =
 pbind :: [(String,P a)] -> P (Event a)
 pbind xs =
     let xs' = fmap (\(k,v) -> pzip (return k) v) xs
-    in fmap e_from_list (pflop xs')
+    in fmap e_from_list (pflop' xs')
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
@@ -288,16 +309,23 @@ pn = flip pconcatReplicate
 pnormalizeSum :: Fractional n => P n -> P n
 pnormalizeSum = liftP C.normalizeSum
 
-prand' :: Enum e => e -> [P a] -> P a
-prand' e a =
-    let a' = map unP a
-        k = length a - 1
-        f g = let (i,g') = randomR (0,k) g
-              in (a' !! i) ++ f g'
-    in P (f (mkStdGen (fromEnum e))) Continue
+rand' :: Enum e => e -> [a] -> Int -> [a]
+rand' e a n =
+    let k = length a - 1
+        f m g = if m == 0
+                then []
+                else let (i,g') = randomR (0,k) g
+                     in (a !! i) : f (m - 1) g'
+    in f n (mkStdGen (fromEnum e))
+
+rand :: Enum e => e -> [[a]] -> Int -> [a]
+rand e a = L.concat . rand' e a
+
+prand' :: Enum e => e -> [P a] -> Int -> P (P a)
+prand' e a n = P (rand' e a n) (stp n)
 
 prand :: Enum e => e -> [P a] -> Int -> P a
-prand e a n = ptake n (prand' e a)
+prand e a = pjoin' . prand' e a
 
 preject :: (a -> Bool) -> P a -> P a
 preject f = liftP (filter (not . f))
@@ -326,6 +354,9 @@ prorate p = join . pzipWith prorate' p
 pselect :: (a -> Bool) -> P a -> P a
 pselect f = liftP (filter f)
 
+pseq1 :: [P a] -> Int -> P a
+pseq1 a i = pjoin (ptake i (pflop a))
+
 pseq :: [P a] -> Int -> P a
 pseq a i = stoppingN i (pn (pconcat a) i)
 
@@ -335,6 +366,9 @@ pseq' n q =
         go p c = let (i,j) = unzip (zipWith psplitAt n p)
                  in pconcat i `pappend` go j (c - 1)
     in go (map pcycle q)
+
+pser1 :: [P a] -> Int -> P a
+pser1 a i = ptake i (pflopJoin a)
 
 pser :: [P a] -> Int -> P a
 pser a i = ptake i (pcycle (pconcat a))
@@ -373,6 +407,12 @@ pslide a n j s i = stoppingN n . fromList . slide a n j s i
 psplitAt :: Int -> P a -> (P a,P a)
 psplitAt n (P p st) = let (i,j) = splitAt n p in (P i st,P j st)
 
+psplitPlaces' :: P Int -> P a -> P [a]
+psplitPlaces' = liftP2 S.splitPlaces
+
+psplitPlaces :: P Int -> P a -> P (P a)
+psplitPlaces n = fmap fromList . psplitPlaces' n
+
 stutterTruncating :: [Int] -> [a] -> [a]
 stutterTruncating ns = L.concat . zipWith replicate ns
 
@@ -401,7 +441,7 @@ pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
 
 ptuple :: [P a] -> Int -> P [a]
-ptuple p = pseq [pflop p]
+ptuple p = pseq [pflop' p]
 
 white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
 white' e l r =
@@ -449,9 +489,6 @@ pxrand e a n = P (xrand e (map unP a) n) Continue
 
 -- * Monoid aliases
 
-pappend :: P a -> P a -> P a
-pappend = mappend
-
 pconcat :: [P a] -> P a
 pconcat = mconcat
 
@@ -462,6 +499,10 @@ pempty = mempty
 
 pjoin :: P (P a) -> P a
 pjoin = join
+
+-- | Variant that maintains the continuing mode of the outer structure.
+pjoin' :: P (P a) -> P a
+pjoin' x = (join x) {stP = stP x}
 
 -- * Data.List functions
 
