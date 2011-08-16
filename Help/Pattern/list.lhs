@@ -164,6 +164,16 @@ A finite binding stops the Event pattern.
 
 > pbool (fromList [1,0,1,0,0,0,1,1])
 
+## pbrown
+
+Psuedo-brownian motion.
+
+> pbrown 'a' 0 1 0.125 5
+
+There is a variant where the l,r and s inputs are patterns.
+
+> pbrown' 'a' 0 1 (pseq [0.0625,0.125] inf) 5
+
 ## pclutch
 
 Sample and hold a pattern.  For true values in the control pattern,
@@ -537,6 +547,27 @@ As scale degrees.
 -       \dur,Pseq(#[0.5,0.5,0.5,0.5,0.5,0.5,1],1)).play
 > audition (pbind [("degree",pseq [0,0,4,4,5,5,4] 1)
 >                 ,("dur",pseq [0.5,0.5,0.5,0.5,0.5,0.5,1] 1)])
+
+## pseq'
+
+This pseq variant is to aid translating a common sclang idiom whereby
+a finite random pattern is included in a pseq list.  In the sclang
+case, at each iteration a new computation is run.  This idiom does not
+directly translate to the declarative haskell pattern library.
+
+- Pseq([1,Prand([2,3],1)],5).asStream.all
+> pseq [1,prand 'a' [2,3] 1] 5
+
+Although the intended pattern can usually be expressed using an
+alternate construction:
+
+- Pseq([1,Prand([2,3],1)],5).asStream.all
+> ppatlace [1,prand 'a' [2,3] inf] 5
+
+this pseq variant handles many common cases.
+
+- Pseq([Pn(8,2),Pwhite(9,16,1)],5).asStream.all
+> pseq' [2,1] [8,pwhite 'a' 9 16 inf] 5
 
 ## pser
 

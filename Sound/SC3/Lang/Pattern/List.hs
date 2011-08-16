@@ -109,6 +109,12 @@ liftP3 f p q r =
         (a,b,c) = unzip3 l
     in P (f a b c) st
 
+liftP4 :: ([a] -> [b] -> [c] -> [d] -> [e]) -> P a -> P b -> P c -> P d -> P e
+liftP4 f p q r s =
+    let P l st = pzip4 p q r s
+        (a,b,c,d) = L.unzip4 l
+    in P (f a b c d) st
+
 -- * P functions
 
 pnull :: P a -> Bool
@@ -142,14 +148,25 @@ pzipWith3 f p q r =
     let u = fmap (const ())
         x = pextension [u p,u q,u r]
         c = cycle . unP
-        l = L.zipWith4 (\_ i j k -> f i j k) x (c p) (c q) (c r)
-    in P l (stP_join [stP p,stP q,stP r])
+        z = L.zipWith4 (\_ i j k -> f i j k) x (c p) (c q) (c r)
+    in P z (stP_join [stP p,stP q,stP r])
+
+pzipWith4 :: (a -> b -> c -> d -> e) -> P a -> P b -> P c -> P d -> P e
+pzipWith4 f p q r s =
+    let u = fmap (const ())
+        x = pextension [u p,u q,u r,u s]
+        c = cycle . unP
+        z = L.zipWith5 (\_ i j k l -> f i j k l) x (c p) (c q) (c r) (c s)
+    in P z (stP_join [stP p,stP q,stP r,stP s])
 
 pzip :: P a -> P b -> P (a,b)
 pzip = pzipWith (,)
 
 pzip3 :: P a -> P b -> P c -> P (a,b,c)
 pzip3 = pzipWith3 (,,)
+
+pzip4 :: P a -> P b -> P c -> P d -> P (a,b,c,d)
+pzip4 = pzipWith4 (,,,)
 
 punzip :: P (a,b) -> (P a,P b)
 punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
@@ -168,6 +185,27 @@ pbind :: [(String,P a)] -> P (Event a)
 pbind xs =
     let xs' = fmap (\(k,v) -> pzip (return k) v) xs
     in fmap e_from_list (pflop xs')
+
+brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
+brown_ (l,r,s) (n,g) =
+    let (i,g') = randomR (-s,s) g
+    in (fold' l r (n + i),g')
+
+brown' :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
+brown' e l_ r_ s_ =
+    let go _ [] = []
+        go (n,g) ((l,r,s):z) = let (n',g') = brown_ (l,r,s) (n,g)
+                               in n' : go (n',g') z
+    in go (randomR (head l_,head r_) (mkStdGen (fromEnum e))) (zip3 l_ r_ s_)
+
+pbrown' :: (Enum e,Random n,Num n,Ord n) => e -> P n -> P n -> P n -> Int -> P n
+pbrown' e l r s n = let f = liftP3 (brown' e) in ptake n (f l r s)
+
+brown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> [n]
+brown e l r s = brown' e (repeat l) (repeat r) (repeat s)
+
+pbrown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> Int -> P n
+pbrown e l r s n = ptake n (fromList (brown e l r s))
 
 pclutch :: P a -> P Bool -> P a
 pclutch p q =
@@ -291,6 +329,13 @@ pselect f = liftP (filter f)
 pseq :: [P a] -> Int -> P a
 pseq a i = stoppingN i (pn (pconcat a) i)
 
+pseq' :: [Int] -> [P a] -> Int -> P a
+pseq' n q =
+    let go _ 0 = pempty
+        go p c = let (i,j) = unzip (zipWith psplitAt n p)
+                 in pconcat i `pappend` go j (c - 1)
+    in go (map pcycle q)
+
 pser :: [P a] -> Int -> P a
 pser a i = ptake i (pcycle (pconcat a))
 
@@ -324,6 +369,9 @@ slide a n j s i wr =
 
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
 pslide a n j s i = stoppingN n . fromList . slide a n j s i
+
+psplitAt :: Int -> P a -> (P a,P a)
+psplitAt n (P p st) = let (i,j) = splitAt n p in (P i st,P j st)
 
 stutterTruncating :: [Int] -> [a] -> [a]
 stutterTruncating ns = L.concat . zipWith replicate ns
@@ -503,17 +551,18 @@ ptrigger = liftP2 trigger
 
 -- * Pattern audition
 
--- t = time, dt = delta-time, i = node id, s = instrument name
+-- t = time, i = node id, s = instrument name
 -- rt = release time, a = parameters
 e_osc :: (Fractional n,Real n) =>
-         Double -> Double -> Int -> String -> Event n -> (OSC,OSC)
-e_osc t dt i s e =
-    let rt = dt * e_sustain' e
+         Double -> Int -> String -> Event n -> (OSC,OSC)
+e_osc t i s e =
+    let rt = e_sustain' e
         f = e_freq e
         a = ("freq",f) : e_arg e
     in (Bundle (UTCr t) [s_new s i AddToTail 1 a]
        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
 
+-- dt = delta-time
 e_play :: (Transport t, Real n, Fractional n) =>
           t -> [String] -> [Event n] -> IO ()
 e_play fd ls le = do
@@ -522,7 +571,7 @@ e_play fd ls le = do
       act _ [] _ _ = error "e_play: no id?"
       act t (i:is) (s:ss) (e:es) = do
                   let dt = e_dur' e
-                      (p,q) = e_osc t dt i s e
+                      (p,q) = e_osc t i s e
                   send fd p
                   send fd q
                   pauseThreadUntil (t + dt)

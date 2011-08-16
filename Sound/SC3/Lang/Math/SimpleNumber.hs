@@ -37,7 +37,10 @@ linexp l r l' r' n =
     then l'
     else if n >= r
          then r'
-         else ((r'/l') ** ((n-l')/(r-l))) * l'
+         else ((r'/l') ** ((n-l)/(r-l))) * l'
+
+linexp_ :: (Ord a, Floating a) => a -> a -> a -> a -> a -> a
+linexp_ n l r l' r' = linexp l r l' r' n
 
 {-
 import Control.Monad
