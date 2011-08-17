@@ -447,6 +447,21 @@ There is a variant that does not join the result pattern.
 
 > prand' 'a' [1,fromList [2,3],fromList [4,5,6]] 5
 
+- Pbind(\note,Prand([0,1,5,7],inf),\dur,0.25).play
+> audition (pbind [("note",prand 'a' [0,1,5,7] inf),("dur",0.25)])
+
+Nested sequences of pitches:
+
+- Pbind(\midinote,Prand([Pseq(#[60,61,63,65,67,63]),
+-                        Prand(#[72,73,75,77,79],6),
+-                        Pshuf(#[48,53,55,58],2)],inf),
+-       \dur,0.25).play
+
+> let n = prand 'a' [pseq [60,61,63,65,67,63] 1
+>                   ,prand 'b' [72,73,75,77,79] 6
+>                   ,pshuf 'c' [48,53,55,58] 2] inf
+> in audition (pbind [("midinote",n),("dur",0.25)])
+
 The below cannot be written as intended with the list
 based pattern library.  This is precisely because the
 noise patterns are values, not processes with a state
@@ -461,9 +476,6 @@ threaded non-locally.
 >                         ,67,prand 'c' [70,72,74] 1] n0
 >                   ,prand 'd' [74,75,77,79,81] n1] inf
 >      in return (ptake 24 p) }
-
-- Pbind(\degree,Prand([0,1,2,4,5],inf),\dur,0.25).play
-> audition (pbind [("degree",prand 'a' [0,1,2,4,5] inf),("dur",0.25)])
 
 ## preject
 
@@ -565,6 +577,17 @@ As scale degrees.
 - Pseq(#[60,62,63,65,67,63],inf) + Pseq(#[0,0,0,0,-12],inf)
 > let n = pseq [60,62,63,65,67,63] inf + pser [0,0,0,0,-12] 25
 > in audition (pbind [("midinote",n),("dur",0.2)])
+
+Pattern b pattern a once normally, once transposed up a fifth and once
+transposed up a fourth.
+
+- a = Pseq(#[60,62,63,65,67,63]);
+- b = Pseq([a,a + 7,a + 5],inf);
+- Pbind(\midinote,b,\dur,0.3).play
+
+> let {a = pseq [60,62,63,65,67,63] 1
+>     ;b = pseq [a,a + 7,a + 5] inf}
+> in audition (pbind [("midinote",b),("dur",0.3)])
 
 ## pseq'
 
@@ -776,8 +799,8 @@ Like rand but filters sucessive duplicates.
 
 > pxrand 'a' [1,fromList [2,3],fromList [4,5,6]] 15
 
-- Pbind(\degree,Pxrand([0,1,2,4,5],inf),\dur,0.25).play
-> audition (pbind [("degree",pxrand 'a' [0,1,2,4,5] inf),("dur",0.25)])
+- Pbind(\note,Pxrand([0,1,5,7],inf),\dur,0.25).play
+> audition (pbind [("note",pxrand 'a' [0,1,5,7] inf),("dur",0.25)])
 
 ## pzip
 

@@ -594,41 +594,52 @@ ptrigger = liftP2 trigger
 
 -- * Pattern audition
 
+data P_type = P_snew | P_nset
+
 -- t = time, i = node id, s = instrument name
 -- rt = release time, a = parameters
 e_osc :: (Fractional n,Real n) =>
-         Double -> Int -> String -> Event n -> (OSC,OSC)
-e_osc t i s e =
+         P_type -> Double -> Int -> String -> Event n -> (OSC,OSC)
+e_osc ty t i s e =
     let rt = e_sustain' e
         f = e_freq e
         a = ("freq",f) : e_arg e
-    in (Bundle (UTCr t) [s_new s i AddToTail 1 a]
+        m = case ty of
+              P_snew -> s_new s i AddToTail 1 a
+              P_nset -> n_set i a
+    in (Bundle (UTCr t) [m]
        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
 
 -- dt = delta-time
 e_play :: (Transport t, Real n, Fractional n) =>
-          t -> [String] -> [Event n] -> IO ()
-e_play fd ls le = do
+          t -> P_type -> Int -> [String] -> [Event n] -> IO ()
+e_play fd ty z ls le = do
   let act _ _ _ [] = return ()
       act _ _ [] _ = return ()
       act _ [] _ _ = error "e_play: no id?"
       act t (i:is) (s:ss) (e:es) = do
                   let dt = e_dur' e
-                      (p,q) = e_osc t i s e
+                      (p,q) = e_osc ty t i s e
                   send fd p
                   send fd q
                   pauseThreadUntil (t + dt)
                   act (t + dt) is ss es
+      z' = case ty of
+             P_snew -> [z..]
+             P_nset -> repeat z
   st <- utcr
-  act st [100..] ls le
+  act st z' ls le
+
+instance (Real n, Fractional n) => Audible (P_type,Int,P (Event n)) where
+    play fd (ty,z,p) = e_play fd ty z (repeat "default") (unP p)
 
 instance (Real n, Fractional n) => Audible (P (Event n)) where
-    play fd = e_play fd (repeat "default") . unP
+    play fd = e_play fd P_snew 100 (repeat "default") . unP
 
 instance (Real n, Fractional n) => Audible (String,P (Event n)) where
-    play fd (s,p) = e_play fd (repeat s) (unP p)
+    play fd (s,p) = e_play fd P_snew 100 (repeat s) (unP p)
 
 instance (Real n, Fractional n) => Audible (P (String,Event n)) where
     play fd p =
         let (s,e) = unzip (unP p)
-        in e_play fd s e
+        in e_play fd P_snew 100 s e
