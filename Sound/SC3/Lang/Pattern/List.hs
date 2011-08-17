@@ -160,6 +160,9 @@ continuing (P xs _) = P xs Continue
 fromList :: [a] -> P a
 fromList xs = P xs Continue
 
+fromList' :: [a] -> P a
+fromList' xs = P xs Stop
+
 prepeat :: a -> P a
 prepeat = fromList . repeat
 
@@ -368,8 +371,8 @@ pseq a i = stoppingN i (pn (pconcat a) i)
 pseqr :: (Int -> P a) -> Int -> P a
 pseqr f n = pconcat (map f [1 .. n])
 
-pseq' :: [Int] -> [P a] -> Int -> P a
-pseq' n q =
+pseqn :: [Int] -> [P a] -> Int -> P a
+pseqn n q =
     let go _ 0 = pempty
         go p c = let (i,j) = unzip (zipWith psplitAt n p)
                  in pconcat i `pappend` go j (c - 1)
@@ -466,6 +469,9 @@ white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite e l r = fromList . white e l r
+
+pwhitei :: (RealFracE n,Random n,Enum e) => e -> n -> n -> Int -> P n
+pwhitei e l r = fmap roundE . pwhite e l r
 
 wrand' :: (Enum e) =>e -> [[a]] -> [Double] -> [a]
 wrand' e a w =

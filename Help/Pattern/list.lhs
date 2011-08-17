@@ -17,6 +17,16 @@ There are play and audition instances for:
   b) (String,P (Event n))
   c) P (String,Event n)
 
+## fromList
+
+> audition (pbind [("degree",pxrand 'a' [0,1,5,7] inf)
+>                 ,("dur",fromList [0.1,0.2,0.1])])
+
+There is a variant to make stopping patterns.
+
+> audition (pbind [("degree",pxrand 'a' [0,1,5,7] inf)
+>                 ,("dur",fromList' [0.1,0.2,0.1])])
+
 ## padd
 
 - Padd(\freq,801,Pbind(\freq,100)).asStream.next(());
@@ -614,7 +624,7 @@ transposed up a fourth.
 >     ;b = pseq [a,a + 7,a + 5] inf}
 > in audition (pbind [("midinote",b),("dur",0.3)])
 
-## pseq'
+## pseqn
 
 This pseq variant is to aid translating a common sclang idiom whereby
 a finite random pattern is included in a pseq list.  In the sclang
@@ -633,7 +643,7 @@ alternate construction:
 this pseq variant handles many common cases.
 
 - Pseq([Pn(8,2),Pwhite(9,16,1)],5).asStream.all
-> pseq' [2,1] [8,pwhite 'a' 9 16 inf] 5
+> pseqn [2,1] [8,pwhite 'a' 9 16 inf] 5
 
 ## pser
 
@@ -792,9 +802,14 @@ indeterminate, so that the below is zero.
 
 > let p = ptake 4 (pwhite 'x' 0.0 1.0 inf) in p - p
 
-The below is alternately lower and higher noise.
+There is a variant where the range inputs are patterns.  The below is
+alternately lower and higher noise.
 
 > ptake 10 (pwhite' 'x' (pseq [0.0,10.0] inf) (pseq [1.0,11.0] inf))
+
+There is a variant that generates integral (rounded) values.
+
+> audition (pbind [("degree",pwhitei 'a' 0 8 inf),("dur",0.15)])
 
 ## pwrand
 
@@ -975,4 +990,5 @@ Multiple nested ppar patterns.
 
 A frequency value of 0 indicates a rest.
 
-> audition (pbind [("dur",fromList [0.2,0.2,0.6]),("freq",pseq [440,880,0] inf)])
+> audition (pbind [("dur",fromList [0.2,0.2,0.6])
+>                 ,("freq",pseq [440,880,0] inf)])
