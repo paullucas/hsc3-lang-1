@@ -102,7 +102,8 @@ e_instrument = e_lookup_v (fromString "default") "instrument"
 --e_instrument' = datum_str' . e_instrument
 
 e_reserved :: [Key]
-e_reserved = ["dur","freq","instrument","legato","note","octave","sustain"]
+e_reserved = ["dur","legato","fwd","sustain"
+             ,"freq","note","octave"]
 
 e_arg' :: Real a => (Key,a) -> Maybe (Key,Double)
 e_arg' (k,v) =
