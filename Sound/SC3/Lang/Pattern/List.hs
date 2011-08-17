@@ -202,7 +202,7 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 -- * SC3 patterns
 
 padd :: Num a => Key -> P a -> P (Event a) -> P (Event a)
-padd k p = pzipWith (\i j -> e_edit k (+ i) j) p
+padd k p = pzipWith (\i j -> e_edit_v k 0 (+ i) j) p
 
 pbind' :: Type -> [Int] -> [(String,P a)] -> P (Event a)
 pbind' ty is xs =
@@ -210,7 +210,7 @@ pbind' ty is xs =
     in pure (e_from_list ty) <*> fromList is <*> pflop' xs'
 
 pbind :: [(String,P a)] -> P (Event a)
-pbind = pbind' "s_new" [100..]
+pbind = pbind' "s_new" (repeat (-2))
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
@@ -365,6 +365,9 @@ pseq1 a i = pjoin' (ptake i (pflop a))
 pseq :: [P a] -> Int -> P a
 pseq a i = stoppingN i (pn (pconcat a) i)
 
+pseqr :: (Int -> P a) -> Int -> P a
+pseqr f n = pconcat (map f [1 .. n])
+
 pseq' :: [Int] -> [P a] -> Int -> P a
 pseq' n q =
     let go _ 0 = pempty
@@ -379,7 +382,7 @@ pser :: [P a] -> Int -> P a
 pser a i = ptake i (pcycle (pconcat a))
 
 pseries :: (Num a) => a -> a -> Int -> P a
-pseries i s n = P (C.series n i s) Stop
+pseries i s n = P (C.series n i s) (stp n)
 
 pshuf :: Enum e => e -> [a] -> Int -> P a
 pshuf e a =
@@ -595,46 +598,97 @@ trigger p q =
 ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger = liftP2 trigger
 
+-- * Parallel patterns
+
+f_merge :: Ord a => ([(a,t)],[(a,t)]) -> [(a,t)]
+f_merge (p,q) =
+    case (p,q) of
+      ([],_) -> q
+      (_,[]) -> p
+      ((t0,e0):r0,(t1,e1):r1) ->
+            if t0 <= t1
+            then (t0,e0) : f_merge (r0,q)
+            else (t1,e1) : f_merge (p,r1)
+
+{-
+f_merge (zip [0,2..10] ['a'..],zip [0,4..12] ['A'..])
+-}
+
+-- note that this uses e_fwd' to calculate start times. this allows for nested merges
+e_merge :: Real a => ([Event a],[Event a]) -> [(Double,Event a)]
+e_merge (p,q) =
+    let p_st = 0 : scanl1 (+) (map e_fwd' p)
+        q_st = 0 : scanl1 (+) (map e_fwd' q)
+    in f_merge (zip p_st p,zip q_st q)
+
+add_fwd :: Num a => [(a,Event a)] -> [Event a]
+add_fwd e =
+    case e of
+      (t0,e0):(t1,e1):e' -> e_insert "fwd" (t1 - t0) e0 : add_fwd ((t1,e1):e')
+      _ -> map snd e
+
+pmerge :: (P (Event Double),P (Event Double)) -> P (Event Double)
+pmerge (p,q) = fromList (add_fwd (e_merge (toList p,toList q)))
+
+ppar :: [P (Event Double)] -> P (Event Double)
+ppar l =
+    case l of
+      [] -> pempty
+      [p] -> p
+      p:q:r -> ppar (pmerge (p,q) : r)
+
 -- * Pattern audition
 
 -- t = time, s = instrument name
 -- rt = release time, a = parameters
 e_osc :: (Fractional n,Real n) =>
-         Double -> String -> Event n -> (OSC,OSC)
-e_osc t s e =
+         Double -> Int -> String -> Event n -> Maybe (OSC,OSC)
+e_osc t j s e =
     let rt = e_sustain' e
         f = e_freq e
         a = ("freq",f) : e_arg e
-        i = e_id e
-        m = case e_type e of
-              "s_new" -> s_new s i AddToTail 1 a
-              "n_set" -> n_set i a
-              _ -> error "e_osc:type"
-    in (Bundle (UTCr t) [m]
-       ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
+        i = if e_id e < -1 then j else e_id e
+        m_on = if f == 0
+               then Nothing
+               else case e_type e of
+                      "s_new" -> Just (s_new s i AddToTail 1 a)
+                      "n_set" -> Just (n_set i a)
+                      "rest" -> Nothing
+                      _ -> error "e_osc:type"
+    in case m_on of
+         Just m -> Just (Bundle (UTCr t) [m]
+                        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
+         _ -> Nothing
+
+r_coerce :: (Real r,Fractional f) => r -> f
+r_coerce = fromRational . toRational
 
 -- dt = delta-time
 e_play :: (Transport t, Real n, Fractional n) =>
-          t -> [String] -> [Event n] -> IO ()
-e_play fd ls le = do
-  let act _ _ [] = return ()
-      act _ [] _ = return ()
-      act t (s:ss) (e:es) = do let dt = e_dur' e
-                                   (p,q) = e_osc t s e
-                               send fd p
-                               send fd q
-                               pauseThreadUntil (t + dt)
-                               act (t + dt) ss es
+          t -> [Int] -> [String] -> [Event n] -> IO ()
+e_play fd lj ls le = do
+  let act _ _ _ [] = return ()
+      act _ _ [] _ = return ()
+      act _ [] _ _ = error "e_play:id?"
+      act t (j:js) (s:ss) (e:es) =
+          do let dt = e_fwd' e
+             case e_osc t j s e of
+               Just (p,q) -> do send fd p
+                                send fd q
+               Nothing -> return ()
+             pauseThreadUntil (t + dt)
+             act (t + dt) js ss es
   st <- utcr
-  act st ls le
+  act st lj ls le
 
 instance (Real n, Fractional n) => Audible (P (Event n)) where
-    play fd = e_play fd (repeat "default") . unP
+    play fd = e_play fd [1000..] (repeat "default") . unP
 
 instance (Real n, Fractional n) => Audible (String,P (Event n)) where
-    play fd (s,p) = e_play fd (repeat s) (unP p)
+    play fd (s,p) = e_play fd [1000..] (repeat s) (unP p)
 
 instance (Real n, Fractional n) => Audible (P (String,Event n)) where
     play fd p =
         let (s,e) = unzip (unP p)
-       in e_play fd s e
+       in e_play fd [1000..] s e
+

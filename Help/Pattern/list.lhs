@@ -3,11 +3,11 @@
 > import qualified Data.Foldable as F
 > import Data.Monoid
 > import Sound.OpenSoundControl
-> import Sound.SC3
+> import Sound.SC3.ID
 > import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
+> import Sound.SC3.Lang.Collection.Event
 > import qualified Sound.SC3.Lang.Math.SimpleNumber as N
 > import Sound.SC3.Lang.Pattern.List
-> :set -XOverloadedStrings
 
 ## audition
 
@@ -25,6 +25,10 @@ There are play and audition instances for:
 - Padd(\freq,Pseq([401,801],2),Pbind(\freq,100)).asStream.nextN(4,())
 > padd "freq" (pseq [401,801] 2) (pbind [("freq",100)])
 
+> let {p = pbind [("dur",0.15)
+>                ,("degree",pseq [pshuf 'a' [-7,-3,0,2,4,7] 2,pseq [0,1,2,3,4,5,6,7] 1] 1)]}
+> in audition (pseq [p,padd "mtranspose" 1 p,padd "mtranspose" 2 p] inf)
+
 ## pappend
 
 Sequence two patterns.  This is the mappend instance of Monoid.
@@ -35,6 +39,21 @@ Sequence two patterns.  This is the mappend instance of Monoid.
 > ptake 5 (mconcat (cycle [prepeat 3]))
 > let e = mempty :: P ()
 > e `mappend` e == e
+
+## pbind'
+
+The primitive form of pbind, with explicit type and identifier inputs.
+
+> let {freq = control KR "freq" 440
+>     ;amp = control KR "amp" 0.6}
+> in audition (out 0 (moogFF (dup (pinkNoise 'a' AR) * amp) freq 2 0))
+
+> audition (pbind'
+>           "n_set"
+>           (repeat (-1))
+>           [("freq",pwhite 'a' 100 1000 inf)
+>           ,("dur",0.2)
+>           ,("amp",fromList [1,0.99 .. 0.1])])
 
 ## pbind
 
@@ -863,3 +882,97 @@ There is no pkey function, rather name the pattern using let.
 > in audition (pbind [("degree",d)
 >                    ,("dur",0.25)
 >                    ,("legato",fmap (N.linexp (-7) 7 2 0.05) d)])
+
+## Pitch model
+
+- Pbind(\dur,0.125,\legato,0.2,\midinote,Pseq(#[60,62,64,65,67,69,71,72],inf)).play
+> audition (pbind [("dur",0.125),("legato",0.2),("midinote",pseq [60,62,64,65,67,69,71,72] inf)])
+
+- Pbind(\dur,0.25,\freq,Pseq(#[300,400,500,700,900],inf)).play
+> audition (pbind [("dur",0.25),("freq",pseq [300,400,500,700,900] inf)])
+
+- Pbind(\dur,0.25,\detune,-20,\freq,Pseq(#[300,400,500,700,900],inf)).play
+> audition (pbind [("dur",0.25),("detune",-20),("freq",pseq [300,400,500,700,900] inf)])
+
+- Pbind(\dur,0.2,\midinote,Pseq([ Pshuf(#[60,61,62,63,64,65,66,67],3) ],inf)).play
+> let m = pseqr (\e -> pshuf e [60,61,62,63,64,65,66,67] 3) inf
+> in audition (pbind [("dur",0.2),("midinote",m)])
+
+- Pbind(\degree,Pseq([ Pshuf(#[-7,-3,0,2,4,7],4),Pseq([0,1,2,3,4,5,6,7]) ],inf),
+-       \dur,0.15).play
+> let d = pseqr (\e -> pseq [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1] 1) inf
+> in audition (pbind [("degree",d),("dur",0.15)])
+
+Modal transposition
+
+> let d = pseq [pshuf 'a' [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1] 1
+> in audition (pconcat (map (\t -> pbind [("dur",0.15),("mtranspose",t),("degree",d)]) [0,1,2]))
+
+> let {d e = pseq [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1] 1
+>     ;f t e = pbind [("dur",0.15),("mtranspose",t),("degree",d e)]}
+> in audition (pjoin (pzipWith f (fromList [0,1,2]) (pseries 0 1 inf)))
+
+Chromatic transposition
+
+> let {d e = pseq [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1] 1
+>     ;f t e = pbind [("dur",0.15),("ctranspose",t),("degree",d e)]}
+> in audition (pjoin (pzipWith f (fromList [0,3,-3]) (pseries 0 1 inf)))
+
+## Duration model
+
+- Pbind(\dur,Pseq([Pgeom(0.05,1.1,24),Pgeom(0.5,0.909,24)],inf),
+-       \midinote,Pseq(#[60,58],inf)).play
+> audition (pbind [("dur",pseq [pgeom 0.05 1.1 24,pgeom 0.5 0.909 24] inf)
+>                 ,("midinote",pseq [60,58] inf)])
+
+- Pbind(\dur,0.2,
+-       \legato,Pseq([Pseries(0.05,0.05,40),Pseries(2.05,-0.05,40)],inf),
+-       \midinote,Pseq(#[48,51,55,58,60,58,55,51],inf)).play
+> audition (pbind [("dur",0.2)
+>                 ,("legato",pseq [pseries 0.05 0.05 40,pseries 2.05 (-0.05) 40] inf)
+>                 ,("midinote",pseq [60,58] inf)])
+
+## Parallel events
+
+Ordinarily the distance from one event to the next is given by the
+duration of the event.  However this can be set directly by using the
+'fwd' key.  A 'fwd' value of zero means that the next event is
+simultaneous with the current event.
+
+> let {n = 0.15
+>     ;p = pbind [("dur",prepeat n)
+>                ,("fwd",fromList [0,0,n,0,n,n,0,n,0,0,n*4])
+>                ,("legato",0.2)
+>                ,("octave",prand 'a' [4,5,5,6] inf)
+>                ,("degree",pxrand 'b' [0,1,5,7] inf)]}
+> in audition p
+
+pmerge merges two event streams, adding fwd entries as required.
+
+> audition (pmerge (pbind [("dur",0.2),("midinote",pseq [62,65,69,72] inf)]
+>                  ,pbind [("dur",0.4),("midinote",pseq [50,45] inf)]))
+
+The result of pmerge can be merged again, ppar merges a list of patterns.
+
+> audition (ppar [pbind [("dur",0.2),("midinote",pseq [62,65,69,72] inf)]
+>                ,pbind [("dur",0.4),("midinote",pseq [50,45] inf)]
+>                ,pbind [("dur",0.6),("midinote",pseq [76,79,81] inf)]])
+
+Multiple nested ppar patterns.
+
+> let {f u l = ppar [pbind [("dur",0.2),("pan",0.5),("midinote",pseq u 1)]
+>                   ,pbind [("dur",0.4),("pan",-0.5),("midinote",pseq l 1)]]}
+> in audition (ppar [pbind [("dur",prand 'a' [0.2,0.4,0.6] inf)
+>                          ,("midinote",prand 'b' [72,74,76,77,79,81] inf)
+>                          ,("amp",5e-2)
+>                          ,("legato",1.1)]
+>                   ,pseq [pbind [("dur",3.2),("freq",0)]
+>                         ,prand 'c' [f [60,64,67,64] [48,43]
+>                                    ,f [62,65,69,65] [50,45]
+>                                    ,f [64,67,71,67] [52,47]] 12] inf])
+
+## Rests
+
+A frequency value of 0 indicates a rest.
+
+> audition (pbind [("dur",fromList [0.2,0.2,0.6]),("freq",pseq [440,880,0] inf)])

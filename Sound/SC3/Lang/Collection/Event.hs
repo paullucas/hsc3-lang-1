@@ -61,13 +61,19 @@ e_pitch e =
              ,note_f = get_m default_note_f "note"}
 
 e_freq :: Real a => Event a -> Double
-e_freq = freq . e_pitch
+e_freq = detunedFreq . e_pitch
 
 e_dur :: Num a => Event a -> a
 e_dur = e_lookup_v 1 "dur"
 
 e_dur' :: Real a => Event a -> Double
 e_dur' = to_r . e_dur
+
+e_fwd :: Num a => Event a -> a
+e_fwd e = e_lookup_v (e_dur e) "fwd" e
+
+e_fwd' :: Real a => Event a -> Double
+e_fwd' = to_r . e_fwd
 
 e_legato :: Fractional a => Event a -> a
 e_legato = e_lookup_v 0.8 "legato"
@@ -96,7 +102,7 @@ e_instrument = e_lookup_v (fromString "default") "instrument"
 --e_instrument' = datum_str' . e_instrument
 
 e_reserved :: [Key]
-e_reserved = ["dur","instrument","legato","note","octave","sustain"]
+e_reserved = ["dur","freq","instrument","legato","note","octave","sustain"]
 
 e_arg' :: Real a => (Key,a) -> Maybe (Key,Double)
 e_arg' (k,v) =
@@ -106,6 +112,12 @@ e_arg' (k,v) =
 
 e_arg :: Real a => Event a -> [(Key,Double)]
 e_arg = mapMaybe e_arg' . M.toList . e_map
+
+e_edit_v :: Key -> a -> (a -> a) -> Event a -> Event a
+e_edit_v k v f e =
+    case e_lookup k e of
+      Just n -> e_insert k (f n) e
+      Nothing -> e_insert k (f v) e
 
 e_edit :: Key -> (a -> a) -> Event a -> Event a
 e_edit k f e =
