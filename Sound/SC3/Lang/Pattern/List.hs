@@ -1,7 +1,7 @@
 {-# Language FlexibleInstances #-}
 module Sound.SC3.Lang.Pattern.List where
 
-import Control.Applicative
+import Control.Applicative hiding ((<*))
 import Control.Monad
 import Data.Foldable as F
 import qualified Data.List as L
@@ -74,6 +74,11 @@ instance (Fractional a) => Fractional (P a) where
     recip = fmap recip
     fromRational = return . fromRational
 
+instance (OrdE a) => OrdE (P a) where
+    (>*) = pzipWith (>*)
+    (>=*) = pzipWith (>=*)
+    (<*) = pzipWith (<*)
+    (<=*) = pzipWith (<=*)
 
 inf :: Int
 inf = maxBound
@@ -199,15 +204,13 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 padd :: Num a => Key -> P a -> P (Event a) -> P (Event a)
 padd k p = pzipWith (\i j -> e_edit k (+ i) j) p
 
-pbind1 :: (String,P a) -> P (Event a)
-pbind1 (k,P xs st) =
-    let xs' = map (\i -> e_from_list [(k,i)]) xs
-    in P xs' st
+pbind' :: Type -> [Int] -> [(String,P a)] -> P (Event a)
+pbind' ty is xs =
+    let xs' = fmap (\(k,v) -> pzip (return k) v) xs
+    in pure (e_from_list ty) <*> fromList is <*> pflop' xs'
 
 pbind :: [(String,P a)] -> P (Event a)
-pbind xs =
-    let xs' = fmap (\(k,v) -> pzip (return k) v) xs
-    in fmap e_from_list (pflop' xs')
+pbind = pbind' "s_new" [100..]
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
@@ -594,52 +597,44 @@ ptrigger = liftP2 trigger
 
 -- * Pattern audition
 
-data P_type = P_snew | P_nset
-
--- t = time, i = node id, s = instrument name
+-- t = time, s = instrument name
 -- rt = release time, a = parameters
 e_osc :: (Fractional n,Real n) =>
-         P_type -> Double -> Int -> String -> Event n -> (OSC,OSC)
-e_osc ty t i s e =
+         Double -> String -> Event n -> (OSC,OSC)
+e_osc t s e =
     let rt = e_sustain' e
         f = e_freq e
         a = ("freq",f) : e_arg e
-        m = case ty of
-              P_snew -> s_new s i AddToTail 1 a
-              P_nset -> n_set i a
+        i = e_id e
+        m = case e_type e of
+              "s_new" -> s_new s i AddToTail 1 a
+              "n_set" -> n_set i a
+              _ -> error "e_osc:type"
     in (Bundle (UTCr t) [m]
        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
 
 -- dt = delta-time
 e_play :: (Transport t, Real n, Fractional n) =>
-          t -> P_type -> Int -> [String] -> [Event n] -> IO ()
-e_play fd ty z ls le = do
-  let act _ _ _ [] = return ()
-      act _ _ [] _ = return ()
-      act _ [] _ _ = error "e_play: no id?"
-      act t (i:is) (s:ss) (e:es) = do
-                  let dt = e_dur' e
-                      (p,q) = e_osc ty t i s e
-                  send fd p
-                  send fd q
-                  pauseThreadUntil (t + dt)
-                  act (t + dt) is ss es
-      z' = case ty of
-             P_snew -> [z..]
-             P_nset -> repeat z
+          t -> [String] -> [Event n] -> IO ()
+e_play fd ls le = do
+  let act _ _ [] = return ()
+      act _ [] _ = return ()
+      act t (s:ss) (e:es) = do let dt = e_dur' e
+                                   (p,q) = e_osc t s e
+                               send fd p
+                               send fd q
+                               pauseThreadUntil (t + dt)
+                               act (t + dt) ss es
   st <- utcr
-  act st z' ls le
-
-instance (Real n, Fractional n) => Audible (P_type,Int,P (Event n)) where
-    play fd (ty,z,p) = e_play fd ty z (repeat "default") (unP p)
+  act st ls le
 
 instance (Real n, Fractional n) => Audible (P (Event n)) where
-    play fd = e_play fd P_snew 100 (repeat "default") . unP
+    play fd = e_play fd (repeat "default") . unP
 
 instance (Real n, Fractional n) => Audible (String,P (Event n)) where
-    play fd (s,p) = e_play fd P_snew 100 (repeat s) (unP p)
+    play fd (s,p) = e_play fd (repeat s) (unP p)
 
 instance (Real n, Fractional n) => Audible (P (String,Event n)) where
     play fd p =
         let (s,e) = unzip (unP p)
-        in e_play fd P_snew 100 s e
+       in e_play fd s e

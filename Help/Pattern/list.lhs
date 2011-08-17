@@ -120,7 +120,7 @@ A finite binding stops the Event pattern.
 
 > audition ("acid"
 >          ,pbind [("dur",pseq [0.25,0.5,0.25] 4)
->                 ,("root",-12)
+>                 ,("root",-24)
 >                 ,("degree",pseq [0,3,5,7,9,11,5,1] inf)
 >                 ,("pan",pwhite 'a' (-1.0) 1.0 inf)
 >                 ,("cut",pxrand 'b' [1000,500,2000,300] inf)
@@ -199,7 +199,7 @@ is generated until the first true value.
 
 > let {d = pstutter (pwhite 'a' 3 10 inf) (pwhite 'b' (-4) 11 inf)
 >     ;p = [("degree",d)
->          ,("dur",pclutch (pwhite 'c' 0.1 0.4 inf) (pdiff (abs d) > 0))
+>          ,("dur",pclutch (pwhite 'c' 0.1 0.4 inf) (pbool (abs (pdiff d) >* 0)))
 >          ,("legato",0.3)]}
 > in audition (pbind p)
 
@@ -286,6 +286,12 @@ The degree_to_key function is also given.
 > import qualified Sound.SC3.Lang.Math.Pitch as P
 
 > map (\n -> P.degree_to_key n [0,2,4,5,7,9,11] 12) [0,2,4,7,4,2,0]
+
+## pdiff
+
+Adjacent element difference.
+
+> pdiff (fromList [0,2,3,5,6,8,9,11])
 
 ## pdrop
 

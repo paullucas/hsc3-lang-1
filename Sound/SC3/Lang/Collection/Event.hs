@@ -6,10 +6,14 @@ import GHC.Exts (IsString(..))
 import Sound.SC3.Lang.Math.Pitch
 
 type Key = String
-data Event a = Event {unE :: M.Map Key a} deriving (Show)
+type Type = String
+data Event a = Event {e_type :: Type
+                     ,e_id :: Int
+                     ,e_map :: M.Map Key a}
+               deriving (Show)
 
 e_lookup :: Key -> Event a -> Maybe a
-e_lookup k e = M.lookup k (unE e)
+e_lookup k e = M.lookup k (e_map e)
 
 e_lookup_v :: a -> Key -> Event a -> a
 e_lookup_v v k e =
@@ -24,7 +28,7 @@ e_lookup_f f k e =
       Just v' -> v'
 
 e_insert :: Key -> a -> Event a -> Event a
-e_insert k v e = Event (M.insert k v (unE e))
+e_insert k v (Event t n m) = Event t n (M.insert k v m)
 
 to_r :: Real a => a -> Double
 to_r = fromRational . toRational
@@ -101,7 +105,7 @@ e_arg' (k,v) =
     else Just (k,to_r v)
 
 e_arg :: Real a => Event a -> [(Key,Double)]
-e_arg = mapMaybe e_arg' . M.toList . unE
+e_arg = mapMaybe e_arg' . M.toList . e_map
 
 e_edit :: Key -> (a -> a) -> Event a -> Event a
 e_edit k f e =
@@ -110,10 +114,12 @@ e_edit k f e =
       Nothing -> e
 
 e_to_list :: Event a -> [(Key,a)]
-e_to_list = M.toList . unE
+e_to_list = M.toList . e_map
 
-e_from_list :: [(Key,a)] -> Event a
-e_from_list = Event . M.fromList
+e_from_list :: Type -> Int -> [(Key,a)] -> Event a
+e_from_list t n = Event t n . M.fromList
 
 e_unions :: [Event a] -> Event a
-e_unions = Event . M.unions . map unE
+e_unions e =
+    let (t:_) = map e_type e
+    in Event t (-1) (M.unions (map e_map e))
