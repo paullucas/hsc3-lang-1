@@ -14,12 +14,15 @@
 There are play and audition instances for:
 
   a) P (Event n)
-  b) (String,P (Event n))
-  c) P (String,Event n)
+  b) (Instrument,P (Event n))
+  c) P (Instrument,Event n)
 
-Case a) uses the default instrument, case b) uses the indicated
-instrument for the whole pattern, case c) has a separate instrument
-for each event.
+where Instrument is either a Synthdef or a String.
+
+Case a) uses the default instrument; case b) uses the indicated
+instrument for the whole pattern, and in the case of a Synthdef
+argument sends the instrument definition to the server; case c) has a
+separate instrument for each event.
 
 ## fromList
 
@@ -108,36 +111,36 @@ A finite binding stops the Event pattern.
 > audition (pbind [("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200)
 >                 ,("dur",0.1)])
 
-> let { freq = control KR "freq" 440
->     ; amp = control KR "amp" 0.1
->     ; nharms = control KR "nharms" 10
->     ; pan = control KR "pan" 0
->     ; gate = control KR "gate" 1
->     ; s = blip AR freq nharms * amp
->     ; e = linen gate 0.01 0.6 0.4 RemoveSynth
->     ; o = offsetOut 0 (pan2 s pan e) }
-> in withSC3 (\fd -> async fd (d_recv (synthdef "test" o)))
+> let test = let {freq = control KR "freq" 440
+>                ;amp = control KR "amp" 0.1
+>                ;nharms = control KR "nharms" 10
+>                ;pan = control KR "pan" 0
+>                ;gate = control KR "gate" 1
+>                ;s = blip AR freq nharms * amp
+>                ;e = linen gate 0.01 0.6 0.4 RemoveSynth
+>                ;o = offsetOut 0 (pan2 s pan e)}
+>            in synthdef "test" o
 
-> audition ("test"
+> audition (test
 >          ,pbind [("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200)
 >                 ,("dur",0.1)])
 
-> audition ("test"
+> audition (test
 >          ,pbind [("nharms",pseq [4,10,40] inf)
 >                 ,("dur",pseq [1,1,2,1] inf / 10)
 >                 ,("freq",pn (pseries 1 1 16 * 50) 4)
 >                 ,("sustain",pseq [1/10,0.5,1,2] inf)])
 
-> let { freq = control KR "freq" 1000
->     ; gate = control KR "gate" 1
->     ; pan = control KR "pan" 0
->     ; cut = control KR "cut" 4000
->     ; res = control KR "res" 0.8
->     ; amp = control KR "amp" 1
->     ; s = rlpf (pulse AR freq 0.05) cut res
->     ; e = envGen KR gate amp 0 1 RemoveSynth (envLinen 0.01 1 0.3 1)
->     ; o = out 0 (pan2 s pan e) }
-> in withSC3 (\fd -> async fd (d_recv (synthdef "acid" o)))
+> let acid = let {freq = control KR "freq" 1000
+>                ;gate = control KR "gate" 1
+>                ;pan = control KR "pan" 0
+>                ;cut = control KR "cut" 4000
+>                ;res = control KR "res" 0.8
+>                ;amp = control KR "amp" 1
+>                ;s = rlpf (pulse AR freq 0.05) cut res
+>                ;e = envGen KR gate amp 0 1 RemoveSynth (envLinen 0.01 1 0.3 1)
+>                ;o = out 0 (pan2 s pan e)}
+>            in synthdef "acid" o
 
 - Pbind(\instrument,\acid,
 -       \dur,Pseq([0.25,0.5,0.25],4),
@@ -148,7 +151,7 @@ A finite binding stops the Event pattern.
 -       \rez,Pfunc({0.7.rand +0.3}),
 -       \amp,0.2).play
 
-> audition ("acid"
+> audition (acid
 >          ,pbind [("dur",pseq [0.25,0.5,0.25] 4)
 >                 ,("root",-24)
 >                 ,("degree",pseq [0,3,5,7,9,11,5,1] inf)
@@ -174,7 +177,7 @@ A finite binding stops the Event pattern.
 -             \rez,Pfunc({0.7.rand + 0.3}),
 -             \amp,0.16)],inf).play
 
-> audition ("acid"
+> audition (acid
 >          ,pseq [pbind [("dur",pseq [0.25,0.5,0.25] 4)
 >                       ,("root",-24)
 >                       ,("degree",pseq [0,3,5,7,9,11,5,1] inf)

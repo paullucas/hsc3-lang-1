@@ -708,11 +708,21 @@ e_play fd lj ls le = do
 instance Audible (P (Event Double)) where
     play fd = e_play fd [1000..] (repeat "default") . unP
 
+instance Audible (Synthdef,P (Event Double)) where
+    play fd (s,p) = do
+      _ <- async fd (d_recv s)
+      e_play fd [1000..] (repeat (synthdefName s)) (unP p)
+
 instance Audible (String,P (Event Double)) where
     play fd (s,p) = e_play fd [1000..] (repeat s) (unP p)
+
+instance Audible (P (Synthdef,Event Double)) where
+    play fd p =
+        let (s,e) = unzip (unP p)
+        in e_play fd [1000..] (map synthdefName s) e
 
 instance Audible (P (String,Event Double)) where
     play fd p =
         let (s,e) = unzip (unP p)
-       in e_play fd [1000..] s e
+        in e_play fd [1000..] s e
 

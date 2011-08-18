@@ -5,8 +5,8 @@ import Sound.SC3
 import Sound.SC3.Lang.Collection.Event
 import Sound.SC3.Lang.Pattern.List
 
-instr :: Synthdef
-instr =
+analogarpeggio :: Synthdef
+analogarpeggio =
     let k = control KR
         o = k "out" 0
         p = k "pan" 0
@@ -22,11 +22,11 @@ instr =
     in synthdef "analogarpeggio" (out o (pan2 (e * s * a) p 0.25))
 
 {-
-withSC3 (\fd -> async fd (d_recv instr))
+withSC3 (\fd -> async fd (d_recv analogarpeggio))
 
 :set -XOverloadedStrings
 
-audition ("analogarpeggio"
+audition (analogarpeggio
          ,(pbind [("dur",pwrand 'a' [0.1,0.25] [2/3,1/2] inf)
                  ,("freq",pwhite 'b' 440.0 1600.0 inf)
                  ,("pan",pwhite 'c' (-1.0) 1.0 inf)
@@ -84,9 +84,8 @@ arpeggio =
 main :: IO ()
 main = do
   let n = 60/157
-  withSC3 (\fd -> do _ <- async fd (d_recv instr)
-                     play fd ("analogarpeggio"
-                             ,pedit "dur" (* n) (pbind arpeggio)))
+      p = pedit "dur" (* n) (pbind arpeggio)
+  withSC3 (\fd -> play fd (analogarpeggio,p))
 
 {-
 withSC3 (\fd -> send fd (g_dumpTree [(1,True)]))
