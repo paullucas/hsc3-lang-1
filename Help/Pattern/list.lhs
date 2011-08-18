@@ -78,7 +78,7 @@ A primitive form of the SC3 pbind pattern, with explicit type and identifier inp
 
 The SC3 pbind pattern combines several value patterns into an event
 pattern.  Each input pattern is assigned to one or more keys in the
-resulting event pattern.
+resulting event pattern.  Note that pbind is type specific to Double.
 
 There are a set of reserved keys that have particular roles in the
 pattern library.
@@ -1087,8 +1087,9 @@ Multiple nested ppar patterns.
 
 ## Rests
 
-A frequency value of 0 indicates a rest.
+A frequency value of NaN indicates a rest.  There is a constant value
+nan that can be used for this purpose.
 
 > audition (pbind [("legato",0.1)
 >                 ,("dur",fromList [0.1,0.1,0.6])
->                 ,("freq",pseq [440,880,0] inf)])
+>                 ,("freq",pseq [440,880,nan] inf)])

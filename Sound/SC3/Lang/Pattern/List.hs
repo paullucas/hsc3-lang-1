@@ -83,6 +83,9 @@ instance (OrdE a) => OrdE (P a) where
 inf :: Int
 inf = maxBound
 
+nan :: (Monad m,Floating a) => m a
+nan = return (sqrt (-1))
+
 -- * Extension
 
 stP_join :: [M] -> M
@@ -212,7 +215,7 @@ pbind' ty is xs =
     let xs' = fmap (\(k,v) -> pzip (return k) v) xs
     in pure (e_from_list ty) <*> fromList is <*> pflop' xs'
 
-pbind :: [(String,P a)] -> P (Event a)
+pbind :: [(String,P Double)] -> P (Event Double)
 pbind = pbind' "s_new" (repeat (-2))
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
@@ -307,6 +310,10 @@ place a n =
 
 pmul :: Num a => Key -> P a -> P (Event a) -> P (Event a)
 pmul k p = pzipWith (\i j -> e_edit_v k 1 (* i) j) p
+
+-- | Variant that does not insert key.
+pmul' :: Num a => Key -> P a -> P (Event a) -> P (Event a)
+pmul' k p = pzipWith (\i j -> e_edit k (* i) j) p
 
 ppatlace :: [P a] -> Int -> P a
 ppatlace a n =
@@ -629,7 +636,7 @@ f_merge (zip [0,2..10] ['a'..]) (zip [0,4..12] ['A'..])
 type T = Double
 
 -- note that this uses e_fwd to calculate start times.
-e_merge :: Real a => (T,[Event a]) -> (T,[Event a]) -> [(T,Event a)]
+e_merge :: (T,[Event Double]) -> (T,[Event Double]) -> [(T,Event Double)]
 e_merge (pt,p) (qt,q) =
     let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
         q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
@@ -662,15 +669,14 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- t = time, s = instrument name
 -- rt = release time, pr = parameters
-e_osc :: (Floating n,Fractional n,Real n) =>
-         Double -> Int -> String -> Event n -> Maybe (OSC,OSC)
+e_osc :: Double -> Int -> String -> Event Double -> Maybe (OSC,OSC)
 e_osc t j s e =
-    let rt = e_sustain' e
+    let rt = e_sustain e
         f = e_freq e
         a = e_amp e
         pr = ("freq",f) : ("amp",a) : e_arg e
         i = if e_id e < -1 then j else e_id e
-        m_on = if f == 0
+        m_on = if isNaN f
                then Nothing
                else case e_type e of
                       "s_new" -> Just (s_new s i AddToTail 1 pr)
@@ -682,12 +688,8 @@ e_osc t j s e =
                         ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
          _ -> Nothing
 
-r_coerce :: (Real r,Fractional f) => r -> f
-r_coerce = fromRational . toRational
-
 -- dt = delta-time
-e_play :: (Transport t,Floating n,Real n,Fractional n) =>
-          t -> [Int] -> [String] -> [Event n] -> IO ()
+e_play :: (Transport t) => t -> [Int] -> [String] -> [Event Double] -> IO ()
 e_play fd lj ls le = do
   let act _ _ _ [] = return ()
       act _ _ [] _ = return ()
@@ -703,13 +705,13 @@ e_play fd lj ls le = do
   st <- utcr
   act st lj ls le
 
-instance (Real n,Floating n,Fractional n) => Audible (P (Event n)) where
+instance Audible (P (Event Double)) where
     play fd = e_play fd [1000..] (repeat "default") . unP
 
-instance (Real n,Floating n,Fractional n) => Audible (String,P (Event n)) where
+instance Audible (String,P (Event Double)) where
     play fd (s,p) = e_play fd [1000..] (repeat s) (unP p)
 
-instance (Real n,Floating n,Fractional n) => Audible (P (String,Event n)) where
+instance Audible (P (String,Event Double)) where
     play fd p =
         let (s,e) = unzip (unP p)
        in e_play fd [1000..] s e
