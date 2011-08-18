@@ -66,14 +66,23 @@ e_freq = detunedFreq . e_pitch
 e_dur :: Num a => Event a -> a
 e_dur = e_lookup_v 1 "dur"
 
-e_dur' :: Real a => Event a -> Double
-e_dur' = to_r . e_dur
+e_fwd' :: Num a => Event a -> a
+e_fwd' e = e_lookup_v (e_dur e * e_stretch e) "fwd" e
 
-e_fwd :: Num a => Event a -> a
-e_fwd e = e_lookup_v (e_dur e) "fwd" e
+e_fwd :: Real a => Event a -> Double
+e_fwd = to_r . e_fwd'
 
-e_fwd' :: Real a => Event a -> Double
-e_fwd' = to_r . e_fwd
+e_db :: Num a => Event a -> a
+e_db = e_lookup_v (-20) "db"
+
+dbAmp :: Floating a => a -> a
+dbAmp a = 10 ** (a * 0.05)
+
+e_amp' :: Floating a => Event a -> a
+e_amp' e = e_lookup_v (dbAmp (e_db e)) "amp" e
+
+e_amp :: (Real a,Floating a) => Event a -> Double
+e_amp = to_r . e_amp'
 
 e_legato :: Fractional a => Event a -> a
 e_legato = e_lookup_v 0.8 "legato"
@@ -102,8 +111,10 @@ e_instrument = e_lookup_v (fromString "default") "instrument"
 --e_instrument' = datum_str' . e_instrument
 
 e_reserved :: [Key]
-e_reserved = ["dur","legato","fwd","sustain"
-             ,"freq","note","octave"]
+e_reserved =
+    ["amp","db"
+    ,"dur","legato","fwd","sustain"
+    ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"]
 
 e_arg' :: Real a => (Key,a) -> Maybe (Key,Double)
 e_arg' (k,v) =

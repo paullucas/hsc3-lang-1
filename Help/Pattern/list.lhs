@@ -29,14 +29,16 @@ There is a variant to make stopping patterns.
 
 ## padd
 
+Add a value to an existing key, or set the key if it doesn't exist.
+
 - Padd(\freq,801,Pbind(\freq,100)).asStream.next(());
 > padd "freq" 801 (pbind [("freq",100)])
 
 - Padd(\freq,Pseq([401,801],2),Pbind(\freq,100)).asStream.nextN(4,())
 > padd "freq" (pseq [401,801] 2) (pbind [("freq",100)])
 
-> let {p = pbind [("dur",0.15)
->                ,("degree",pseq [pshuf 'a' [-7,-3,0,2,4,7] 2,pseq [0,1,2,3,4,5,6,7] 1] 1)]}
+> let {d = pseq [pshuf 'a' [-7,-3,0,2,4,7] 2,pseq [0,1,2,3,4,5,6,7] 1] 1
+>     ;p = pbind [("dur",0.15),("degree",d)]}
 > in audition (pseq [p,padd "mtranspose" 1 p,padd "mtranspose" 2 p] inf)
 
 ## pappend
@@ -446,15 +448,12 @@ Interlaced embedding of subarrays.
 > place [[1],[2,5],[3,6]] 2
 > place [[1],[2,5],[3,6..]] 5
 
-## ppatlace
+## pmul
 
-Note that the current implementation stops late, it cycles the second
-series one place.
+Multiply an existing key by a value, or set the key if it doesn't exist.
 
-- Pbind(\degree,Ppatlace([Pseries(0,1,8),Pseries(2,1,7)],inf),
--       \dur,0.25).play;
-> audition (pbind [("degree",ppatlace [pseries 0 1 8,pseries 2 1 7] inf)
->                 ,("dur",0.125)])
+> let p = pbind [("dur",0.15),("freq",prand 'a' [440,550,660] 6)]
+> in audition (pseq [p,pmul "freq" 2 p,pmul "freq" 0.5 p] 2)
 
 ## pn
 
@@ -469,6 +468,16 @@ Repeats the enclosed pattern a number of times.
 
 > pn 1 4
 > pn (fromList [1,2,3]) 4
+
+## ppatlace
+
+Note that the current implementation stops late, it cycles the second
+series one place.
+
+- Pbind(\degree,Ppatlace([Pseries(0,1,8),Pseries(2,1,7)],inf),
+-       \dur,0.25).play;
+> audition (pbind [("degree",ppatlace [pseries 0 1 8,pseries 2 1 7] inf)
+>                 ,("dur",0.125)])
 
 ## prand
 
@@ -700,6 +709,14 @@ Returns a shuffled version of the list item by item, with n repeats.
 
 > psplitPlaces' (fromList [1,2,3]) (pseries 1 1 6)
 > psplitPlaces (fromList [1,2,3]) (pseries 1 1 6)
+
+## pstretch
+
+pstretch does time stretching.  It is equal to pmul "stretch".
+
+> let {d = pseq [pshuf 'a' [-7,-3,0,2,4,7] 2,pseq [0,1,2,3,4,5,6,7] 1] 1
+>     ;p = pbind [("dur",0.15),("degree",d)]}
+> in audition (pseq [p,pstretch 0.5 p,pstretch 2 p] inf)
 
 ## pstutter
 
@@ -947,6 +964,15 @@ Chromatic transposition
 >                 ,("legato",pseq [pseries 0.05 0.05 40,pseries 2.05 (-0.05) 40] inf)
 >                 ,("midinote",pseq [60,58] inf)])
 
+## Amplitude model
+
+The amplitude can be set as a linear value at key 'amp' or in decibels
+below zero at key 'db'.
+
+> audition (pbind [("dur",0.2)
+>                  ,("degree",prand 'a' [0,1,5,7] inf)
+>                  ,("db",prand 'b' [-64,-32,-16,-8,-4,-2] inf)])
+
 ## Parallel events
 
 Ordinarily the distance from one event to the next is given by the
@@ -964,8 +990,8 @@ simultaneous with the current event.
 
 pmerge merges two event streams, adding fwd entries as required.
 
-> audition (pmerge (pbind [("dur",0.2),("midinote",pseq [62,65,69,72] inf)]
->                  ,pbind [("dur",0.4),("midinote",pseq [50,45] inf)]))
+> audition (pmerge (pbind [("dur",0.2),("midinote",pseq [62,65,69,72] inf)])
+>                  (pbind [("dur",0.4),("midinote",pseq [50,45] inf)]))
 
 The result of pmerge can be merged again, ppar merges a list of patterns.
 
@@ -973,13 +999,26 @@ The result of pmerge can be merged again, ppar merges a list of patterns.
 >                ,pbind [("dur",0.4),("midinote",pseq [50,45] inf)]
 >                ,pbind [("dur",0.6),("midinote",pseq [76,79,81] inf)]])
 
+ppar is a variant of ptpar which allows non-equal start times.
+
+> audition (ptpar [(0,pbind [("dur",0.2),("pan",-1),("midinote",pseries 60 1 15)])
+>                 ,(1,pbind [("dur",0.15),("pan",0),("midinote",pseries 58 2 15)])
+>                 ,(2,pbind [("dur",0.1),("pan",1),("midinote",pseries 46 3 15)])])
+
+> let {d = pseq [pgeom 0.05 1.1 24,pgeom 0.5 0.909 24] 2
+>     ;f n a p = pbind [("dur",d),("db",a),("pan",p),("midinote",pseq [n,n-4] inf)]}
+> in audition (ptpar [(0,f 53 (-20) (-0.9))
+>                    ,(2,f 60 (-23) (-0.3))
+>                    ,(4,f 67 (-26) 0.3)
+>                    ,(6,f 74 (-29) 0.9)])
+
 Multiple nested ppar patterns.
 
 > let {f u l = ppar [pbind [("dur",0.2),("pan",0.5),("midinote",pseq u 1)]
 >                   ,pbind [("dur",0.4),("pan",-0.5),("midinote",pseq l 1)]]}
 > in audition (ppar [pbind [("dur",prand 'a' [0.2,0.4,0.6] inf)
 >                          ,("midinote",prand 'b' [72,74,76,77,79,81] inf)
->                          ,("amp",5e-2)
+>                          ,("db",-26)
 >                          ,("legato",1.1)]
 >                   ,pseq [pbind [("dur",3.2),("freq",0)]
 >                         ,prand 'c' [f [60,64,67,64] [48,43]
@@ -990,5 +1029,6 @@ Multiple nested ppar patterns.
 
 A frequency value of 0 indicates a rest.
 
-> audition (pbind [("dur",fromList [0.2,0.2,0.6])
+> audition (pbind [("legato",0.1)
+>                 ,("dur",fromList [0.1,0.1,0.6])
 >                 ,("freq",pseq [440,880,0] inf)])

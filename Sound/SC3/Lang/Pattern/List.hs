@@ -305,6 +305,9 @@ place a n =
         f = if n == inf then id else take (n * i)
     in stoppingN n (fromList (f (L.concat (C.flop a))))
 
+pmul :: Num a => Key -> P a -> P (Event a) -> P (Event a)
+pmul k p = pzipWith (\i j -> e_edit_v k 1 (* i) j) p
+
 ppatlace :: [P a] -> Int -> P a
 ppatlace a n =
     let i = length a
@@ -423,6 +426,9 @@ psplitPlaces' = liftP2 S.splitPlaces
 
 psplitPlaces :: P Int -> P a -> P (P a)
 psplitPlaces n = fmap fromList . psplitPlaces' n
+
+pstretch :: Num a => P a -> P (Event a) -> P (Event a)
+pstretch = pmul "stretch"
 
 stutterTruncating :: [Int] -> [a] -> [a]
 stutterTruncating ns = L.concat . zipWith replicate ns
@@ -606,26 +612,28 @@ ptrigger = liftP2 trigger
 
 -- * Parallel patterns
 
-f_merge :: Ord a => ([(a,t)],[(a,t)]) -> [(a,t)]
-f_merge (p,q) =
+f_merge :: Ord a => [(a,t)] -> [(a,t)] -> [(a,t)]
+f_merge p q =
     case (p,q) of
       ([],_) -> q
       (_,[]) -> p
       ((t0,e0):r0,(t1,e1):r1) ->
             if t0 <= t1
-            then (t0,e0) : f_merge (r0,q)
-            else (t1,e1) : f_merge (p,r1)
+            then (t0,e0) : f_merge r0 q
+            else (t1,e1) : f_merge p r1
 
 {-
-f_merge (zip [0,2..10] ['a'..],zip [0,4..12] ['A'..])
+f_merge (zip [0,2..10] ['a'..]) (zip [0,4..12] ['A'..])
 -}
 
--- note that this uses e_fwd' to calculate start times. this allows for nested merges
-e_merge :: Real a => ([Event a],[Event a]) -> [(Double,Event a)]
-e_merge (p,q) =
-    let p_st = 0 : scanl1 (+) (map e_fwd' p)
-        q_st = 0 : scanl1 (+) (map e_fwd' q)
-    in f_merge (zip p_st p,zip q_st q)
+type T = Double
+
+-- note that this uses e_fwd to calculate start times.
+e_merge :: Real a => (T,[Event a]) -> (T,[Event a]) -> [(T,Event a)]
+e_merge (pt,p) (qt,q) =
+    let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
+        q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
+    in f_merge (zip p_st p) (zip q_st q)
 
 add_fwd :: Num a => [(a,Event a)] -> [Event a]
 add_fwd e =
@@ -633,32 +641,40 @@ add_fwd e =
       (t0,e0):(t1,e1):e' -> e_insert "fwd" (t1 - t0) e0 : add_fwd ((t1,e1):e')
       _ -> map snd e
 
-pmerge :: (P (Event Double),P (Event Double)) -> P (Event Double)
-pmerge (p,q) = fromList (add_fwd (e_merge (toList p,toList q)))
+ptmerge :: (T,P (Event Double)) -> (T,P (Event Double)) -> P (Event Double)
+ptmerge (pt,p) (qt,q) =
+    fromList (add_fwd (e_merge (pt,toList p) (qt,toList q)))
 
-ppar :: [P (Event Double)] -> P (Event Double)
-ppar l =
+pmerge :: P (Event Double) -> P (Event Double) -> P (Event Double)
+pmerge p q = ptmerge (0,p) (0,q)
+
+ptpar :: [(T,P (Event Double))] -> P (Event Double)
+ptpar l =
     case l of
       [] -> pempty
-      [p] -> p
-      p:q:r -> ppar (pmerge (p,q) : r)
+      [(_,p)] -> p
+      (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
+
+ppar :: [P (Event Double)] -> P (Event Double)
+ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern audition
 
 -- t = time, s = instrument name
--- rt = release time, a = parameters
-e_osc :: (Fractional n,Real n) =>
+-- rt = release time, pr = parameters
+e_osc :: (Floating n,Fractional n,Real n) =>
          Double -> Int -> String -> Event n -> Maybe (OSC,OSC)
 e_osc t j s e =
     let rt = e_sustain' e
         f = e_freq e
-        a = ("freq",f) : e_arg e
+        a = e_amp e
+        pr = ("freq",f) : ("amp",a) : e_arg e
         i = if e_id e < -1 then j else e_id e
         m_on = if f == 0
                then Nothing
                else case e_type e of
-                      "s_new" -> Just (s_new s i AddToTail 1 a)
-                      "n_set" -> Just (n_set i a)
+                      "s_new" -> Just (s_new s i AddToTail 1 pr)
+                      "n_set" -> Just (n_set i pr)
                       "rest" -> Nothing
                       _ -> error "e_osc:type"
     in case m_on of
@@ -670,14 +686,14 @@ r_coerce :: (Real r,Fractional f) => r -> f
 r_coerce = fromRational . toRational
 
 -- dt = delta-time
-e_play :: (Transport t, Real n, Fractional n) =>
+e_play :: (Transport t,Floating n,Real n,Fractional n) =>
           t -> [Int] -> [String] -> [Event n] -> IO ()
 e_play fd lj ls le = do
   let act _ _ _ [] = return ()
       act _ _ [] _ = return ()
       act _ [] _ _ = error "e_play:id?"
       act t (j:js) (s:ss) (e:es) =
-          do let dt = e_fwd' e
+          do let dt = e_fwd e
              case e_osc t j s e of
                Just (p,q) -> do send fd p
                                 send fd q
@@ -687,13 +703,13 @@ e_play fd lj ls le = do
   st <- utcr
   act st lj ls le
 
-instance (Real n, Fractional n) => Audible (P (Event n)) where
+instance (Real n,Floating n,Fractional n) => Audible (P (Event n)) where
     play fd = e_play fd [1000..] (repeat "default") . unP
 
-instance (Real n, Fractional n) => Audible (String,P (Event n)) where
+instance (Real n,Floating n,Fractional n) => Audible (String,P (Event n)) where
     play fd (s,p) = e_play fd [1000..] (repeat s) (unP p)
 
-instance (Real n, Fractional n) => Audible (P (String,Event n)) where
+instance (Real n,Floating n,Fractional n) => Audible (P (String,Event n)) where
     play fd p =
         let (s,e) = unzip (unP p)
        in e_play fd [1000..] s e
