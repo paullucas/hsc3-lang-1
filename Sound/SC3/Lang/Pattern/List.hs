@@ -276,7 +276,7 @@ pedit :: Key -> (a -> a) -> P (Event a) -> P (Event a)
 pedit k f = fmap (e_edit k f)
 
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
-pexprand e l r n = fmap (N.exprand l r) (pwhite e l r n)
+pexprand e l r n = fmap (N.exprandrng l r) (pwhite e 0 1 n)
 
 pfinval :: Int -> P a -> P a
 pfinval = ptake
