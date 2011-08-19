@@ -2,8 +2,16 @@ module Sound.SC3.Lang.Math.SimpleNumber where
 
 import System.Random {- random -}
 
-exprand :: (Floating b) => b -> b -> b -> b
-exprand l r i = l * (log (r / l) * i)
+exprandrng :: (Floating b) => b -> b -> b -> b
+exprandrng l r i = l * exp (log (r / l) * i)
+
+exprand' :: (Floating n,Random n,RandomGen g) => n -> n -> g -> (n,g)
+exprand' l r g =
+    let (n,g') = rrand' 0.0 1.0 g
+    in (exprandrng l r n,g')
+
+exprand :: (Floating n,Random n) => n -> n -> IO n
+exprand l r = rrand 0.0 1.0 >>= return . exprandrng l r
 
 rrand' :: (Random n, RandomGen g) => n -> n -> g -> (n,g)
 rrand' = curry randomR
