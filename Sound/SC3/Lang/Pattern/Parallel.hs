@@ -9,6 +9,7 @@ import Data.Monoid
 import Data.Traversable
 import Sound.SC3.Lang.Collection.SequenceableCollection as C
 import Sound.SC3.Lang.Math.Pitch as P
+import qualified Sound.SC3.Lang.Math.SimpleNumber as N
 import System.Random
 
 -- * P type
@@ -357,11 +358,8 @@ pwhite n l r =
         g = mkStdGen (fromEnum n)
     in prand_b g b
 
-to_exprand :: (Floating b) => b -> b -> b -> b
-to_exprand l r i = l * (log (r / l) * i)
-
 pexprand :: (Enum n,Random a,Floating a) => n -> P a -> P a -> P a
-pexprand n l r = liftA3 to_exprand (mcycle l) (mcycle r) (pwhite n l r)
+pexprand n l r = liftA3 N.exprandrng (mcycle l) (mcycle r) (pwhite n l r)
 
 pindex :: P a -> Int -> P a
 pindex p n = phead (pdrop n p)
