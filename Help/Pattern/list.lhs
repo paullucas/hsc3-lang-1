@@ -1,13 +1,14 @@
+> import Sound.SC3.ID
+> import Sound.SC3.Lang.Pattern.List
+
 > import Control.Applicative
 > import Control.Monad
 > import qualified Data.Foldable as F
 > import Data.Monoid
 > import Sound.OpenSoundControl
-> import Sound.SC3.ID
 > import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 > import Sound.SC3.Lang.Collection.Event
 > import qualified Sound.SC3.Lang.Math.SimpleNumber as N
-> import Sound.SC3.Lang.Pattern.List
 
 ## audition
 
@@ -41,7 +42,7 @@ There is a variant to make stopping patterns.
 SC3 pattern to add a value to an existing key, or set the key if it
 doesn't exist.
 
-- Padd(\freq,801,Pbind(\freq,100)).asStream.next(());
+- Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
 > padd "freq" 801 (pbind [("freq",100)])
 
 - Padd(\freq,Pseq([401,801],2),Pbind(\freq,100)).asStream.nextN(4,())
@@ -379,6 +380,16 @@ Pattern variant for Data.Monoid.mempty, ie. the empty pattern.
 > pempty `mappend` pempty == pempty
 > pempty `mappend` 1 == 1 `mappend` pempty
 
+## pexprand
+
+An SC3 pattern of random values that follow a exponential distribution.
+
+- Pexprand(0.0001,1,10).asStream.all
+> pexprand 'a' 0.0001 1 10
+
+- Pbind(\freq,Pexprand(0.0001,1,inf) * 600 + 300,\dur,0.02).play
+> audition (pbind [("freq",pexprand 'a' 0.0001 1 inf * 600 + 300),("dur",0.02)])
+
 ## pfilter
 
 Pattern variant of Data.List.filter.  Allows values for which the
@@ -413,6 +424,21 @@ clip).  This is not related to the Data.Foldable pattern instance.
 
 > audition (pbind [("degree",pfold (pseries 4 1 inf) (-7) 11),("dur",0.0625)])
 > audition (pbind [("degree",fmap (\n -> fold_ n (-7) 11) (pseries 4 1 inf)),("dur",0.0625)])
+
+## pfuncn
+
+A variant of the SC3 pattern that evaluates a closure at each step.
+The haskell variant function is of the form (StdGen -> (n,StdGen)).
+
+- p = Pfunc({exprand(0.1,0.3) + #[1,2,3,6,7].choose})
+- Pbind(\freq,p * 100 + 300,\dur,0.02).play
+> let p = pfuncn 'a' (N.exprand' 0.1 0.3) inf + pfuncn 'b' (C.choose' [1,2,3,6,7]) inf
+> in audition (pbind [("freq",p * 100 + 300),("dur",0.02)])
+
+Of course in this case there is a pattern equivalent.
+
+> let p = pexprand 'a' 0.1 0.3 inf + prand 'b' [1,2,3,6,7] inf
+> in audition (pbind [("freq",p * 100 + 300),("dur",0.02)])
 
 ## pgeom
 
@@ -699,6 +725,13 @@ this pseq variant handles many common cases.
 
 - Pseq([Pn(8,2),Pwhite(9,16,1)],5).asStream.all
 > pseqn [2,1] [8,pwhite 'a' 9 16 inf] 5
+
+## pseqr
+
+A variant that passes a new 'seed' at each invocation.  See also pfunc.
+
+> let d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1]) inf
+> in audition (pbind [("degree",d),("dur",0.15)])
 
 ## pser
 
@@ -990,18 +1023,15 @@ There is no pkey function, rather name the pattern using let.
 > audition (pbind [("dur",0.25),("detune",-20),("freq",pseq [300,400,500,700,900] inf)])
 
 - Pbind(\dur,0.2,\midinote,Pseq([ Pshuf(#[60,61,62,63,64,65,66,67],3) ],inf)).play
-> let m = pseqr (\e -> pshuf e [60,61,62,63,64,65,66,67] 3) inf
+> let m = pseqr (\e -> [pshuf e [60,61,62,63,64,65,66,67] 3]) inf
 > in audition (pbind [("dur",0.2),("midinote",m)])
 
 - Pbind(\degree,Pseq([ Pshuf(#[-7,-3,0,2,4,7],4),Pseq([0,1,2,3,4,5,6,7]) ],inf),
 -       \dur,0.15).play
-> let d = pseqr (\e -> pseq [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1] 1) inf
+> let d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1]) inf
 > in audition (pbind [("degree",d),("dur",0.15)])
 
 Modal transposition
-
-> let d = pseq [pshuf 'a' [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1] 1
-> in audition (pconcat (map (\t -> pbind [("dur",0.15),("mtranspose",t),("degree",d)]) [0,1,2]))
 
 > let {d e = pseq [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1] 1
 >     ;f t e = pbind [("dur",0.15),("mtranspose",t),("degree",d e)]}
