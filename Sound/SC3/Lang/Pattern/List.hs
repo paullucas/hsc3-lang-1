@@ -384,8 +384,8 @@ pseq1 a i = pjoin' (ptake i (pflop a))
 pseq :: [P a] -> Int -> P a
 pseq a i = stoppingN i (pn (pconcat a) i)
 
-pseqr :: (Int -> P a) -> Int -> P a
-pseqr f n = pconcat (map f [1 .. n])
+pseqr :: (Int -> [P a]) -> Int -> P a
+pseqr f n = pconcat (L.concatMap f [1 .. n])
 
 pseqn :: [Int] -> [P a] -> Int -> P a
 pseqn n q =
