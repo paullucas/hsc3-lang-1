@@ -430,7 +430,7 @@ clip).  This is not related to the Data.Foldable pattern instance.
 A variant of the SC3 pattern that evaluates a closure at each step.
 The haskell variant function is of the form (StdGen -> (n,StdGen)).
 
-- p = Pfunc({exprand(0.1,0.3) + #[1,2,3,6,7].choose})
+- p = Pfuncn({exprand(0.1,0.3) + #[1,2,3,6,7].choose},inf);
 - Pbind(\freq,p * 100 + 300,\dur,0.02).play
 > let p = pfuncn 'a' (N.exprand' 0.1 0.3) inf + pfuncn 'b' (C.choose' [1,2,3,6,7]) inf
 > in audition (pbind [("freq",p * 100 + 300),("dur",0.02)])
