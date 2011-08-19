@@ -284,11 +284,14 @@ pfinval = ptake
 pfold :: (RealFrac n) => P n -> n -> n -> P n
 pfold p i j = fmap (\n -> fold_ n i j) p
 
-pfuncn :: (Enum e) => e -> (StdGen -> (n,StdGen)) -> Int -> P n
-pfuncn e f n =
+pfuncn' :: (RandomGen g) => g -> (g -> (n,g)) -> Int -> P n
+pfuncn' g_ f n =
   let go [] _ = []
       go (h:hs) g = let (r,g') = h g in r : go hs g'
-  in P (go (replicate n f) (mkStdGen (fromEnum e))) (stp n)
+  in P (go (replicate n f) g_) (stp n)
+
+pfuncn :: (Enum e) => e -> (StdGen -> (n,StdGen)) -> Int -> P n
+pfuncn e f n = pfuncn' (mkStdGen (fromEnum e)) f n
 
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s n = P (C.geom n i s) Stop
