@@ -35,6 +35,7 @@ Library
                    Sound.SC3.Lang.Collection.Numerical.Extending
                    Sound.SC3.Lang.Collection.Numerical.Truncating
                    Sound.SC3.Lang.Collection.SequenceableCollection
+                   Sound.SC3.Lang.Events.OverlapTexture
                    Sound.SC3.Lang.Math.Binary
                    Sound.SC3.Lang.Math.Datum
                    Sound.SC3.Lang.Math.Duration
