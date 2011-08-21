@@ -210,13 +210,13 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 padd :: Num a => Key -> P a -> P (Event a) -> P (Event a)
 padd k p = pzipWith (\i j -> e_edit_v k 0 (+ i) j) p
 
-pbind' :: Type -> [Int] -> [(String,P a)] -> P (Event a)
-pbind' ty is xs =
+pbind' :: Type -> [Int] -> [Instrument] -> [(String,P a)] -> P (Event a)
+pbind' ty is ss xs =
     let xs' = fmap (\(k,v) -> pzip (return k) v) xs
-    in pure (e_from_list ty) <*> fromList is <*> pflop' xs'
+    in pure (e_from_list ty) <*> fromList is <*> fromList ss <*> pflop' xs'
 
 pbind :: [(String,P Double)] -> P (Event Double)
-pbind = pbind' "s_new" (repeat (-2))
+pbind = pbind' "s_new" (repeat (-2)) (repeat (Right "default"))
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
@@ -311,6 +311,9 @@ ifExtending a b c = map ifF' (C.zip3_c a b c)
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
+pinstr :: P Instrument -> P (Event a) -> P (Event a)
+pinstr p = pzipWith (\i e -> e {e_instrument = i}) p
+
 place :: [[a]] -> Int -> P a
 place a n =
     let i = length a
@@ -344,9 +347,6 @@ rand' e a n =
                 else let (i,g') = randomR (0,k) g
                      in (a !! i) : f (m - 1) g'
     in f n (mkStdGen (fromEnum e))
-
-rand :: Enum e => e -> [[a]] -> Int -> [a]
-rand e a = L.concat . rand' e a
 
 prand' :: Enum e => e -> [P a] -> Int -> P (P a)
 prand' e a n = P (rand' e a n) (stp n)
@@ -678,9 +678,10 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- t = time, s = instrument name
 -- rt = release time, pr = parameters
-e_osc :: Double -> Int -> String -> Event Double -> Maybe (OSC,OSC)
-e_osc t j s e =
-    let rt = e_sustain e
+e_osc :: Double -> Int -> Event Double -> Maybe (OSC,OSC)
+e_osc t j e =
+    let s = e_instrument_name e
+        rt = e_sustain e
         f = e_freq e
         a = e_amp e
         pr = ("freq",f) : ("amp",a) : e_arg e
@@ -698,40 +699,35 @@ e_osc t j s e =
          _ -> Nothing
 
 -- dt = delta-time
-e_play :: (Transport t) => t -> [Int] -> [String] -> [Event Double] -> IO ()
-e_play fd lj ls le = do
-  let act _ _ _ [] = return ()
-      act _ _ [] _ = return ()
-      act _ [] _ _ = error "e_play:id?"
-      act t (j:js) (s:ss) (e:es) =
+e_play :: (Transport t) => t -> [Int] -> [Event Double] -> IO ()
+e_play fd lj le = do
+  let act _ _ [] = return ()
+      act _ [] _ = error "e_play:id?"
+      act t (j:js) (e:es) =
           do let dt = e_fwd e
-             case e_osc t j s e of
-               Just (p,q) -> do send fd p
+             case e_osc t j e of
+               Just (p,q) -> do case e_instrument_def e of
+                                  Just d -> async fd (d_recv d) >> return ()
+                                  Nothing -> return ()
+                                send fd p
                                 send fd q
                Nothing -> return ()
              pauseThreadUntil (t + dt)
-             act (t + dt) js ss es
+             act (t + dt) js es
   st <- utcr
-  act st lj ls le
+  act st lj le
 
 instance Audible (P (Event Double)) where
-    play fd = e_play fd [1000..] (repeat "default") . unP
+    play fd = e_play fd [1000..] . unP
 
 instance Audible (Synthdef,P (Event Double)) where
     play fd (s,p) = do
+      let i = pcons (Left s) (pn (return (Right (synthdefName s))) inf)
       _ <- async fd (d_recv s)
-      e_play fd [1000..] (repeat (synthdefName s)) (unP p)
+      e_play fd [1000..] (unP (pinstr i p))
 
 instance Audible (String,P (Event Double)) where
-    play fd (s,p) = e_play fd [1000..] (repeat s) (unP p)
-
-instance Audible (P (Synthdef,Event Double)) where
-    play fd p =
-        let (s,e) = unzip (unP p)
-        in e_play fd [1000..] (map synthdefName s) e
-
-instance Audible (P (String,Event Double)) where
-    play fd p =
-        let (s,e) = unzip (unP p)
-        in e_play fd [1000..] s e
+    play fd (s,p) =
+        let i = Right s
+        in e_play fd [1000..] (unP (pinstr (return i) p))
 
