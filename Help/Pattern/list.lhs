@@ -16,14 +16,27 @@ There are play and audition instances for:
 
   a) P (Event n)
   b) (Instrument,P (Event n))
-  c) P (Instrument,Event n)
 
 where Instrument is either a Synthdef or a String.
 
-Case a) uses the default instrument; case b) uses the indicated
-instrument for the whole pattern, and in the case of a Synthdef
-argument sends the instrument definition to the server; case c) has a
-separate instrument for each event.
+Case a) uses the instrument stored at each event; case b) uses the
+indicated instrument for the whole pattern, and in the case of a
+Synthdef argument sends the instrument definition to the server.
+
+> let p = pbind [("degree",fromList [0,2,4,7]),("dur",0.25)]
+
+> let sineInstrument =
+>   let {f = control KR "freq" 440
+>       ;g = control KR "gate" 1
+>       ;a = control KR "amp" 0.1
+>       ;d = envASR 0.01 1 1 (EnvNum (-4))
+>       ;e = envGen KR g a 0 1 RemoveSynth d
+>       ;o = out 0 (sinOsc AR f 0 * e)}
+>   in synthdef "sine" o
+
+> audition p
+> audition (sineInstrument,p)
+> audition ("sine",p)
 
 ## fromList
 
@@ -260,6 +273,12 @@ pconcat is Data.Monoid.mconcat.  See also pjoin.
 
 > ptake 3 (pconcat [pseq [1,2] 1,pseq [3,4] 1])
 
+## pcons
+
+Pattern variant of Data.List.:.
+
+> pcons 'a' (pn (return 'b') 5)
+
 ## pconst
 
 SC3 pattern to constrain the sum of a numerical pattern.  Is equal to
@@ -474,6 +493,18 @@ SC3 pattern-based conditional expression.
 >     ;b = pwhite 'b' 0 9 inf
 >     ;c = pwhite 'c' 10 19 inf}
 > in ptake 9 (pif a b c)
+
+## pinstr
+
+Pattern to assign instruments to events.  Instrument is (Either
+Synthdef String).  In the Synthdef case the instrument is
+asynchronously sent to the server before processing the event, which
+has timing implications.  In general the case instrument pattern ought
+to have a Synthdef for the first occurence of the instrument, and a
+String for subsequent occurences.  See also audition instances.
+
+> let i = pseq [return (Right "sine"),return (Right "default")] inf
+> in audition (pinstr i p)
 
 ## pinterleave
 
