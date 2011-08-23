@@ -496,14 +496,17 @@ SC3 pattern-based conditional expression.
 
 ## pinstr
 
-Pattern to assign instruments to events.  Instrument is (Either
-Synthdef String).  In the Synthdef case the instrument is
+Pattern to assign instruments to events.  An instrument is either a
+Synthdef or a String.  In the Synthdef case the instrument is
 asynchronously sent to the server before processing the event, which
 has timing implications.  In general the case instrument pattern ought
 to have a Synthdef for the first occurence of the instrument, and a
 String for subsequent occurences.  See also audition instances.
 
-> let i = pseq [return (Right "sine"),return (Right "default")] inf
+> let {si = return (InstrumentName "sine")
+>     ;di = return (InstrumentName "default")
+>     ;i = pseq [si,si,di] inf
+>     ;p = pbind [("degree",pseq [0,2,4,7] inf),("dur",0.25)]}
 > in audition (pinstr i p)
 
 ## pinterleave

@@ -45,7 +45,7 @@ overlapTextureU' k g =
     let s = gen_synth (overlapTexture_env k) g
         (d,l) = overlapTexture_dt k
         (_,_,_,c) = k
-        i = return (Left s)
+        i = return (InstrumentDef s)
     in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
 
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
@@ -56,7 +56,7 @@ xfadeTextureU' k g =
     let s = gen_synth (xfadeTexture_env k) g
         (d,l) = xfadeTexture_dt k
         (_,_,c) = k
-        i = return (Left s)
+        i = return (InstrumentDef s)
     in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
 
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
@@ -67,8 +67,8 @@ overlapTextureS' k u i_st =
     let (d,l) = overlapTexture_dt k
         (_,_,_,c) = k
         g = take c (unfoldr (Just . u) i_st)
-        s = fromList (map (Left . gen_synth (overlapTexture_env k)) g)
-    in pinstr s (pbind [("dur",prepeat d),("legato",prepeat l)])
+        s = map (InstrumentDef . gen_synth (overlapTexture_env k)) g
+    in pinstr (fromList s) (pbind [("dur",prepeat d),("legato",prepeat l)])
 
 overlapTextureS :: OverlapTexture -> (st -> (UGen,st)) -> st -> IO ()
 overlapTextureS k u = audition . overlapTextureS' k u

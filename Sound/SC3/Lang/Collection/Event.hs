@@ -7,7 +7,8 @@ import Sound.SC3.Lang.Math.Pitch
 
 type Key = String
 type Type = String
-type Instrument = Either Synthdef String
+data Instrument = InstrumentDef Synthdef
+                | InstrumentName String
 data Event a = Event {e_type :: Type
                      ,e_id :: Int
                      ,e_instrument :: Instrument
@@ -121,14 +122,14 @@ e_from_list t n i = Event t n i . M.fromList
 e_instrument_name :: Event a -> String
 e_instrument_name e =
     case e_instrument e of
-      Left s -> synthdefName s
-      Right s -> s
+      InstrumentDef s -> synthdefName s
+      InstrumentName s -> s
 
 e_instrument_def :: Event a -> Maybe Synthdef
 e_instrument_def e =
     case e_instrument e of
-      Left s -> Just s
-      Right _ -> Nothing
+      InstrumentDef s -> Just s
+      InstrumentName _ -> Nothing
 
 e_unions :: [Event a] -> Event a
 e_unions e =

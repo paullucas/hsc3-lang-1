@@ -216,7 +216,7 @@ pbind' ty is ss xs =
     in pure (e_from_list ty) <*> fromList is <*> fromList ss <*> pflop' xs'
 
 pbind :: [(String,P Double)] -> P (Event Double)
-pbind = pbind' "s_new" (repeat (-2)) (repeat (Right "default"))
+pbind = pbind' "s_new" (repeat (-2)) (repeat (InstrumentName "default"))
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
@@ -313,6 +313,12 @@ pif = liftP3 ifExtending
 
 pinstr :: P Instrument -> P (Event a) -> P (Event a)
 pinstr p = pzipWith (\i e -> e {e_instrument = i}) p
+
+pinstr_s :: P String -> P (Event a) -> P (Event a)
+pinstr_s p = pinstr (fmap InstrumentName p)
+
+pinstr_d :: P Synthdef -> P (Event a) -> P (Event a)
+pinstr_d p = pinstr (fmap InstrumentDef p)
 
 place :: [[a]] -> Int -> P a
 place a n =
@@ -722,12 +728,14 @@ instance Audible (P (Event Double)) where
 
 instance Audible (Synthdef,P (Event Double)) where
     play fd (s,p) = do
-      let i = pcons (Left s) (pn (return (Right (synthdefName s))) inf)
+      let i_d = InstrumentDef s
+          i_nm = InstrumentName (synthdefName s)
+          i = pcons i_d (pn (return i_nm) inf)
       _ <- async fd (d_recv s)
       e_play fd [1000..] (unP (pinstr i p))
 
 instance Audible (String,P (Event Double)) where
     play fd (s,p) =
-        let i = Right s
+        let i = InstrumentName s
         in e_play fd [1000..] (unP (pinstr (return i) p))
 
