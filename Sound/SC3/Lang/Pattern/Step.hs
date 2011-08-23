@@ -1,5 +1,5 @@
 {-# LANGUAGE ExistentialQuantification,FlexibleInstances #-}
-
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Sound.SC3.Lang.Pattern.Step where
 
 import qualified Control.Applicative as A

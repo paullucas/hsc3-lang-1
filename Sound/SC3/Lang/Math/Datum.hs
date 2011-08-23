@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Sound.SC3.Lang.Math.Datum where
 
 import Data.Maybe

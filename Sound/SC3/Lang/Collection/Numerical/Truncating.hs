@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Sound.SC3.Lang.Collection.Numerical.Truncating where
 
 instance (Num a) => Num [a] where
