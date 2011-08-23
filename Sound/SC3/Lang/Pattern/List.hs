@@ -677,7 +677,7 @@ e_merge (pt,p) (qt,q) =
 add_fwd :: [(Double,Event)] -> [Event]
 add_fwd e =
     case e of
-      (t0,e0):(t1,e1):e' -> e_set_fwd (t1 - t0) e0 : add_fwd ((t1,e1):e')
+      (t0,e0):(t1,e1):e' -> e_insert "fwd'" (t1 - t0) e0 : add_fwd ((t1,e1):e')
       _ -> map snd e
 
 ptmerge :: (T,P Event) -> (T,P Event) -> P Event

@@ -3,7 +3,7 @@ module Sound.SC3.Lang.Collection.Event where
 import qualified Data.Map as M
 import Data.Maybe
 import Sound.SC3.ID
-import Sound.SC3.Lang.Math.Duration
+import Sound.SC3.Lang.Math.Duration as D
 import Sound.SC3.Lang.Math.Pitch
 
 type Key = String
@@ -14,8 +14,6 @@ data Instrument = InstrumentDef Synthdef
 data Event = Event {e_type :: Type
                    ,e_id :: Int
                    ,e_instrument :: Instrument
-                   ,e_pitch :: Pitch Double
-                   ,e_duration :: Duration Double
                    ,e_map :: M.Map Key Value}
 
 e_noID :: Int
@@ -26,8 +24,6 @@ defaultEvent =
     Event {e_type = "unknown"
           ,e_id = e_noID
           ,e_instrument = InstrumentName "default"
-          ,e_pitch = defaultPitch
-          ,e_duration = defaultDuration
           ,e_map = M.empty}
 
 e_lookup :: Key -> Event -> Maybe Value
@@ -45,24 +41,46 @@ e_lookup_f f k e =
       Nothing -> f e
       Just v' -> v'
 
+e_lookup_m :: t -> (Value -> t) -> Key -> Event -> t
+e_lookup_m v f k e =
+    case e_lookup k e of
+      Nothing -> v
+      Just v' -> f v'
+
+e_pitch :: Event -> Pitch Double
+e_pitch e =
+    let get_r v k = e_lookup_v v k e
+        get_m v k = e_lookup_m v const k e
+    in Pitch {mtranspose = get_r 0 "mtranspose"
+             ,gtranspose = get_r 0 "gtranspose"
+             ,ctranspose = get_r 0 "ctranspose"
+             ,octave = get_r 5 "octave"
+             ,root = get_r 0 "root"
+             ,degree = get_r 0 "degree"
+             ,scale = [0, 2, 4, 5, 7, 9, 11]
+             ,stepsPerOctave = get_r 12 "stepsPerOctave"
+             ,detune = get_r 0 "detune"
+             ,harmonic = get_r 1 "harmonic"
+             ,freq_f = get_m default_freq_f "freq"
+             ,midinote_f = get_m default_midinote_f "midinote"
+             ,note_f = get_m default_note_f "note"}
+
+e_duration :: Event -> Duration Double
+e_duration e =
+    let get_r v k = e_lookup_v v k e
+        get_m v k = e_lookup_m v const k e
+        get_o k = e_lookup k e
+    in Duration {tempo = get_r 60 "tempo"
+                ,dur = get_r 1 "dur"
+                ,stretch = get_r 1 "stretch"
+                ,legato = get_r 0.8 "legato"
+                ,sustain_f = get_m default_sustain_f "sustain"
+                ,delta_f = get_m default_delta_f "delta"
+                ,D.lag = get_r 0.1 "lag"
+                ,fwd' = get_o "fwd'"}
+
 e_insert :: Key -> Value -> Event -> Event
-e_insert k v e =
-    case k of
-      "mtranspose" -> e {e_pitch = (e_pitch e) {mtranspose = v}}
-      "gtranspose" -> e {e_pitch = (e_pitch e) {gtranspose = v}}
-      "octave" -> e {e_pitch = (e_pitch e) {octave = v}}
-      "root" -> e {e_pitch = (e_pitch e) {root = v}}
-      "degree" -> e {e_pitch = (e_pitch e) {degree = v}}
-      "stepsPerOctave" -> e {e_pitch = (e_pitch e) {stepsPerOctave = v}}
-      "detune" -> e {e_pitch = (e_pitch e) {detune = v}}
-      "harmonic" -> e {e_pitch = (e_pitch e) {harmonic = v}}
-      "note" -> e {e_pitch = (e_pitch e) {note_f = const v}}
-      "midinote" -> e {e_pitch = (e_pitch e) {midinote_f = const v}}
-      "freq" -> e {e_pitch = (e_pitch e) {freq_f = const v}}
-      "dur" -> e {e_duration = (e_duration e) {dur = v}}
-      "legato" -> e {e_duration = (e_duration e) {legato = v}}
-      "fwd'" -> e {e_duration = (e_duration e) {fwd' = Just v}}
-      _ -> e {e_map = M.insert k v (e_map e)}
+e_insert k v e = e {e_map = M.insert k v (e_map e)}
 
 e_insert_l :: [(Key,Value)] -> Event -> Event
 e_insert_l l e =
@@ -70,20 +88,8 @@ e_insert_l l e =
       [] -> e
       ((k,v):l') -> e_insert_l l' (e_insert k v e)
 
-e_set_fwd :: Double -> Event -> Event
-e_set_fwd n e = e {e_duration = (e_duration e) {fwd' = Just n}}
-
-e_lookup_m :: Value -> (Value -> Value) -> Key -> Event -> Value
-e_lookup_m v f k e =
-    case e_lookup k e of
-      Nothing -> v
-      Just v' -> f v'
-
 e_freq :: Event -> Double
 e_freq = detunedFreq . e_pitch
-
-e_dur :: Event -> Value
-e_dur = e_lookup_v 1 "dur"
 
 e_db :: Event -> Value
 e_db = e_lookup_v (-20) "db"
@@ -103,7 +109,7 @@ e_sustain = sustain . e_duration
 e_reserved :: [Key]
 e_reserved =
     ["amp","db"
-    ,"dur","legato","fwd","sustain"
+    ,"delta","dur","legato","fwd'","stretch","sustain","tempo"
     ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"]
 
 e_arg' :: (Key,Value) -> Maybe (Key,Value)
