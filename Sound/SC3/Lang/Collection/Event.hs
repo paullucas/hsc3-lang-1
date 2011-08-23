@@ -3,87 +3,102 @@ module Sound.SC3.Lang.Collection.Event where
 import qualified Data.Map as M
 import Data.Maybe
 import Sound.SC3.ID
+import Sound.SC3.Lang.Math.Duration
 import Sound.SC3.Lang.Math.Pitch
 
 type Key = String
+type Value = Double
 type Type = String
 data Instrument = InstrumentDef Synthdef
                 | InstrumentName String
-data Event a = Event {e_type :: Type
-                     ,e_id :: Int
-                     ,e_instrument :: Instrument
-                     ,e_map :: M.Map Key a}
+data Event = Event {e_type :: Type
+                   ,e_id :: Int
+                   ,e_instrument :: Instrument
+                   ,e_pitch :: Pitch Double
+                   ,e_duration :: Duration Double
+                   ,e_map :: M.Map Key Value}
 
-e_lookup :: Key -> Event a -> Maybe a
+e_noID :: Int
+e_noID = -2
+
+defaultEvent :: Event
+defaultEvent =
+    Event {e_type = "unknown"
+          ,e_id = e_noID
+          ,e_instrument = InstrumentName "default"
+          ,e_pitch = defaultPitch
+          ,e_duration = defaultDuration
+          ,e_map = M.empty}
+
+e_lookup :: Key -> Event -> Maybe Value
 e_lookup k e = M.lookup k (e_map e)
 
-e_lookup_v :: a -> Key -> Event a -> a
+e_lookup_v :: Value -> Key -> Event -> Value
 e_lookup_v v k e =
     case e_lookup k e of
       Nothing -> v
       Just v' -> v'
 
-e_lookup_f :: (Event a -> a) -> Key -> Event a -> a
+e_lookup_f :: (Event -> Value) -> Key -> Event -> Value
 e_lookup_f f k e =
     case e_lookup k e of
       Nothing -> f e
       Just v' -> v'
 
-e_insert :: Key -> a -> Event a -> Event a
-e_insert k v (Event t n i m) = Event t n i (M.insert k v m)
+e_insert :: Key -> Value -> Event -> Event
+e_insert k v e =
+    case k of
+      "mtranspose" -> e {e_pitch = (e_pitch e) {mtranspose = v}}
+      "gtranspose" -> e {e_pitch = (e_pitch e) {gtranspose = v}}
+      "octave" -> e {e_pitch = (e_pitch e) {octave = v}}
+      "root" -> e {e_pitch = (e_pitch e) {root = v}}
+      "degree" -> e {e_pitch = (e_pitch e) {degree = v}}
+      "stepsPerOctave" -> e {e_pitch = (e_pitch e) {stepsPerOctave = v}}
+      "detune" -> e {e_pitch = (e_pitch e) {detune = v}}
+      "harmonic" -> e {e_pitch = (e_pitch e) {harmonic = v}}
+      "note" -> e {e_pitch = (e_pitch e) {note_f = const v}}
+      "midinote" -> e {e_pitch = (e_pitch e) {midinote_f = const v}}
+      "freq" -> e {e_pitch = (e_pitch e) {freq_f = const v}}
+      "dur" -> e {e_duration = (e_duration e) {dur = v}}
+      "legato" -> e {e_duration = (e_duration e) {legato = v}}
+      "fwd'" -> e {e_duration = (e_duration e) {fwd' = Just v}}
+      _ -> e {e_map = M.insert k v (e_map e)}
 
-e_lookup_m :: b -> (a -> b) -> Key -> Event a -> b
+e_insert_l :: [(Key,Value)] -> Event -> Event
+e_insert_l l e =
+    case l of
+      [] -> e
+      ((k,v):l') -> e_insert_l l' (e_insert k v e)
+
+e_set_fwd :: Double -> Event -> Event
+e_set_fwd n e = e {e_duration = (e_duration e) {fwd' = Just n}}
+
+e_lookup_m :: Value -> (Value -> Value) -> Key -> Event -> Value
 e_lookup_m v f k e =
     case e_lookup k e of
       Nothing -> v
       Just v' -> f v'
 
-e_pitch :: Event Double -> Pitch Double
-e_pitch e =
-    let get_r v k = e_lookup_v v k e
-        get_m v k = e_lookup_m v const k e
-    in Pitch {mtranspose = get_r 0 "mtranspose"
-             ,gtranspose = get_r 0 "gtranspose"
-             ,ctranspose = get_r 0 "ctranspose"
-             ,octave = get_r 5 "octave"
-             ,root = get_r 0 "root"
-             ,degree = get_r 0 "degree"
-             ,scale = [0, 2, 4, 5, 7, 9, 11]
-             ,stepsPerOctave = get_r 12 "stepsPerOctave"
-             ,detune = get_r 0 "detune"
-             ,harmonic = get_r 1 "harmonic"
-             ,freq_f = get_m default_freq_f "freq"
-             ,midinote_f = get_m default_midinote_f "midinote"
-             ,note_f = get_m default_note_f "note"}
-
-e_freq :: Event Double -> Double
+e_freq :: Event -> Double
 e_freq = detunedFreq . e_pitch
 
-e_dur :: Num a => Event a -> a
+e_dur :: Event -> Value
 e_dur = e_lookup_v 1 "dur"
 
-e_fwd :: Num a => Event a -> a
-e_fwd e = e_lookup_v (e_dur e) "fwd" e * e_stretch e
-
-e_db :: Num a => Event a -> a
+e_db :: Event -> Value
 e_db = e_lookup_v (-20) "db"
 
 dbAmp' :: Floating a => a -> a
 dbAmp' a = 10 ** (a * 0.05)
 
-e_amp :: Floating a => Event a -> a
+e_amp :: Event -> Value
 e_amp e = e_lookup_v (dbAmp' (e_db e)) "amp" e
 
-e_legato :: Fractional a => Event a -> a
-e_legato = e_lookup_v 0.8 "legato"
+e_fwd :: Event -> Double
+e_fwd = fwd . e_duration
 
-e_stretch :: Num a => Event a -> a
-e_stretch = e_lookup_v 1 "stretch"
-
-e_sustain :: Fractional a => Event a -> a
-e_sustain =
-    let f e = e_dur e * e_legato e * e_stretch e
-    in e_lookup_f f "sustain"
+e_sustain :: Event -> Double
+e_sustain = sustain . e_duration
 
 e_reserved :: [Key]
 e_reserved =
@@ -91,51 +106,53 @@ e_reserved =
     ,"dur","legato","fwd","sustain"
     ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"]
 
-e_arg' :: (Key,a) -> Maybe (Key,a)
+e_arg' :: (Key,Value) -> Maybe (Key,Value)
 e_arg' (k,v) =
     if k `elem` e_reserved
     then Nothing
     else Just (k,v)
 
-e_arg :: Event a -> [(Key,a)]
+e_arg :: Event -> [(Key,Value)]
 e_arg = mapMaybe e_arg' . M.toList . e_map
 
-e_edit_v :: Key -> a -> (a -> a) -> Event a -> Event a
+e_edit_v :: Key -> Value -> (Value -> Value) -> Event -> Event
 e_edit_v k v f e =
     case e_lookup k e of
       Just n -> e_insert k (f n) e
       Nothing -> e_insert k (f v) e
 
-e_edit :: Key -> (a -> a) -> Event a -> Event a
+e_edit :: Key -> (Value -> Value) -> Event -> Event
 e_edit k f e =
     case e_lookup k e of
       Just n -> e_insert k (f n) e
       Nothing -> e
 
-e_to_list :: Event a -> [(Key,a)]
-e_to_list = M.toList . e_map
+e_from_list :: Type -> Int -> Instrument -> [(Key,Value)] -> Event
+e_from_list t n i l =
+    let e = defaultEvent {e_type = t
+                         ,e_id = n
+                         ,e_instrument = i}
+    in e_insert_l l e
 
-e_from_list :: Type -> Int -> Instrument -> [(Key,a)] -> Event a
-e_from_list t n i = Event t n i . M.fromList
-
-
-e_instrument_name :: Event a -> String
+e_instrument_name :: Event -> String
 e_instrument_name e =
     case e_instrument e of
       InstrumentDef s -> synthdefName s
       InstrumentName s -> s
 
-e_instrument_def :: Event a -> Maybe Synthdef
+e_instrument_def :: Event -> Maybe Synthdef
 e_instrument_def e =
     case e_instrument e of
       InstrumentDef s -> Just s
       InstrumentName _ -> Nothing
 
-e_unions :: [Event a] -> Event a
+{-
+e_unions :: [Event] -> Event
 e_unions e =
     let (t:_) = map e_type e
         (i:_) = map e_instrument e
     in Event t (-1) i (M.unions (map e_map e))
+-}
 
 defaultInstrument :: Synthdef
 defaultInstrument =

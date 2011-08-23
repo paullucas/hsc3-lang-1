@@ -207,16 +207,16 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 
 -- * SC3 patterns
 
-padd :: Num a => Key -> P a -> P (Event a) -> P (Event a)
+padd :: Key -> P Value -> P Event -> P Event
 padd k p = pzipWith (\i j -> e_edit_v k 0 (+ i) j) p
 
-pbind' :: [Type] -> [Int] -> [Instrument] -> [(String,P a)] -> P (Event a)
+pbind' :: [Type] -> [Int] -> [Instrument] -> [(String,P Value)] -> P Event
 pbind' ty is ss xs =
     let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
         p = fromList
     in pure e_from_list <*> p ty <*> p is <*> p ss <*> xs'
 
-pbind :: [(String,P Double)] -> P (Event Double)
+pbind :: [(String,P Value)] -> P Event
 pbind =
     let ty = repeat "s_new"
         i = repeat (-2)
@@ -277,7 +277,7 @@ durStutter p =
 pdurStutter :: Fractional a => P Int -> P a -> P a
 pdurStutter = liftP2 durStutter
 
-pedit :: Key -> (a -> a) -> P (Event a) -> P (Event a)
+pedit :: Key -> (Value -> Value) -> P Event -> P Event
 pedit k f = fmap (e_edit k f)
 
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
@@ -316,13 +316,13 @@ ifExtending a b c = map ifF' (C.zip3_c a b c)
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
-pinstr :: P Instrument -> P (Event a) -> P (Event a)
+pinstr :: P Instrument -> P Event -> P Event
 pinstr p = pzipWith (\i e -> e {e_instrument = i}) p
 
-pinstr_s :: P String -> P (Event a) -> P (Event a)
+pinstr_s :: P String -> P Event -> P Event
 pinstr_s p = pinstr (fmap InstrumentName p)
 
-pinstr_d :: P Synthdef -> P (Event a) -> P (Event a)
+pinstr_d :: P Synthdef -> P Event -> P Event
 pinstr_d p = pinstr (fmap InstrumentDef p)
 
 place :: [[a]] -> Int -> P a
@@ -331,23 +331,23 @@ place a n =
         f = if n == inf then id else take (n * i)
     in stoppingN n (fromList (f (L.concat (C.flop a))))
 
-pmono_d :: Synthdef -> Int -> [(String,P Double)] -> P (Event Double)
+pmono_d :: Synthdef -> Int -> [(String,P Double)] -> P Event
 pmono_d s i =
     let ss = InstrumentDef s : repeat (InstrumentName (synthdefName s))
         ty = "s_new_p" : repeat "n_set_p"
     in pbind' ty (repeat i) ss
 
-pmono_s :: String -> Int -> [(String,P Double)] -> P (Event Double)
+pmono_s :: String -> Int -> [(String,P Double)] -> P Event
 pmono_s s i =
     let ss = repeat (InstrumentName s)
         ty = "s_new_p" : repeat "n_set_p"
     in pbind' ty (repeat i) ss
 
-pmul :: Num a => Key -> P a -> P (Event a) -> P (Event a)
+pmul :: Key -> P Value -> P Event -> P Event
 pmul k p = pzipWith (\i j -> e_edit_v k 1 (* i) j) p
 
 -- | Variant that does not insert key.
-pmul' :: Num a => Key -> P a -> P (Event a) -> P (Event a)
+pmul' :: Key -> P Value -> P Event -> P Event
 pmul' k p = pzipWith (\i j -> e_edit k (* i) j) p
 
 ppatlace :: [P a] -> Int -> P a
@@ -466,7 +466,7 @@ psplitPlaces' = liftP2 S.splitPlaces
 psplitPlaces :: P Int -> P a -> P (P a)
 psplitPlaces n = fmap fromList . psplitPlaces' n
 
-pstretch :: Num a => P a -> P (Event a) -> P (Event a)
+pstretch :: P Value -> P Event -> P Event
 pstretch = pmul "stretch"
 
 stutterTruncating :: [Int] -> [a] -> [a]
@@ -668,33 +668,33 @@ f_merge (zip [0,2..10] ['a'..]) (zip [0,4..12] ['A'..])
 type T = Double
 
 -- note that this uses e_fwd to calculate start times.
-e_merge :: (T,[Event Double]) -> (T,[Event Double]) -> [(T,Event Double)]
+e_merge :: (T,[Event]) -> (T,[Event]) -> [(T,Event)]
 e_merge (pt,p) (qt,q) =
     let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
         q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
     in f_merge (zip p_st p) (zip q_st q)
 
-add_fwd :: Num a => [(a,Event a)] -> [Event a]
+add_fwd :: [(Double,Event)] -> [Event]
 add_fwd e =
     case e of
-      (t0,e0):(t1,e1):e' -> e_insert "fwd" (t1 - t0) e0 : add_fwd ((t1,e1):e')
+      (t0,e0):(t1,e1):e' -> e_set_fwd (t1 - t0) e0 : add_fwd ((t1,e1):e')
       _ -> map snd e
 
-ptmerge :: (T,P (Event Double)) -> (T,P (Event Double)) -> P (Event Double)
+ptmerge :: (T,P Event) -> (T,P Event) -> P Event
 ptmerge (pt,p) (qt,q) =
     fromList (add_fwd (e_merge (pt,toList p) (qt,toList q)))
 
-pmerge :: P (Event Double) -> P (Event Double) -> P (Event Double)
+pmerge :: P Event -> P Event -> P Event
 pmerge p q = ptmerge (0,p) (0,q)
 
-ptpar :: [(T,P (Event Double))] -> P (Event Double)
+ptpar :: [(T,P Event)] -> P Event
 ptpar l =
     case l of
       [] -> pempty
       [(_,p)] -> p
       (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
 
-ppar :: [P (Event Double)] -> P (Event Double)
+ppar :: [P Event] -> P Event
 ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern audition
@@ -702,7 +702,7 @@ ppar l = ptpar (zip (repeat 0) l)
 -- t = time, s = instrument name
 -- rt = release time, pr = parameters
 -- ty:_p suffix (p = persist) does not send gate
-e_osc :: Double -> Int -> Event Double -> Maybe (OSC,OSC)
+e_osc :: Double -> Int -> Event -> Maybe (OSC,OSC)
 e_osc t j e =
     let s = e_instrument_name e
         rt = e_sustain e
@@ -729,7 +729,7 @@ e_osc t j e =
             in Just (Bundle (UTCr t) m_on,Bundle (UTCr (t+rt)) m_off)
 
 -- dt = delta-time
-e_play :: (Transport t) => t -> [Int] -> [Event Double] -> IO ()
+e_play :: (Transport t) => t -> [Int] -> [Event] -> IO ()
 e_play fd lj le = do
   let act _ _ [] = return ()
       act _ [] _ = error "e_play:id?"
@@ -747,10 +747,10 @@ e_play fd lj le = do
   st <- utcr
   act st lj le
 
-instance Audible (P (Event Double)) where
+instance Audible (P Event) where
     play fd = e_play fd [1000..] . unP
 
-instance Audible (Synthdef,P (Event Double)) where
+instance Audible (Synthdef,P Event) where
     play fd (s,p) = do
       let i_d = InstrumentDef s
           i_nm = InstrumentName (synthdefName s)
@@ -758,7 +758,7 @@ instance Audible (Synthdef,P (Event Double)) where
       _ <- async fd (d_recv s)
       e_play fd [1000..] (unP (pinstr i p))
 
-instance Audible (String,P (Event Double)) where
+instance Audible (String,P Event) where
     play fd (s,p) =
         let i = InstrumentName s
         in e_play fd [1000..] (unP (pinstr (return i) p))

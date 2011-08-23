@@ -40,7 +40,7 @@ gen_synth k g =
       g' = with_env k g
   in synthdef n g'
 
-overlapTextureU' :: OverlapTexture -> UGen -> P (Event Double)
+overlapTextureU' :: OverlapTexture -> UGen -> P Event
 overlapTextureU' k g =
     let s = gen_synth (overlapTexture_env k) g
         (d,l) = overlapTexture_dt k
@@ -51,7 +51,7 @@ overlapTextureU' k g =
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
 overlapTextureU k = audition . overlapTextureU' k
 
-xfadeTextureU' :: XFadeTexture -> UGen -> P (Event Double)
+xfadeTextureU' :: XFadeTexture -> UGen -> P Event
 xfadeTextureU' k g =
     let s = gen_synth (xfadeTexture_env k) g
         (d,l) = xfadeTexture_dt k
@@ -62,7 +62,7 @@ xfadeTextureU' k g =
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
 xfadeTextureU k = audition . xfadeTextureU' k
 
-overlapTextureS' :: OverlapTexture -> (st -> (UGen,st)) -> st -> P (Event Double)
+overlapTextureS' :: OverlapTexture -> (st -> (UGen,st)) -> st -> P Event
 overlapTextureS' k u i_st =
     let (d,l) = overlapTexture_dt k
         (_,_,_,c) = k

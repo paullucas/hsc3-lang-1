@@ -12,13 +12,20 @@ data Duration a = Duration {tempo :: a
                            ,legato :: a
                            ,sustain_f :: Duration a -> a
                            ,delta_f :: Duration a -> a
-                           ,lag :: a}
+                           ,lag :: a
+                           ,fwd' :: Maybe a}
 
 delta :: Duration a -> a
 delta d = delta_f d d
 
 sustain :: Duration a -> a
 sustain d = sustain_f d d
+
+fwd :: Num a => Duration a -> a
+fwd d =
+    case fwd' d of
+      Nothing -> dur d * stretch d
+      Just n -> n * stretch d
 
 defaultDuration :: (Num a,Fractional a) => Duration a
 defaultDuration =
@@ -28,4 +35,5 @@ defaultDuration =
              ,legato = 0.8
              ,sustain_f = default_sustain_f
              ,delta_f = default_delta_f
-             ,lag = 0.1}
+             ,lag = 0.1
+             ,fwd' = Nothing}

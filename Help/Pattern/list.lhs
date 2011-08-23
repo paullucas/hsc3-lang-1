@@ -85,8 +85,9 @@ A primitive form of the SC3 pbind pattern, with explicit type and identifier inp
 > in audition (out 0 (moogFF (dup (pinkNoise 'a' AR) * amp) freq 2 0))
 
 > audition (pbind'
->           "n_set"
+>           (repeat "n_set")
 >           (repeat (-1))
+>           (repeat (InstrumentName "default"))
 >           [("freq",pwhite 'a' 100 1000 inf)
 >           ,("dur",0.2)
 >           ,("amp",fromList [1,0.99 .. 0.1])])
@@ -1030,14 +1031,14 @@ The SC3 .x adverb is like to Control.Monad.liftM2.
 - Pbind(\midinote,Pwhite(48,72,inf) +.x Pseq(#[0,4,7,11],1),
 -       \dur,0.125).play;
 > let p +. q = join (fmap ((+ q) . return) p)
-> in audition (pbind [("midinote",pwhite 'a' 48 72 inf +. pseq [0,4,7,11] 1)
+> in audition (pbind [("midinote",pwhitei 'a' 48 72 inf +. pseq [0,4,7,11] 1)
 >                    ,("dur",0.125)])
 
 > let (+.) = liftM2 (+)
-> in audition (pbind [("midinote",pwhite 'a' 48 72 inf +. pseq [0,4,7,11] 1)
+> in audition (pbind [("midinote",pwhitei 'a' 48 72 inf +. pseq [0,4,7,11] 1)
 >                    ,("dur",0.125)])
 
-> let n = do {i <- pwhite 'a' 48 72 inf
+> let n = do {i <- pwhitei 'a' 48 72 inf
 >            ;j <- pseq [0,4,7,11] 1
 >            ;return (i+j)}
 > in audition (pbind [("midinote",n),("dur",0.125)])
@@ -1107,19 +1108,19 @@ The amplitude can be set as a linear value at key 'amp' or in decibels
 below zero at key 'db'.
 
 > audition (pbind [("dur",0.2)
->                  ,("degree",prand 'a' [0,1,5,7] inf)
->                  ,("db",prand 'b' [-64,-32,-16,-8,-4,-2] inf)])
+>                 ,("degree",prand 'a' [0,1,5,7] inf)
+>                 ,("db",prand 'b' [-96,-48,-24,-12,-6] inf)])
 
 ## Parallel events
 
 Ordinarily the distance from one event to the next is given by the
 duration of the event.  However this can be set directly by using the
-'fwd' key.  A 'fwd' value of zero means that the next event is
+fwd' key.  A fwd' value of zero means that the next event is
 simultaneous with the current event.
 
 > let {n = 0.15
 >     ;p = pbind [("dur",prepeat n)
->                ,("fwd",fromList [0,0,n,0,n,n,0,n,0,0,n*4])
+>                ,("fwd'",fromList [0,0,n,0,n,n,0,n,0,0,n*4])
 >                ,("legato",0.2)
 >                ,("octave",prand 'a' [4,5,5,6] inf)
 >                ,("degree",pxrand 'b' [0,1,5,7] inf)]}
