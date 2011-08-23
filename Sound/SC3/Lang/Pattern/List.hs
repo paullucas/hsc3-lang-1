@@ -12,7 +12,7 @@ import Data.Monoid
 import Data.Traversable
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Lang.Collection.Event
+import Sound.SC3.Lang.Collection.Event as E
 import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
 import qualified Sound.SC3.Lang.Math.Pitch as P
 import qualified Sound.SC3.Lang.Math.SimpleNumber as N
@@ -210,7 +210,7 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 padd :: Key -> P Value -> P Event -> P Event
 padd k p = pzipWith (\i j -> e_edit_v k 0 (+ i) j) p
 
-pbind' :: [Type] -> [Int] -> [Instrument] -> [(String,P Value)] -> P Event
+pbind' :: [Type] -> [Maybe Int] -> [Maybe Instrument] -> [(String,P Value)] -> P Event
 pbind' ty is ss xs =
     let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
         p = fromList
@@ -219,8 +219,8 @@ pbind' ty is ss xs =
 pbind :: [(String,P Value)] -> P Event
 pbind =
     let ty = repeat "s_new"
-        i = repeat (-2)
-        s = repeat (InstrumentName "default")
+        i = repeat Nothing
+        s = repeat Nothing
     in pbind' ty i s
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
@@ -317,7 +317,7 @@ pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
 pinstr :: P Instrument -> P Event -> P Event
-pinstr p = pzipWith (\i e -> e {e_instrument = i}) p
+pinstr p = pzipWith (\i e -> e {e_instrument = Just i}) p
 
 pinstr_s :: P String -> P Event -> P Event
 pinstr_s p = pinstr (fmap InstrumentName p)
@@ -335,13 +335,13 @@ pmono_d :: Synthdef -> Int -> [(String,P Double)] -> P Event
 pmono_d s i =
     let ss = InstrumentDef s : repeat (InstrumentName (synthdefName s))
         ty = "s_new_p" : repeat "n_set_p"
-    in pbind' ty (repeat i) ss
+    in pbind' ty (repeat (Just i)) (map Just ss)
 
 pmono_s :: String -> Int -> [(String,P Double)] -> P Event
 pmono_s s i =
-    let ss = repeat (InstrumentName s)
+    let ss = repeat (Just (InstrumentName s))
         ty = "s_new_p" : repeat "n_set_p"
-    in pbind' ty (repeat i) ss
+    in pbind' ty (repeat (Just i)) ss
 
 pmul :: Key -> P Value -> P Event -> P Event
 pmul k p = pzipWith (\i j -> e_edit_v k 1 (* i) j) p
@@ -651,43 +651,14 @@ ptrigger = liftP2 trigger
 
 -- * Parallel patterns
 
-f_merge :: Ord a => [(a,t)] -> [(a,t)] -> [(a,t)]
-f_merge p q =
-    case (p,q) of
-      ([],_) -> q
-      (_,[]) -> p
-      ((t0,e0):r0,(t1,e1):r1) ->
-            if t0 <= t1
-            then (t0,e0) : f_merge r0 q
-            else (t1,e1) : f_merge p r1
-
-{-
-f_merge (zip [0,2..10] ['a'..]) (zip [0,4..12] ['A'..])
--}
-
-type T = Double
-
--- note that this uses e_fwd to calculate start times.
-e_merge :: (T,[Event]) -> (T,[Event]) -> [(T,Event)]
-e_merge (pt,p) (qt,q) =
-    let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
-        q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
-    in f_merge (zip p_st p) (zip q_st q)
-
-add_fwd :: [(Double,Event)] -> [Event]
-add_fwd e =
-    case e of
-      (t0,e0):(t1,e1):e' -> e_insert "fwd'" (t1 - t0) e0 : add_fwd ((t1,e1):e')
-      _ -> map snd e
-
-ptmerge :: (T,P Event) -> (T,P Event) -> P Event
+ptmerge :: (E.Time,P Event) -> (E.Time,P Event) -> P Event
 ptmerge (pt,p) (qt,q) =
-    fromList (add_fwd (e_merge (pt,toList p) (qt,toList q)))
+    fromList (e_merge (pt,toList p) (qt,toList q))
 
 pmerge :: P Event -> P Event -> P Event
 pmerge p q = ptmerge (0,p) (0,q)
 
-ptpar :: [(T,P Event)] -> P Event
+ptpar :: [(E.Time,P Event)] -> P Event
 ptpar l =
     case l of
       [] -> pempty
@@ -709,7 +680,9 @@ e_osc t j e =
         f = e_freq e
         a = e_amp e
         pr = ("freq",f) : ("amp",a) : e_arg e
-        i = if e_id e < -1 then j else e_id e
+        i = case e_id e of
+              Nothing -> j
+              Just i' -> i'
     in if isNaN f
        then Nothing
        else let m_on = case e_type e of

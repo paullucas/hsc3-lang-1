@@ -1,4 +1,8 @@
-module Sound.SC3.Lang.Collection.Event where
+module Sound.SC3.Lang.Collection.Event
+    (Event(..),Type,Key,Value,Time,defaultEvent
+    ,e_insert,e_edit,e_edit_v,e_from_list,e_merge
+    ,e_instrument_name,e_instrument_def,e_sustain,e_freq,e_amp,e_arg,e_fwd
+    ,Instrument(..),defaultInstrument) where
 
 import qualified Data.Map as M
 import Data.Maybe
@@ -12,18 +16,20 @@ type Type = String
 data Instrument = InstrumentDef Synthdef
                 | InstrumentName String
 data Event = Event {e_type :: Type
-                   ,e_id :: Int
-                   ,e_instrument :: Instrument
+                   ,e_id :: Maybe Int
+                   ,e_instrument :: Maybe Instrument
                    ,e_map :: M.Map Key Value}
 
+{-
 e_noID :: Int
 e_noID = -2
+-}
 
 defaultEvent :: Event
 defaultEvent =
     Event {e_type = "unknown"
-          ,e_id = e_noID
-          ,e_instrument = InstrumentName "default"
+          ,e_id = Nothing
+          ,e_instrument = Nothing
           ,e_map = M.empty}
 
 e_lookup :: Key -> Event -> Maybe Value
@@ -35,11 +41,13 @@ e_lookup_v v k e =
       Nothing -> v
       Just v' -> v'
 
+{-
 e_lookup_f :: (Event -> Value) -> Key -> Event -> Value
 e_lookup_f f k e =
     case e_lookup k e of
       Nothing -> f e
       Just v' -> v'
+-}
 
 e_lookup_m :: t -> (Value -> t) -> Key -> Event -> t
 e_lookup_m v f k e =
@@ -82,11 +90,13 @@ e_duration e =
 e_insert :: Key -> Value -> Event -> Event
 e_insert k v e = e {e_map = M.insert k v (e_map e)}
 
+{-
 e_insert_l :: [(Key,Value)] -> Event -> Event
 e_insert_l l e =
     case l of
       [] -> e
       ((k,v):l') -> e_insert_l l' (e_insert k v e)
+-}
 
 e_freq :: Event -> Double
 e_freq = detunedFreq . e_pitch
@@ -133,24 +143,26 @@ e_edit k f e =
       Just n -> e_insert k (f n) e
       Nothing -> e
 
-e_from_list :: Type -> Int -> Instrument -> [(Key,Value)] -> Event
+e_from_list :: Type -> Maybe Int -> Maybe Instrument -> [(Key,Value)] -> Event
 e_from_list t n i l =
-    let e = defaultEvent {e_type = t
-                         ,e_id = n
-                         ,e_instrument = i}
-    in e_insert_l l e
+    Event {e_type = t
+          ,e_id = n
+          ,e_instrument = i
+          ,e_map = M.fromList l}
 
 e_instrument_name :: Event -> String
 e_instrument_name e =
     case e_instrument e of
-      InstrumentDef s -> synthdefName s
-      InstrumentName s -> s
+      Nothing -> "default"
+      Just (InstrumentDef s) -> synthdefName s
+      Just (InstrumentName s) -> s
 
 e_instrument_def :: Event -> Maybe Synthdef
 e_instrument_def e =
     case e_instrument e of
-      InstrumentDef s -> Just s
-      InstrumentName _ -> Nothing
+      Nothing -> Nothing
+      Just (InstrumentDef s) -> Just s
+      Just (InstrumentName _) -> Nothing
 
 {-
 e_unions :: [Event] -> Event
@@ -171,3 +183,36 @@ defaultInstrument =
         l = xLine KR (rand 'c' 4000 5000) (rand 'd' 2500 3200) 1 DoNothing
         z = lpf (mix (varSaw AR f3 0 0.3 * 0.3)) l * e
     in synthdef "default" (out 0 (pan2 z p a))
+
+f_merge :: Ord a => [(a,t)] -> [(a,t)] -> [(a,t)]
+f_merge p q =
+    case (p,q) of
+      ([],_) -> q
+      (_,[]) -> p
+      ((t0,e0):r0,(t1,e1):r1) ->
+            if t0 <= t1
+            then (t0,e0) : f_merge r0 q
+            else (t1,e1) : f_merge p r1
+
+{-
+f_merge (zip [0,2..10] ['a'..]) (zip [0,4..12] ['A'..])
+-}
+
+type Time = Double
+
+-- note that this uses e_fwd to calculate start times.
+e_merge' :: (Time,[Event]) -> (Time,[Event]) -> [(Time,Event)]
+e_merge' (pt,p) (qt,q) =
+    let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
+        q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
+    in f_merge (zip p_st p) (zip q_st q)
+
+add_fwd :: [(Time,Event)] -> [Event]
+add_fwd e =
+    case e of
+      (t0,e0):(t1,e1):e' ->
+          e_insert "fwd'" (t1 - t0) e0 : add_fwd ((t1,e1):e')
+      _ -> map snd e
+
+e_merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
+e_merge p q = add_fwd (e_merge' p q)
