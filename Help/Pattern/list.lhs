@@ -539,6 +539,16 @@ SC3 interlaced embedding of subarrays.
 > place [[1],[2,5],[3,6]] 2
 > place [[1],[2,5],[3,6..]] 5
 
+## pmono
+
+SC3 pattern that is a variant of pbind for controlling monophonic
+(persistent) synthesiser nodes.
+
+> let p = [("degree",pxrand 'a' [0,2,4,5,7,9,11] inf)
+>         ,("amp",pwrand 'b' [0.05,0.2] [0.7,0.3] inf)
+>         ,("dur",0.25)]
+> in audition (pmono_s "default" 100 p)
+
 ## pmul
 
 SC3 pattern to multiply an existing key by a value, or set the key if

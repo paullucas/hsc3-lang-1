@@ -210,13 +210,18 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 padd :: Num a => Key -> P a -> P (Event a) -> P (Event a)
 padd k p = pzipWith (\i j -> e_edit_v k 0 (+ i) j) p
 
-pbind' :: Type -> [Int] -> [Instrument] -> [(String,P a)] -> P (Event a)
+pbind' :: [Type] -> [Int] -> [Instrument] -> [(String,P a)] -> P (Event a)
 pbind' ty is ss xs =
-    let xs' = fmap (\(k,v) -> pzip (return k) v) xs
-    in pure (e_from_list ty) <*> fromList is <*> fromList ss <*> pflop' xs'
+    let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
+        p = fromList
+    in pure e_from_list <*> p ty <*> p is <*> p ss <*> xs'
 
 pbind :: [(String,P Double)] -> P (Event Double)
-pbind = pbind' "s_new" (repeat (-2)) (repeat (InstrumentName "default"))
+pbind =
+    let ty = repeat "s_new"
+        i = repeat (-2)
+        s = repeat (InstrumentName "default")
+    in pbind' ty i s
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
@@ -325,6 +330,18 @@ place a n =
     let i = length a
         f = if n == inf then id else take (n * i)
     in stoppingN n (fromList (f (L.concat (C.flop a))))
+
+pmono_d :: Synthdef -> Int -> [(String,P Double)] -> P (Event Double)
+pmono_d s i =
+    let ss = InstrumentDef s : repeat (InstrumentName (synthdefName s))
+        ty = "s_new_p" : repeat "n_set_p"
+    in pbind' ty (repeat i) ss
+
+pmono_s :: String -> Int -> [(String,P Double)] -> P (Event Double)
+pmono_s s i =
+    let ss = repeat (InstrumentName s)
+        ty = "s_new_p" : repeat "n_set_p"
+    in pbind' ty (repeat i) ss
 
 pmul :: Num a => Key -> P a -> P (Event a) -> P (Event a)
 pmul k p = pzipWith (\i j -> e_edit_v k 1 (* i) j) p
@@ -684,6 +701,7 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- t = time, s = instrument name
 -- rt = release time, pr = parameters
+-- ty:_p suffix (p = persist) does not send gate
 e_osc :: Double -> Int -> Event Double -> Maybe (OSC,OSC)
 e_osc t j e =
     let s = e_instrument_name e
@@ -692,17 +710,23 @@ e_osc t j e =
         a = e_amp e
         pr = ("freq",f) : ("amp",a) : e_arg e
         i = if e_id e < -1 then j else e_id e
-        m_on = if isNaN f
-               then Nothing
-               else case e_type e of
-                      "s_new" -> Just (s_new s i AddToTail 1 pr)
-                      "n_set" -> Just (n_set i pr)
-                      "rest" -> Nothing
-                      _ -> error "e_osc:type"
-    in case m_on of
-         Just m -> Just (Bundle (UTCr t) [m]
-                        ,Bundle (UTCr (t+rt)) [n_set i [("gate",0)]])
-         _ -> Nothing
+    in if isNaN f
+       then Nothing
+       else let m_on = case e_type e of
+                         "s_new" -> [s_new s i AddToTail 1 pr]
+                         "s_new_p" -> [s_new s i AddToTail 1 pr]
+                         "n_set" -> [n_set i pr]
+                         "n_set_p" -> [n_set i pr]
+                         "rest" -> []
+                         _ -> error "e_osc:m_on:type"
+                m_off = case e_type e of
+                         "s_new" -> [n_set i [("gate",0)]]
+                         "s_new_p" -> []
+                         "n_set" -> [n_set i [("gate",0)]]
+                         "n_set_p" -> []
+                         "rest" -> []
+                         _ -> error "e_osc:m_off:type"
+            in Just (Bundle (UTCr t) m_on,Bundle (UTCr (t+rt)) m_off)
 
 -- dt = delta-time
 e_play :: (Transport t) => t -> [Int] -> [Event Double] -> IO ()
