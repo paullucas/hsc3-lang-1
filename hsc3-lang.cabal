@@ -26,6 +26,7 @@ Library
                    data-default,
                    hosc == 0.10,
                    hsc3 == 0.10,
+                   MonadRandom,
                    split,
                    random,
                    random-shuffle
@@ -40,6 +41,7 @@ Library
                    Sound.SC3.Lang.Math.Datum
                    Sound.SC3.Lang.Math.Duration
                    Sound.SC3.Lang.Math.Pitch
+                   Sound.SC3.Lang.Math.Random
                    Sound.SC3.Lang.Math.SimpleNumber
                    Sound.SC3.Lang.Pattern.List
                    Sound.SC3.Lang.Pattern.Parallel
