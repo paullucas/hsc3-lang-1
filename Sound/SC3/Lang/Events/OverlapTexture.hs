@@ -51,6 +51,25 @@ overlapTextureU' k g =
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
 overlapTextureU k = audition . overlapTextureU' k
 
+post_process_s :: Int -> (UGen -> UGen) -> Synthdef
+post_process_s nc f =
+    let i = in' nc AR 0
+        u = replaceOut 0 (f i)
+        nm = show (hashUGen u)
+    in synthdef nm u
+
+post_process_a :: Transport t => t -> P Event -> Int -> (UGen -> UGen) -> IO ()
+post_process_a fd p nc f = do
+  let s = post_process_s nc f
+  _ <- async fd (d_recv s)
+  send fd (s_new (synthdefName s) (-1) AddToTail 2 [])
+  play fd p
+
+overlapTextureU_pp :: OverlapTexture -> UGen -> Int -> (UGen -> UGen) -> IO ()
+overlapTextureU_pp k u nc f = do
+  let p = overlapTextureU' k u
+  withSC3 (\fd -> post_process_a fd p nc f)
+
 xfadeTextureU' :: XFadeTexture -> UGen -> P Event
 xfadeTextureU' k g =
     let s = gen_synth (xfadeTexture_env k) g
@@ -62,6 +81,11 @@ xfadeTextureU' k g =
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
 xfadeTextureU k = audition . xfadeTextureU' k
 
+xfadeTextureU_pp :: XFadeTexture -> UGen -> Int -> (UGen -> UGen) -> IO ()
+xfadeTextureU_pp k u nc f = do
+  let p = xfadeTextureU' k u
+  withSC3 (\fd -> post_process_a fd p nc f)
+
 overlapTextureS' :: OverlapTexture -> (st -> (UGen,st)) -> st -> P Event
 overlapTextureS' k u i_st =
     let (d,l) = overlapTexture_dt k
@@ -72,6 +96,11 @@ overlapTextureS' k u i_st =
 
 overlapTextureS :: OverlapTexture -> (st -> (UGen,st)) -> st -> IO ()
 overlapTextureS k u = audition . overlapTextureS' k u
+
+overlapTextureS_pp :: OverlapTexture -> (st -> (UGen,st)) -> st -> Int -> (UGen -> UGen) -> IO ()
+overlapTextureS_pp k u i_st nc f = do
+  let p = overlapTextureS' k u i_st
+  withSC3 (\fd -> post_process_a fd p nc f)
 
 at' :: st -> Double -> ((st,Double) -> IO (Maybe (st,Double))) -> IO ()
 at' st t f = do
