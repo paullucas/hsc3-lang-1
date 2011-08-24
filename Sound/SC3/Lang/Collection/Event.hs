@@ -1,11 +1,14 @@
 module Sound.SC3.Lang.Collection.Event
-    (Event(..),Type,Key,Value,Time,defaultEvent
+    (Event(..),Type,Key,Value,E_Time,defaultEvent
+    ,Instrument(..),defaultInstrument
     ,e_insert,e_edit,e_edit_v,e_from_list,e_merge
-    ,e_instrument_name,e_instrument_def,e_sustain,e_freq,e_amp,e_arg,e_fwd
-    ,Instrument(..),defaultInstrument) where
+    ,e_instrument_name,e_instrument_def
+    ,e_fwd,e_sustain,e_freq,e_amp
+    ,e_parameters,e_sc3_osc) where
 
 import qualified Data.Map as M
 import Data.Maybe
+import Sound.OpenSoundControl
 import Sound.SC3.ID
 import Sound.SC3.Lang.Math.Duration as D
 import Sound.SC3.Lang.Math.Pitch
@@ -122,14 +125,14 @@ e_reserved =
     ,"delta","dur","legato","fwd'","stretch","sustain","tempo"
     ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"]
 
-e_arg' :: (Key,Value) -> Maybe (Key,Value)
-e_arg' (k,v) =
+e_parameters' :: (Key,Value) -> Maybe (Key,Value)
+e_parameters' (k,v) =
     if k `elem` e_reserved
     then Nothing
     else Just (k,v)
 
-e_arg :: Event -> [(Key,Value)]
-e_arg = mapMaybe e_arg' . M.toList . e_map
+e_parameters :: Event -> [(Key,Value)]
+e_parameters = mapMaybe e_parameters' . M.toList . e_map
 
 e_edit_v :: Key -> Value -> (Value -> Value) -> Event -> Event
 e_edit_v k v f e =
@@ -198,21 +201,52 @@ f_merge p q =
 f_merge (zip [0,2..10] ['a'..]) (zip [0,4..12] ['A'..])
 -}
 
-type Time = Double
+type E_Time = Double
 
 -- note that this uses e_fwd to calculate start times.
-e_merge' :: (Time,[Event]) -> (Time,[Event]) -> [(Time,Event)]
+e_merge' :: (E_Time,[Event]) -> (E_Time,[Event]) -> [(E_Time,Event)]
 e_merge' (pt,p) (qt,q) =
     let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
         q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
     in f_merge (zip p_st p) (zip q_st q)
 
-add_fwd :: [(Time,Event)] -> [Event]
+add_fwd :: [(E_Time,Event)] -> [Event]
 add_fwd e =
     case e of
       (t0,e0):(t1,e1):e' ->
           e_insert "fwd'" (t1 - t0) e0 : add_fwd ((t1,e1):e')
       _ -> map snd e
 
-e_merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
+e_merge :: (E_Time,[Event]) -> (E_Time,[Event]) -> [Event]
 e_merge p q = add_fwd (e_merge' p q)
+
+-- t = time, s = instrument name
+-- rt = release time, pr = parameters
+-- ty:_p suffix (p = persist) does not send gate
+e_sc3_osc :: Double -> Int -> Event -> Maybe (OSC,OSC)
+e_sc3_osc t j e =
+    let s = e_instrument_name e
+        rt = e_sustain e
+        f = e_freq e
+        a = e_amp e
+        pr = ("freq",f) : ("amp",a) : e_parameters e
+        i = case e_id e of
+              Nothing -> j
+              Just i' -> i'
+    in if isNaN f
+       then Nothing
+       else let m_on = case e_type e of
+                         "s_new" -> [s_new s i AddToTail 1 pr]
+                         "s_new_p" -> [s_new s i AddToTail 1 pr]
+                         "n_set" -> [n_set i pr]
+                         "n_set_p" -> [n_set i pr]
+                         "rest" -> []
+                         _ -> error "e_osc:m_on:type"
+                m_off = case e_type e of
+                         "s_new" -> [n_set i [("gate",0)]]
+                         "s_new_p" -> []
+                         "n_set" -> [n_set i [("gate",0)]]
+                         "n_set_p" -> []
+                         "rest" -> []
+                         _ -> error "e_osc:m_off:type"
+            in Just (Bundle (UTCr t) m_on,Bundle (UTCr (t+rt)) m_off)

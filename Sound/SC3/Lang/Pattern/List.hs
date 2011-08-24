@@ -651,14 +651,14 @@ ptrigger = liftP2 trigger
 
 -- * Parallel patterns
 
-ptmerge :: (E.Time,P Event) -> (E.Time,P Event) -> P Event
+ptmerge :: (E_Time,P Event) -> (E_Time,P Event) -> P Event
 ptmerge (pt,p) (qt,q) =
     fromList (e_merge (pt,toList p) (qt,toList q))
 
 pmerge :: P Event -> P Event -> P Event
 pmerge p q = ptmerge (0,p) (0,q)
 
-ptpar :: [(E.Time,P Event)] -> P Event
+ptpar :: [(E_Time,P Event)] -> P Event
 ptpar l =
     case l of
       [] -> pempty
@@ -670,37 +670,6 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern audition
 
--- t = time, s = instrument name
--- rt = release time, pr = parameters
--- ty:_p suffix (p = persist) does not send gate
-e_osc :: Double -> Int -> Event -> Maybe (OSC,OSC)
-e_osc t j e =
-    let s = e_instrument_name e
-        rt = e_sustain e
-        f = e_freq e
-        a = e_amp e
-        pr = ("freq",f) : ("amp",a) : e_arg e
-        i = case e_id e of
-              Nothing -> j
-              Just i' -> i'
-    in if isNaN f
-       then Nothing
-       else let m_on = case e_type e of
-                         "s_new" -> [s_new s i AddToTail 1 pr]
-                         "s_new_p" -> [s_new s i AddToTail 1 pr]
-                         "n_set" -> [n_set i pr]
-                         "n_set_p" -> [n_set i pr]
-                         "rest" -> []
-                         _ -> error "e_osc:m_on:type"
-                m_off = case e_type e of
-                         "s_new" -> [n_set i [("gate",0)]]
-                         "s_new_p" -> []
-                         "n_set" -> [n_set i [("gate",0)]]
-                         "n_set_p" -> []
-                         "rest" -> []
-                         _ -> error "e_osc:m_off:type"
-            in Just (Bundle (UTCr t) m_on,Bundle (UTCr (t+rt)) m_off)
-
 -- dt = delta-time
 e_play :: (Transport t) => t -> [Int] -> [Event] -> IO ()
 e_play fd lj le = do
@@ -708,7 +677,7 @@ e_play fd lj le = do
       act _ [] _ = error "e_play:id?"
       act t (j:js) (e:es) =
           do let dt = e_fwd e
-             case e_osc t j e of
+             case e_sc3_osc t j e of
                Just (p,q) -> do case e_instrument_def e of
                                   Just d -> async fd (d_recv d) >> return ()
                                   Nothing -> return ()
