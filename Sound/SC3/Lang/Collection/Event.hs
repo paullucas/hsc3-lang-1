@@ -1,7 +1,7 @@
 module Sound.SC3.Lang.Collection.Event
     (Event(..),Type,Key,Value,E_Time,defaultEvent
     ,Instrument(..),defaultInstrument
-    ,e_insert,e_edit,e_edit_v,e_from_list,e_merge
+    ,event,e_insert,e_edit,e_edit_v,e_from_list,e_merge
     ,e_instrument_name,e_instrument_def
     ,e_fwd,e_sustain,e_freq,e_amp
     ,e_parameters,e_sc3_osc) where
@@ -151,6 +151,13 @@ e_from_list t n i l =
     Event {e_type = t
           ,e_id = n
           ,e_instrument = i
+          ,e_map = M.fromList l}
+
+event :: [(Key,Value)] -> Event
+event l =
+    Event {e_type = "s_new"
+          ,e_id = Nothing
+          ,e_instrument = Nothing
           ,e_map = M.fromList l}
 
 e_instrument_name :: Event -> String

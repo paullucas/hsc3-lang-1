@@ -1,6 +1,7 @@
 module Sound.SC3.Lang.Math.Random where
 
 import Control.Monad.Random {- MonadRandom -}
+import qualified Sound.SC3.Lang.Math.SimpleNumber as N
 
 rand :: (RandomGen g,Random n,Num n) => n -> Rand g n
 rand n = getRandomR (0,n)
@@ -27,3 +28,8 @@ choose l = do
 
 nchoose :: (RandomGen g) => Int -> [a] -> Rand g [a]
 nchoose k l = sequence (replicate k (choose l))
+
+exprand :: (Floating n,Random n,RandomGen g) => n -> n -> Rand g n
+exprand l r = do
+  n <- rrand 0.0 1.0
+  return (N.exprandrng l r n)
