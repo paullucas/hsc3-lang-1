@@ -1,7 +1,7 @@
 module Sound.SC3.Lang.Collection where
 
 import Data.List.Split {- split -}
-import Data.List
+import Data.List as L
 import Data.Maybe
 
 -- * Collection
@@ -129,17 +129,29 @@ first xs =
       [] -> Nothing
       x:_ -> Just x
 
--- | The last element.
-last' :: [t] -> Maybe t
-last' xs =
+first' :: [t] -> t
+first' = head
+
+lastM :: [t] -> Maybe t
+lastM xs =
     case xs of
       [] -> Nothing
       [x] -> Just x
-      _:xs' -> last' xs'
+      _:xs' -> lastM xs'
+
+-- | The last element.
+last :: [t] -> Maybe t
+last = lastM
+
+last' :: [t] -> t
+last' = L.last
 
 -- | flip elemIndex
 indexOf :: Eq a => [a] -> a -> Maybe Int
 indexOf = flip elemIndex
+
+indexOf' :: Eq a => [a] -> a -> Int
+indexOf' l = fromJust . indexOf l
 
 -- | indexOf
 indexOfEqual :: Eq a => [a] -> a -> Maybe Int
@@ -173,14 +185,14 @@ indexInBetween e l =
 keep :: Int -> [a] -> [a]
 keep n l =
     if n < 0
-    then drop (length l + n) l
+    then L.drop (length l + n) l
     else take n l
 
-drop' :: Int -> [a] -> [a]
-drop' n l =
+drop :: Int -> [a] -> [a]
+drop n l =
     if n < 0
     then take (length l + n) l
-    else drop n l
+    else L.drop n l
 
 extension :: [[a]] -> [()]
 extension x =

@@ -15,8 +15,8 @@ Build-Type:        Simple
 Cabal-Version:     >= 1.8
 
 Data-files:        README
-                   Help/Collection/*.help.lhs
-                   Help/Math/*.help.lhs
+                   Help/Collection/*.lhs
+                   Help/Control/*.lhs
                    Help/Pattern/*.lhs
 
 Library
