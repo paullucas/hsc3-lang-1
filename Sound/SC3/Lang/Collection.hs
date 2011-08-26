@@ -1,11 +1,97 @@
-module Sound.SC3.Lang.Collection.SequenceableCollection where
+module Sound.SC3.Lang.Collection where
 
-import Control.Monad
-import Data.List
 import Data.List.Split {- split -}
-import Sound.SC3.Lang.Collection.Collection
-import System.Random {- random -}
-import System.Random.Shuffle {- random-shuffle -}
+import Data.List
+import Data.Maybe
+
+-- * Collection
+
+fill :: Int -> (Int -> a) -> [a]
+fill n f = map f [0 .. n - 1]
+
+size :: [a] -> Int
+size = length
+
+isEmpty :: [a] -> Bool
+isEmpty = null
+
+ignoringIndex :: (a -> b) -> a -> Int -> b
+ignoringIndex f e _ = f e
+
+collect :: (a -> Int -> b) -> [a] -> [b]
+collect f l = zipWith f l [0..]
+
+select :: (a -> Int -> Bool) -> [a] -> [a]
+select f l = map fst (filter (uncurry f) (zip l [0..]))
+
+reject :: (a -> Int -> Bool) -> [a] -> [a]
+reject f l = map fst (filter (not . uncurry f) (zip l [0..]))
+
+detect :: (a -> Int -> Bool) -> [a] -> Maybe a
+detect f l = maybe Nothing (Just . fst) (find (uncurry f) (zip l [0..]))
+
+detectIndex :: (a -> Int -> Bool) -> [a] -> Maybe Int
+detectIndex f l = maybe Nothing (Just . snd) (find (uncurry f) (zip l [0..]))
+
+inject :: a -> (a -> b -> a) -> [b] -> a
+inject i f = foldl f i
+
+any' :: (a -> Int -> Bool) -> [a] -> Bool
+any' f = isJust . detect f
+
+every :: (a -> Int -> Bool) -> [a] -> Bool
+every f = let g e = not . f e
+          in not . any' g
+
+count :: (a -> Int -> Bool) -> [a] -> Int
+count f = length . select f
+
+occurencesOf :: (Eq a) => a -> [a] -> Int
+occurencesOf k = count (\e _ -> e == k)
+
+sum' :: (Num a) => (b -> Int -> a) -> [b] -> a
+sum' f = sum . collect f
+
+maxItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
+maxItem f = maximum . collect f
+
+minItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
+minItem f = minimum . collect f
+
+-- | Variant that cycles the shorter input.
+zipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith_c f a b =
+    let g [] [] _ = []
+        g [] b' (_,e) = if e then [] else g a b' (True,e)
+        g a' [] (e,_) = if e then [] else g a' b (e,True)
+        g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
+    in g a b (False,False)
+
+zip_c :: [a] -> [b] -> [(a,b)]
+zip_c = zipWith_c (,)
+
+zipWith3_c :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
+zipWith3_c f p q r =
+    let g = map (const ())
+        l = [g p,g q,g r]
+        f' _ = f
+    in zipWith4 f' (extension l) (cycle p) (cycle q) (cycle r)
+
+zip3_c :: [a] -> [b] -> [c] -> [(a,b,c)]
+zip3_c = zipWith3_c (\a b c -> (a,b,c))
+
+{-
+zip3_c [1..2] [3..5] [6..9]
+-}
+
+zap_c :: [a -> b] -> [a] -> [b]
+zap_c = zipWith_c (\f e -> f e)
+
+{-
+zap_c [(+1)] [1..10]
+-}
+
+-- * Sequenceable Collection
 
 with_counter :: (a -> (b,a)) -> Int -> a -> [b]
 with_counter f =
@@ -35,14 +121,6 @@ fib n i j =
     case n of
       0 -> []
       _ -> j : fib (n - 1) j (i + j)
-
--- | Random values (size, min, max) - ought this be in floating?
-rand :: (Random a) => Int -> a -> a -> IO [a]
-rand n l r = replicateM n (getStdRandom (randomR (l,r)))
-
--- | Random values in the range -abs to +abs (size, abs)
-rand2 :: (Num a,Random a) => Int -> a -> IO [a]
-rand2 n m = replicateM n (getStdRandom (randomR (negate m,m)))
 
 -- | The first element.
 first :: [t] -> Maybe t
@@ -121,14 +199,6 @@ extendSequences l =
     let f = zipWith (\_ x -> x) (extension l) . cycle
     in map f l
 
-choose' :: RandomGen g => [a] -> g -> (a,g)
-choose' l g =
-    let (i,g') = randomR (0,length l - 1) g
-    in (l !! i,g')
-
-choose :: [a] -> IO a
-choose = getStdRandom . choose'
-
 separateAt :: (a -> a -> Bool) -> [a] -> ([a],[a])
 separateAt f xs =
     case xs of
@@ -175,83 +245,3 @@ normalizeSum :: (Fractional a) => [a] -> [a]
 normalizeSum l =
     let n = sum l
     in map (/ n) l
-
-scramble' :: RandomGen g => [t] -> g -> ([t],g)
-scramble' k g =
-    let (_,g') = next g
-    in (shuffle' k (length k) g,g')
-
-scramble :: [t] -> IO [t]
-scramble = getStdRandom . scramble'
-
-windex :: (Ord a,Num a) => [a] -> a -> Maybe Int
-windex w n = findIndex (n <) (integrate w)
-
-wchoose' :: (RandomGen g,Random a,Ord a,Fractional a) =>
-            [b] -> [a] -> g -> (b,g)
-wchoose' l w g =
-  let (i,g') = randomR (0.0,1.0) g
-      n = case windex w i of
-            Nothing -> error "wchoose: windex"
-            Just n' -> n'
-  in (l !! n,g')
-
-wchoose :: (Random a,Ord a,Fractional a) => [b] -> [a] -> IO b
-wchoose l = getStdRandom . wchoose' l
-
-{-
-sequence (replicate 20 (wchoose [1..5] [0.4,0.2,0.2,0.1,0.1]))
--}
-
--- * Extension (list & pattern)
-
-class Extending f where
-    zipWith_c :: (a -> b -> c) -> f a -> f b -> f c
-
--- | Variant that cycles the shorter input.
-lZipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
-lZipWith_c f a b =
-    let g [] [] _ = []
-        g [] b' (_,e) = if e then [] else g a b' (True,e)
-        g a' [] (e,_) = if e then [] else g a' b (e,True)
-        g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
-    in g a b (False,False)
-
-instance Extending [] where
-    zipWith_c = lZipWith_c
-
-(+.) :: (Extending f,Num a) => f a -> f a -> f a
-(+.) = zipWith_c (+)
-
-(*.) :: (Extending f,Num a) => f a -> f a -> f a
-(*.) = zipWith_c (*)
-
-(/.) :: (Extending f,Fractional a) => f a -> f a -> f a
-(/.) = zipWith_c (/)
-
-(-.) :: (Extending f,Num a) => f a -> f a -> f a
-(-.) = zipWith_c (-)
-
-zip_c :: [a] -> [b] -> [(a,b)]
-zip_c = zipWith_c (,)
-
-zipWith3_c :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
-zipWith3_c f p q r =
-    let g = map (const ())
-        l = [g p,g q,g r]
-        f' _ = f
-    in zipWith4 f' (extension l) (cycle p) (cycle q) (cycle r)
-
-zip3_c :: [a] -> [b] -> [c] -> [(a,b,c)]
-zip3_c = zipWith3_c (\a b c -> (a,b,c))
-
-{-
-zip3_c [1..2] [3..5] [6..9]
--}
-
-zap_c :: [a -> b] -> [a] -> [b]
-zap_c = zipWith_c (\f e -> f e)
-
-{-
-zap_c [(+1)] [1..10]
--}

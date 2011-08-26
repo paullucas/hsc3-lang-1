@@ -1,5 +1,5 @@
 {-# Language FlexibleInstances #-}
-module Sound.SC3.Lang.Pattern.List where
+module Sound.SC3.Lang.Pattern.ID where
 
 import Control.Applicative hiding ((<*))
 import Control.Monad
@@ -12,10 +12,12 @@ import Data.Monoid
 import Data.Traversable
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Lang.Collection.Event as E
-import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-import qualified Sound.SC3.Lang.Math.Pitch as P
-import qualified Sound.SC3.Lang.Math.SimpleNumber as N
+import qualified Sound.SC3.Lang.Collection as C
+import qualified Sound.SC3.Lang.Control.Event as E
+import qualified Sound.SC3.Lang.Control.Instrument as I
+import qualified Sound.SC3.Lang.Control.Pitch as P
+import qualified Sound.SC3.Lang.Math as M
+import qualified Sound.SC3.Lang.Random.Gen as R
 import System.Random
 
 -- * P type and instances
@@ -207,16 +209,16 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 
 -- * SC3 patterns
 
-padd :: Key -> P Value -> P Event -> P Event
-padd k p = pzipWith (\i j -> e_edit_v k 0 (+ i) j) p
+padd :: E.Key -> P E.Value -> P E.Event -> P E.Event
+padd k p = pzipWith (\i j -> E.edit_v k 0 (+ i) j) p
 
-pbind' :: [Type] -> [Maybe Int] -> [Maybe Instrument] -> [(String,P Value)] -> P Event
+pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> [(String,P E.Value)] -> P E.Event
 pbind' ty is ss xs =
     let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
         p = fromList
-    in pure e_from_list <*> p ty <*> p is <*> p ss <*> xs'
+    in pure E.from_list <*> p ty <*> p is <*> p ss <*> xs'
 
-pbind :: [(String,P Value)] -> P Event
+pbind :: [(String,P E.Value)] -> P E.Event
 pbind =
     let ty = repeat "s_new"
         i = repeat Nothing
@@ -277,11 +279,11 @@ durStutter p =
 pdurStutter :: Fractional a => P Int -> P a -> P a
 pdurStutter = liftP2 durStutter
 
-pedit :: Key -> (Value -> Value) -> P Event -> P Event
-pedit k f = fmap (e_edit k f)
+pedit :: E.Key -> (E.Value -> E.Value) -> P E.Event -> P E.Event
+pedit k f = fmap (E.edit k f)
 
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
-pexprand e l r n = fmap (N.exprandrng l r) (pwhite e 0 1 n)
+pexprand e l r n = fmap (M.exprandrng l r) (pwhite e 0 1 n)
 
 pfinval :: Int -> P a -> P a
 pfinval = ptake
@@ -316,14 +318,14 @@ ifExtending a b c = map ifF' (C.zip3_c a b c)
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
-pinstr :: P Instrument -> P Event -> P Event
-pinstr p = pzipWith (\i e -> e {e_instrument = Just i}) p
+pinstr :: P I.Instrument -> P E.Event -> P E.Event
+pinstr p = pzipWith (\i e -> e {E.e_instrument = Just i}) p
 
-pinstr_s :: P String -> P Event -> P Event
-pinstr_s p = pinstr (fmap InstrumentName p)
+pinstr_s :: P String -> P E.Event -> P E.Event
+pinstr_s p = pinstr (fmap I.InstrumentName p)
 
-pinstr_d :: P Synthdef -> P Event -> P Event
-pinstr_d p = pinstr (fmap InstrumentDef p)
+pinstr_d :: P Synthdef -> P E.Event -> P E.Event
+pinstr_d p = pinstr (fmap I.InstrumentDef p)
 
 place :: [[a]] -> Int -> P a
 place a n =
@@ -331,24 +333,24 @@ place a n =
         f = if n == inf then id else take (n * i)
     in stoppingN n (fromList (f (L.concat (C.flop a))))
 
-pmono_d :: Synthdef -> Int -> [(String,P Double)] -> P Event
+pmono_d :: Synthdef -> Int -> [(String,P Double)] -> P E.Event
 pmono_d s i =
-    let ss = InstrumentDef s : repeat (InstrumentName (synthdefName s))
+    let ss = I.InstrumentDef s : repeat (I.InstrumentName (synthdefName s))
         ty = "s_new_p" : repeat "n_set_p"
     in pbind' ty (repeat (Just i)) (map Just ss)
 
-pmono_s :: String -> Int -> [(String,P Double)] -> P Event
+pmono_s :: String -> Int -> [(String,P Double)] -> P E.Event
 pmono_s s i =
-    let ss = repeat (Just (InstrumentName s))
+    let ss = repeat (Just (I.InstrumentName s))
         ty = "s_new_p" : repeat "n_set_p"
     in pbind' ty (repeat (Just i)) ss
 
-pmul :: Key -> P Value -> P Event -> P Event
-pmul k p = pzipWith (\i j -> e_edit_v k 1 (* i) j) p
+pmul :: E.Key -> P E.Value -> P E.Event -> P E.Event
+pmul k p = pzipWith (\i j -> E.edit_v k 1 (* i) j) p
 
 -- | Variant that does not insert key.
-pmul' :: Key -> P Value -> P Event -> P Event
-pmul' k p = pzipWith (\i j -> e_edit k (* i) j) p
+pmul' :: E.Key -> P E.Value -> P E.Event -> P E.Event
+pmul' k p = pzipWith (\i j -> E.edit k (* i) j) p
 
 ppatlace :: [P a] -> Int -> P a
 ppatlace a n =
@@ -431,7 +433,7 @@ pseries i s n = P (C.series n i s) (stp n)
 
 pshuf :: Enum e => e -> [a] -> Int -> P a
 pshuf e a =
-    let (a',_) = C.scramble' a (mkStdGen (fromEnum e))
+    let (a',_) = R.scramble a (mkStdGen (fromEnum e))
     in pn (P a' Continue)
 
 wrap' :: (Num a,Ord a) => (a,a) -> a -> a
@@ -466,7 +468,7 @@ psplitPlaces' = liftP2 S.splitPlaces
 psplitPlaces :: P Int -> P a -> P (P a)
 psplitPlaces n = fmap fromList . psplitPlaces' n
 
-pstretch :: P Value -> P Event -> P Event
+pstretch :: P E.Value -> P E.Event -> P E.Event
 pstretch = pmul "stretch"
 
 stutterTruncating :: [Int] -> [a] -> [a]
@@ -520,7 +522,7 @@ pwhitei e l r = fmap roundE . pwhite e l r
 
 wrand' :: (Enum e) =>e -> [[a]] -> [Double] -> [a]
 wrand' e a w =
-    let f g = let (r,g') = C.wchoose' a w g
+    let f g = let (r,g') = R.wchoose a w g
               in r ++ f g'
     in f (mkStdGen (fromEnum e))
 
@@ -651,34 +653,34 @@ ptrigger = liftP2 trigger
 
 -- * Parallel patterns
 
-ptmerge :: (E_Time,P Event) -> (E_Time,P Event) -> P Event
+ptmerge :: (E.Time,P E.Event) -> (E.Time,P E.Event) -> P E.Event
 ptmerge (pt,p) (qt,q) =
-    fromList (e_merge (pt,toList p) (qt,toList q))
+    fromList (E.merge (pt,toList p) (qt,toList q))
 
-pmerge :: P Event -> P Event -> P Event
+pmerge :: P E.Event -> P E.Event -> P E.Event
 pmerge p q = ptmerge (0,p) (0,q)
 
-ptpar :: [(E_Time,P Event)] -> P Event
+ptpar :: [(E.Time,P E.Event)] -> P E.Event
 ptpar l =
     case l of
       [] -> pempty
       [(_,p)] -> p
       (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
 
-ppar :: [P Event] -> P Event
+ppar :: [P E.Event] -> P E.Event
 ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern audition
 
 -- dt = delta-time
-e_play :: (Transport t) => t -> [Int] -> [Event] -> IO ()
+e_play :: (Transport t) => t -> [Int] -> [E.Event] -> IO ()
 e_play fd lj le = do
   let act _ _ [] = return ()
       act _ [] _ = error "e_play:id?"
       act t (j:js) (e:es) =
-          do let dt = e_fwd e
-             case e_sc3_osc t j e of
-               Just (p,q) -> do case e_instrument_def e of
+          do let dt = E.fwd e
+             case E.to_sc3_osc t j e of
+               Just (p,q) -> do case E.instrument_def e of
                                   Just d -> async fd (d_recv d) >> return ()
                                   Nothing -> return ()
                                 send fd p
@@ -689,19 +691,19 @@ e_play fd lj le = do
   st <- utcr
   act st lj le
 
-instance Audible (P Event) where
+instance Audible (P E.Event) where
     play fd = e_play fd [1000..] . unP
 
-instance Audible (Synthdef,P Event) where
+instance Audible (Synthdef,P E.Event) where
     play fd (s,p) = do
-      let i_d = InstrumentDef s
-          i_nm = InstrumentName (synthdefName s)
+      let i_d = I.InstrumentDef s
+          i_nm = I.InstrumentName (synthdefName s)
           i = pcons i_d (pn (return i_nm) inf)
       _ <- async fd (d_recv s)
       e_play fd [1000..] (unP (pinstr i p))
 
-instance Audible (String,P Event) where
+instance Audible (String,P E.Event) where
     play fd (s,p) =
-        let i = InstrumentName s
+        let i = I.InstrumentName s
         in e_play fd [1000..] (unP (pinstr (return i) p))
 

@@ -31,21 +31,21 @@ Library
                    random,
                    random-shuffle
   GHC-Options:     -Wall -fwarn-tabs
-  Exposed-modules: Sound.SC3.Lang.Collection.Collection
-                   Sound.SC3.Lang.Collection.Event
+  Exposed-modules: Sound.SC3.Lang.Collection
+                   Sound.SC3.Lang.Collection.Extension
                    Sound.SC3.Lang.Collection.Numerical.Extending
                    Sound.SC3.Lang.Collection.Numerical.Truncating
-                   Sound.SC3.Lang.Collection.SequenceableCollection
-                   Sound.SC3.Lang.Events.OverlapTexture
-                   Sound.SC3.Lang.Math.Binary
-                   Sound.SC3.Lang.Math.Datum
-                   Sound.SC3.Lang.Math.Duration
-                   Sound.SC3.Lang.Math.Pitch
-                   Sound.SC3.Lang.Math.Random
-                   Sound.SC3.Lang.Math.SimpleNumber
-                   Sound.SC3.Lang.Pattern.List
-                   Sound.SC3.Lang.Pattern.Parallel
-                   Sound.SC3.Lang.Pattern.Step
+                   Sound.SC3.Lang.Collection.Universal.Datum
+                   Sound.SC3.Lang.Control.Duration
+                   Sound.SC3.Lang.Control.Event
+                   Sound.SC3.Lang.Control.Instrument
+                   Sound.SC3.Lang.Control.Pitch
+                   Sound.SC3.Lang.Control.OverlapTexture
+                   Sound.SC3.Lang.Math
+                   Sound.SC3.Lang.Pattern.ID
+                   Sound.SC3.Lang.Random.Gen
+                   Sound.SC3.Lang.Random.IO
+                   Sound.SC3.Lang.Random.Monad
 
 Source-Repository  head
   Type:            darcs

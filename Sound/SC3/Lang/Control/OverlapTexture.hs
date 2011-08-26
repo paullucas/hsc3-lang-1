@@ -1,10 +1,11 @@
-module Sound.SC3.Lang.Events.OverlapTexture where
+module Sound.SC3.Lang.Control.OverlapTexture where
 
 import Data.List
 import Sound.OpenSoundControl
 import Sound.SC3
-import Sound.SC3.Lang.Collection.Event
-import Sound.SC3.Lang.Pattern.List
+import Sound.SC3.Lang.Control.Event
+import Sound.SC3.Lang.Control.Instrument
+import Sound.SC3.Lang.Pattern.ID
 
 mk_env :: UGen -> UGen -> UGen
 mk_env a s =

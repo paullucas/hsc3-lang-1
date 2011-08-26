@@ -1,14 +1,16 @@
 > import Sound.SC3.ID
-> import Sound.SC3.Lang.Pattern.List
+> import Sound.SC3.Lang.Pattern.ID
 
 > import Control.Applicative
 > import Control.Monad
 > import qualified Data.Foldable as F
 > import Data.Monoid
 > import Sound.OpenSoundControl
-> import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-> import Sound.SC3.Lang.Collection.Event
-> import qualified Sound.SC3.Lang.Math.SimpleNumber as N
+> import qualified Sound.SC3.Lang.Collection as C
+> import qualified Sound.SC3.Lang.Control.Event as E
+> import qualified Sound.SC3.Lang.Control.Instrument as I
+> import qualified Sound.SC3.Lang.Control.Pitch as P
+> import qualified Sound.SC3.Lang.Math as M
 
 ## audition
 
@@ -86,8 +88,8 @@ A primitive form of the SC3 pbind pattern, with explicit type and identifier inp
 
 > audition (pbind'
 >           (repeat "n_set")
->           (repeat (-1))
->           (repeat (InstrumentName "default"))
+>           (repeat (Just (-1)))
+>           (repeat Nothing)
 >           [("freq",pwhite 'a' 100 1000 inf)
 >           ,("dur",0.2)
 >           ,("amp",fromList [1,0.99 .. 0.1])])
@@ -346,8 +348,6 @@ SC3 pattern to derive notes from an index into a scale.
 
 The degree_to_key function is also given.
 
-> import qualified Sound.SC3.Lang.Math.Pitch as P
-
 > map (\n -> P.degree_to_key n [0,2,4,5,7,9,11] 12) [0,2,4,7,4,2,0]
 
 ## pdiff
@@ -442,8 +442,11 @@ Note that ptake does not extend the input pattern, unlike pser.
 SC3 pattern to fold values to lie within range (as opposed to wrap and
 clip).  This is not related to the Data.Foldable pattern instance.
 
-> audition (pbind [("degree",pfold (pseries 4 1 inf) (-7) 11),("dur",0.0625)])
-> audition (pbind [("degree",fmap (\n -> fold_ n (-7) 11) (pseries 4 1 inf)),("dur",0.0625)])
+> audition (pbind [("degree",pfold (pseries 4 1 inf) (-7) 11)
+>                  ,("dur",0.0625)])
+
+> audition (pbind [("degree",fmap (\n -> fold_ n (-7) 11) (pseries 4 1 inf))
+>                  ,("dur",0.0625)])
 
 ## pfuncn
 
@@ -452,8 +455,12 @@ The haskell variant function is of the form (StdGen -> (n,StdGen)).
 
 - p = Pfuncn({exprand(0.1,0.3) + #[1,2,3,6,7].choose},inf);
 - Pbind(\freq,p * 100 + 300,\dur,0.02).play
-> let p = pfuncn 'a' (N.exprand' 0.1 0.3) inf + pfuncn 'b' (C.choose' [1,2,3,6,7]) inf
-> in audition (pbind [("freq",p * 100 + 300),("dur",0.02)])
+
+> let {exprand = Sound.SC3.Lang.Random.Gen.exprand
+>     ;choose = Sound.SC3.Lang.Random.Gen.choose
+>     ;p = pfuncn 'a' (exprand 0.1 0.3) inf
+>     ;q = pfuncn 'b' (choose [1,2,3,6,7]) inf}
+> in audition (pbind [("freq",(p + q) * 100 + 300),("dur",0.02)])
 
 Of course in this case there is a pattern equivalent.
 
@@ -504,8 +511,8 @@ has timing implications.  In general the case instrument pattern ought
 to have a Synthdef for the first occurence of the instrument, and a
 String for subsequent occurences.  See also audition instances.
 
-> let {si = return (InstrumentName "sine")
->     ;di = return (InstrumentName "default")
+> let {si = return (I.InstrumentName "sine")
+>     ;di = return (I.InstrumentName "default")
 >     ;i = pseq [si,si,di] inf
 >     ;p = pbind [("degree",pseq [0,2,4,7] inf),("dur",0.25)]}
 > in audition (pinstr i p)
@@ -623,10 +630,8 @@ based pattern library.  This is precisely because the
 noise patterns are values, not processes with a state
 threaded non-locally.
 
-> import qualified Sound.SC3.Lang.Math.SimpleNumber as N
-
-> do { n0 <- N.rrand 2 5
->    ; n1 <- N.rrand 3 9
+> do { n0 <- Sound.SC3.Lang.Random.IO.rrand 2 5
+>    ; n1 <- Sound.SC3.Lang.Random.IO.rrand 3 9
 >    ; let p = pseq [prand 'a' [pempty,pseq [24,31,36,43,48,55] 1] 1
 >                   ,pseq [60,prand 'b' [63,65] 1
 >                         ,67,prand 'c' [70,72,74] 1] n0
@@ -775,7 +780,8 @@ this pseq variant handles many common cases.
 
 A variant that passes a new 'seed' at each invocation.  See also pfunc.
 
-> let d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4,pseq [0,1,2,3,4,5,6,7] 1]) inf
+> let d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4
+>                      ,pseq [0,1,2,3,4,5,6,7] 1]) inf
 > in audition (pbind [("degree",d),("dur",0.15)])
 
 ## pser
@@ -1054,7 +1060,7 @@ There is no pkey function, rather name the pattern using let.
 > let d = pseq [pseries (-7) 1 14,pseries 7 (-1) 14] inf
 > in audition (pbind [("degree",d)
 >                    ,("dur",0.25)
->                    ,("legato",fmap (N.linexp (-7) 7 2 0.05) d)])
+>                    ,("legato",fmap (M.linexp (-7) 7 2 0.05) d)])
 
 ## Pitch model
 
@@ -1144,7 +1150,10 @@ ppar is a variant of ptpar which allows non-equal start times.
 >                 ,(2,pbind [("dur",0.1),("pan",1),("midinote",pseries 46 3 15)])])
 
 > let {d = pseq [pgeom 0.05 1.1 24,pgeom 0.5 0.909 24] 2
->     ;f n a p = pbind [("dur",d),("db",a),("pan",p),("midinote",pseq [n,n-4] inf)]}
+>     ;f n a p = pbind [("dur",d)
+>                      ,("db",a)
+>                      ,("pan",p)
+>                      ,("midinote",pseq [n,n-4] inf)]}
 > in audition (ptpar [(0,f 53 (-20) (-0.9))
 >                    ,(2,f 60 (-23) (-0.3))
 >                    ,(4,f 67 (-26) 0.3)

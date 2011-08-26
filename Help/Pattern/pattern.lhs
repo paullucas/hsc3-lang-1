@@ -3,8 +3,8 @@
 > import Data.Foldable as F
 > import Data.Maybe
 > import Data.Traversable as T
-> import qualified Sound.SC3.Lang.Collection.SequenceableCollection as C
-> import Sound.SC3.Lang.Pattern.List
+> import qualified Sound.SC3.Lang.Collection as C
+> import Sound.SC3.Lang.Pattern.ID
 
 * Beginning
 

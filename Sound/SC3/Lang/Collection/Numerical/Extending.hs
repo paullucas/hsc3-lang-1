@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Sound.SC3.Lang.Collection.Numerical.Extending where
 
-import Sound.SC3.Lang.Collection.SequenceableCollection (zipWith_c)
+import Sound.SC3.Lang.Collection.Extension (zipWith_c)
 
 instance Num a => Num [a] where
     negate = map negate

@@ -1,4 +1,4 @@
-module Sound.SC3.Lang.Math.Pitch where
+module Sound.SC3.Lang.Control.Pitch where
 
 data Pitch a = Pitch { mtranspose :: a
                      , gtranspose :: a

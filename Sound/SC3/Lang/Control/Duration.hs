@@ -1,4 +1,4 @@
-module Sound.SC3.Lang.Math.Duration where
+module Sound.SC3.Lang.Control.Duration where
 
 default_delta_f :: (Num a,Fractional a) => Duration a -> a
 default_delta_f d = dur d * stretch d * (60 / tempo d)

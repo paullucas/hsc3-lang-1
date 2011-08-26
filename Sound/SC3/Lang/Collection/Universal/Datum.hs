@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Sound.SC3.Lang.Math.Datum where
+module Sound.SC3.Lang.Collection.Universal.Datum where
 
 import Data.Maybe
 import Data.Ratio
