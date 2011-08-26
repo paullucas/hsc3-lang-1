@@ -447,15 +447,6 @@ segment a k (l,r) =
     let i = map (wrap' (0,k)) [l .. r]
     in map (a !!) i
 
-slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
-slide a n j s i wr =
-    let k = length a
-        l = enumFromThen i (i + s)
-        r = map (+ (j - 1)) l
-    in if wr
-       then L.concat (take n (map (segment a k) (zip l r)))
-       else error "slide: non-wrap variant not implemented"
-
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
 pslide a n j s i = stoppingN n . fromList . slide a n j s i
 

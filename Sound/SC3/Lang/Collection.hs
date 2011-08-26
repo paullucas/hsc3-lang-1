@@ -206,6 +206,27 @@ flop l =
     let l' = map cycle l
     in zipWith (\_ x -> x) (extension l) (transpose l')
 
+lace :: Int -> [[a]] -> [a]
+lace n = take n . concat . transpose . map cycle
+
+wrapExtend :: Int -> [a] -> [a]
+wrapExtend n = take n . cycle
+
+cycleFold :: [a] -> [a]
+cycleFold = cycle . mirror1
+
+foldExtend :: Int -> [a] -> [a]
+foldExtend n = take n . cycleFold
+
+clipExtend :: Int -> [a] -> [a]
+clipExtend n = take n . cycleClip
+
+cycleClip :: [a] -> [a]
+cycleClip l =
+    case lastM l of
+      Nothing -> []
+      Just e -> l ++ repeat e
+
 extendSequences :: [[a]] -> [[a]]
 extendSequences l =
     let f = zipWith (\_ x -> x) (extension l) . cycle
@@ -246,10 +267,17 @@ integrate = scanl1 (+)
 differentiate :: (Num a) => [a] -> [a]
 differentiate l = zipWith (-) l (0:l)
 
--- | Rotate n places to the left (ie. rotate 1 [1, 2, 3] is [2, 3, 1]).
-rotate :: Int -> [a] -> [a]
-rotate n p =
+-- | Rotate n places to the left (ie. rotateLeft 1 [1,2,3] is [2,3,1]).
+rotateLeft :: Int -> [a] -> [a]
+rotateLeft n p =
     let (b,a) = splitAt n p
+    in a ++ b
+
+-- | Rotate n places to the right (ie. rotateRight 1 [1,2,3] is [3,1,2]).
+rotateRight :: Int -> [a] -> [a]
+rotateRight n p =
+    let k = length p
+        (b,a) = splitAt (k - n) p
     in a ++ b
 
 -- | Ensure sum of elements is one.
@@ -257,3 +285,27 @@ normalizeSum :: (Fractional a) => [a] -> [a]
 normalizeSum l =
     let n = sum l
     in map (/ n) l
+
+slide :: Int -> Int -> [a] -> [a]
+slide w n l =
+    let k = length l
+    in concat (map (\i -> take w (L.drop i l)) [0,n .. k-w])
+
+mirror :: [a] -> [a]
+mirror l = l ++ (tail (reverse l))
+
+mirror1 :: [a] -> [a]
+mirror1 l =
+    case l of
+      [] -> []
+      [e] -> [e]
+      _ -> l ++ tail (reverse (tail l))
+
+mirror2 :: [a] -> [a]
+mirror2 l = l ++ (reverse l)
+
+stutter :: Int -> [a] -> [a]
+stutter n = concatMap (replicate n)
+
+rotate :: Int -> [a] -> [a]
+rotate n = if n < 0 then rotateLeft n else rotateRight n
