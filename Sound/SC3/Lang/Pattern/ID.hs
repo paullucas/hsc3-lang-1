@@ -517,8 +517,8 @@ white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite e l r = fromList . white e l r
 
-pwhitei :: (RealFracE n,Random n,Enum e) => e -> n -> n -> Int -> P n
-pwhitei e l r = fmap roundE . pwhite e l r
+pwhitei :: (RealFrac n,Random n,Enum e) => e -> n -> n -> Int -> P n
+pwhitei e l r = fmap roundf . pwhite e l r
 
 wrand' :: (Enum e) =>e -> [[a]] -> [Double] -> [a]
 wrand' e a w =
