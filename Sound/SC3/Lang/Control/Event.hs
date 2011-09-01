@@ -188,8 +188,7 @@ to_sc3_osc t j e =
     let s = instrument_name e
         rt = sustain e
         f = freq e
-        a = amp e
-        pr = ("freq",f) : ("amp",a) : parameters e
+        pr = ("freq",f) : ("amp",amp e) : ("sustain",rt) : parameters e
         i = case e_id e of
               Nothing -> j
               Just i' -> i'
