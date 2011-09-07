@@ -1,3 +1,5 @@
+# Haskell Patterns
+
 > import Control.Applicative
 > import Control.Monad
 > import Data.Foldable as F
@@ -6,13 +8,13 @@
 > import qualified Sound.SC3.Lang.Collection as C
 > import Sound.SC3.Lang.Pattern.ID
 
-* Beginning
+## Beginning
 
-| One goal of separating the synthesis engine and
-| the language in SC Server is to make it possible
-| to explore implementing in other languages the
-| concepts expressed in the SuperCollider language
-| and class library.  (McCartney, 2000)
+ > One goal of separating the synthesis engine and
+ > the language in SC Server is to make it possible
+ > to explore implementing in other languages the
+ > concepts expressed in the SuperCollider language
+ > and class library.  (McCartney, 2000)
 
 Patterns in supercollider language provide
 a concise and expressive notation for writing
@@ -39,49 +41,49 @@ and related unit generators, a notation for
 describing indeterminate structures presents
 some interesting questions.
 
-* Patterns are abstract
+## Patterns are abstract
 
 The type of a pattern is abstract.
 
->| data P a
+    data P a
 
-(P a) is the abstract data type of a pattern
-with elements of type a.
+`P a` is the abstract data type of a pattern
+with elements of type `a`.
 
 Patterns are constructed, manipulated and destructured
 using the functions provided.
 
 > fromList [1,2,3]
 
-* Patterns are Monoids
+## Patterns are Monoids
 
->| class Monoid a where
->|   mempty :: a
->|   mappend :: a -> a -> a
+    class Monoid a where
+      mempty :: a
+      mappend :: a -> a -> a
 
-Patterns are instances of monoid.  mempty is the
-empty pattern, and mappend makes a sequence of two
+Patterns are instances of `Monoid`.  `mempty` is the
+empty pattern, and `mappend` makes a sequence of two
 patterns.
 
-* Patterns are Functors
+## Patterns are Functors
 
->| class Functor f
->|     where fmap :: (a -> b) -> f a -> f b
+    class Functor f
+        where fmap :: (a -> b) -> f a -> f b
 
-Patterns are an instance of Functor.  fmap applies
+Patterns are an instance of `Functor`.  `fmap` applies
 a function to each element of a pattern.
 
 > fmap (* 2) (fromList [1..5])
 
-* Patterns are Applicative
+## Patterns are Applicative
 
->| class (Functor f) => Applicative f where
->|   pure :: a -> f a
->|   (<*>) :: f (a -> b) -> f a -> f b
+    class (Functor f) => Applicative f where
+      pure :: a -> f a
+      (<*>) :: f (a -> b) -> f a -> f b
 
-Patterns are instances of Applicative (McBride and
-Paterson, 2007).  The pure function lifts a value
-into an infinite pattern of itself.  The (<*>)
+Patterns are instances of `Applicative` (McBride and
+Paterson, 2007).  The `pure` function lifts a value
+into an infinite pattern of itself.  The `<*>`
 function applies a pattern of functions to a
 pattern of values.
 
@@ -89,26 +91,26 @@ Consider summing two patterns:
 
 > pure (+) <*> fromList [1,3,5] <*> fromList [6,4,2]
 
-This is distinct from the List instance of Applicative which is
-monadic, ie. pure is return and <*> is ap.
+This is distinct from the `List` instance of `Applicative` which is
+monadic, ie. `pure` is `return` and `<*>` is `ap`.
 
 > pure (+) <*> [1,3,5] <*> [6,4,2]
 > return (+) `ap` fromList [1,3,5] `ap` fromList [6,4,2]
 
-* Patterns are Monads
+## Patterns are Monads
 
->| class Monad m where
->|     (>>=) :: m a -> (a -> m b) -> m b
->|     return :: a -> m a
+    class Monad m where
+        (>>=) :: m a -> (a -> m b) -> m b
+        return :: a -> m a
 
-Patterns are an instance of the Monad class
-(Wadler, 1990).  The (>>=) function, pronounced
+Patterns are an instance of the `Monad` class
+(Wadler, 1990).  The `>>=` function, pronounced
 bind, is the mechanism for processing a monadic
-value.  The return function places a value into
+value.  The `return` function places a value into
 the monad, for the pattern case it creates a
 single element pattern.
 
-The monad instance for Patterns follows the
+The monad instance for patterns follows the
 standard monad instance for lists, for example:
 
 > pseq [1,2] 1 >>= \x ->
@@ -125,17 +127,19 @@ as:
 denotes the pattern having elements (1,3), (1,4),
 (1,5), (2,3), (2,4) and (2,5).
 
-The join function removes one layer of monadic structure from a value.
+The `join` function removes one layer of monadic structure from a
+value.
 
 > take 3 (join (cycle [[1..]]))
 > ptake 3 (join (pcycle (return (fromList [1..]))))
 
-* Patterns are Foldable
+## Patterns are Foldable
 
-Patterns can be folded to a summary value.
+Patterns are instances of `Foldable` and can be folded to a summary
+value.
 
-Right folding with the list constructor (:) and
-the empty list transforms a pattern into a list.
+Right folding with the list constructor `:` and the empty list
+transforms a pattern into a list.
 
 > let p = pser [1,2,3] 5 + pseq [0,10] 3
 > in F.foldr (:) [] p
@@ -144,7 +148,7 @@ Indefinte patterns may be folded.
 
 > take 3 (F.foldr (:) [] (prepeat 1))
 
-The Foldable module includes functions for product:
+The `Foldable` module includes functions for product:
 
 > F.product (fromList [1,3,5])
 
@@ -160,47 +164,47 @@ and search:
 
 > F.elem 5 (fromList [1,3,5])
 
-* Patterns are Traversable
+## Patterns are Traversable
 
-Patterns can be traversed from left to right, performing an action on
-each element.
+Patterns are instansces of `Traversable` and can be traversed from
+left to right, performing an action on each element.
 
 > let {f i e = (i + e,e * 2)
 >     ;(r,p) = T.mapAccumL f 0 (fromList [1,3,5])}
 > in (r,p)
 
-* Patterns are numerical
+## Patterns are numerical
 
-Patterns are instances of both Num:
+Patterns are instances of both `Num`:
 
->| class (Eq a, Show a) => Num a where
->|   (+) :: a -> a -> a
->|   (*) :: a -> a -> a
->|   (-) :: a -> a -> a
->|   negate :: a -> a
->|   abs :: a -> a
->|   signum :: a -> a
->|   fromInteger :: Integer -> a
+    class (Eq a, Show a) => Num a where
+      (+) :: a -> a -> a
+      (*) :: a -> a -> a
+      (-) :: a -> a -> a
+      negate :: a -> a
+      abs :: a -> a
+      signum :: a -> a
+      fromInteger :: Integer -> a
 
-and fractional:
+and `Fractional`:
 
->| class (Num a) => Fractional a where
->|   (/) :: a -> a -> a
->|   recip :: a -> a
->|   fromRational :: Rational -> a
+    class (Num a) => Fractional a where
+      (/) :: a -> a -> a
+      recip :: a -> a
+      fromRational :: Rational -> a
 
 Summing two patterns does not require using the
 applicative notation above, and the numerical
-pattern (return x) can be written as the literal
-'x':
+pattern `return x` can be written as the literal
+`x`:
 
 > fromList [1,3,5] + fromList [6,4,2]
 
 However note that the numerical instances are not written using the
-applicative functions pure and <*>, but rather the pzip family of
-functions that have a more complex halting behaviour.
+applicative functions `pure` and `<*>`, but rather the `pzip` family
+of functions that have a more complex halting behaviour.
 
-* Extension
+## Extension
 
 The haskell patterns follow the normal haskell
 behavior when operating pointwise on sequences of
@@ -218,7 +222,7 @@ This differs from the ordinary supercollider
 language behaviour, where the shorter sequence is
 extended in a cycle, so that the expression:
 
-| [[1,2],[3,4,5]].flop
+    [[1,2],[3,4,5]].flop
 
 computes a list of three elements, [1,3], [2,4]
 and [1,5].
@@ -233,8 +237,8 @@ simple cases the extension works in the same manner.
 
 However patterns have more structure than lists and annotated as being
 either continuing of stopping.  When operating pointwise on patterns
-'continuing' patterns are cycled until equal in length to the shortest
-'stopping' pattern.
+_continuing_ patterns are cycled until equal in length to the shortest
+_stopping_ pattern.
 
 > fromList [1,2,3] * pn (-1) 4
 
@@ -242,8 +246,8 @@ Or truncated:
 
 > pwhite 'a' 0.0 1.0 inf * pn (-1) 2
 
-If there are no 'stopping' patterns the operation extends to the
-longest 'continuing' pattern.
+If there are no _stopping_ patterns the operation extends to the
+longest _continuing_ pattern.
 
 > fromList [1,2] * fromList [3,4,5]
 
@@ -252,24 +256,24 @@ In the case of infinite patterns operations are productive.
 > ptake 5 (pdrop 100000 (pcycle (fromList [1,2,3]) / 10))
 > ptake 5 (pdrop 100000 (fromList [1..] / 1e6))
 
-* Accumulation, Threading
+## Accumulation, Threading
 
-pscanl is an accumulator, similar to Foldable.foldl.  It provides a
-mechanism for state to be threaded through a pattern.  It can be used
-to write a function to remove succesive duplicates from a pattern, to
-count the distance between occurences of an element in a pattern and
-so on.
+`pscanl` is an accumulator, similar to `Foldable.foldl`.  It provides
+a mechanism for state to be threaded through a pattern.  It can be
+used to write a function to remove succesive duplicates from a
+pattern, to count the distance between occurences of an element in a
+pattern and so on.
 
 > pscanl (flip (:)) [] (fromList [1..5])
 > pscanl (+) 0 (fromList [1..5])
 > F.foldl (+) 0 (fromList [1..5])
 
-* References
+## References
 
-+ C. McBride and R. Paterson.  Applicative
-  Programming with Effects.  Journal of Functional
-  Programming, 17(4), 2007.
++ C. McBride and R. Paterson.  "Applicative
+  Programming with Effects."  _Journal of Functional
+  Programming_, 17(4), 2007.
 
-+ P. Wadler.  Comprehending Monads.  In Conference
-  on Lisp and Funcional Programming, Nice, France,
++ P. Wadler.  "Comprehending Monads".  In _Conference
+  on Lisp and Funcional Programming_, Nice, France,
   June 1990. ACM.
