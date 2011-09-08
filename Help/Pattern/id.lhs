@@ -25,7 +25,7 @@ where `Instrument` is either a `Synthdef` or a `String`.
 
 Case a) uses the instrument stored at each event; case b) uses the
 indicated instrument for the whole pattern, and in the case of a
-Synthdef argument sends the instrument definition to the server.
+`Synthdef` argument sends the instrument definition to the server.
 
 > let p = pbind [("degree",fromList [0,2,4,7]),("dur",0.25)]
 
@@ -49,23 +49,25 @@ This is the basic list to pattern function.
 > audition (pbind [("degree",pxrand 'α' [0,1,5,7] inf)
 >                 ,("dur",fromList [0.1,0.2,0.1])])
 
-There is a variant to make stopping patterns.
+## fromList'
+
+A variant to make stopping patterns.
 
 > audition (pbind [("degree",pxrand 'α' [0,1,5,7] inf)
 >                 ,("dur",fromList' [0.1,0.2,0.1])])
 
 ## padd
 
-SC3 pattern to add a value to an existing key, or set the key if it
-doesn't exist.
+SC3 `Event` pattern to add a value to an existing key, or set the key
+if it doesn't exist.
 
     Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
 
-> padd "freq" 801 (pbind [("freq",100)])
+> padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
 
-    Padd(\freq,Pseq([401,801],2),Pbind(\freq,100)).asStream.all(())
+    Padd(\freq,Pseq([401,801],2),Pbind(\freq,100)).play
 
-> padd "freq" (pseq [401,801] 2) (pbind [("freq",100)])
+> audition (padd "freq" (pseq [401,801] 2) (pbind [("freq",100)]))
 
 > let {d = pseq [pshuf 'α' [-7,-3,0,2,4,7] 2
 >               ,pseq [0,1,2,3,4,5,6,7] 1] 1
@@ -86,12 +88,18 @@ doesn't exist.
 
 ## pbind'
 
-A primitive form of the SC3 pbind pattern, with explicit type and identifier inputs.
+A primitive form of the SC3 pbind pattern, with explicit type and
+identifier inputs.
+
+A persistent synthesis node with _freq_ and _amp_ controls.
 
 > let {freq = control KR "freq" 440
 >     ;amp = control KR "amp" 0.6
 >     ;n = udup 2 (pinkNoise 'α' AR) * amp}
 > in audition (out 0 (moogFF n freq 2 0))
+
+A pattern to set _freq_ and _amp_ controls at the most recently
+instantiated synthesis node.
 
 > audition (pbind'
 >           (repeat "n_set")
@@ -122,7 +130,7 @@ pattern library.
 >                 ,("dur",pseq [0.1,0.15,0.1] 1)
 >                 ,("amp",pseq [0.1,0.05] 1)])
 
-A finite binding stops the Event pattern.
+A finite binding stops the `Event` pattern.
 
     Pbind(\x,Pseq([1,2,3]),
           \y,Prand([100,300,200],inf),
@@ -243,7 +251,9 @@ SC3 pattern to generate psuedo-brownian motion.
 > audition (pbind [("dur",0.065)
 >                 ,("freq",pbrown 'α' 440 880 20 inf)])
 
-There is a variant where the l,r and s inputs are patterns.
+## pbrown'
+
+A variant where the l,r and s inputs are patterns.
 
 > pbrown' 'α' 0 1 (pseq [0.0625,0.125] inf) 5
 
@@ -658,10 +668,6 @@ resulting pattern is flattened (joined).
 
 > prand 'α' [1,fromList [10,20,30],2,3,4,5] 6
 
-There is a variant that does not join the result pattern.
-
-> prand' 'α' [1,fromList [2,3],fromList [4,5,6]] 5
-
     Pbind(\note,Prand([0,1,5,7],inf),\dur,0.25).play
 
 > audition (pbind [("note",prand 'α' [0,1,5,7] inf),("dur",0.25)])
@@ -690,6 +696,12 @@ threaded non-locally.
 >                         ,67,prand 'γ' [70,72,74] 1] n0
 >                   ,prand 'δ' [74,75,77,79,81] n1] inf
 >      in return (ptake 24 p) }
+
+## prand'
+
+A variant that does not join the result pattern.
+
+> prand' 'α' [1,fromList [2,3],fromList [4,5,6]] 5
 
 ## preject
 
@@ -734,9 +746,11 @@ SC3 sub-dividing pattern.
 
 > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) (prand 'α' [20,1] 3)
 
-    Prorate(Pseq([[1,2],[5,7],[4,8,9]]).collect(_.normalizeSum),1).asStream.nextN(8)
+    var l = [[1,2],[5,7],[4,8,9]]).collect(_.normalizeSum);
+    Prorate(Pseq(l,1).asStream.nextN(8)
 
-> prorate (fromList (map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]])) 1
+> let l = map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]]
+> prorate (fromList l) 1
 
     Pbind(\degree,Pseries(4,1,inf).fold(-7,11),
           \dur,Prorate(0.6,0.5)).play
@@ -871,9 +885,7 @@ SC3 arithmetric series pattern.
 
 ## pshuf
 
-SC3 pattern to sequentially embed values in a list in constant, but
-random order.  Returns a shuffled version of the list item by item,
-with n repeats.
+SC3 pattern to return n repetitions of a shuffled sequence.
 
     Pshuf([1,2,3,4,5],3).asStream.nextN(15);
 
@@ -898,6 +910,7 @@ SC3 pattern to slide over a list of values and embed them.
     Pslide([1,2,3,4,5],inf,3,1,0).asStream.nextN(13)
 
 > pslide [1,2,3,4,5] 6 3 1 0 True
+
 > pslide [1,2,3,4,5] 6 3 (-1) 0 True
 
     Pbind(\degree,Pslide((-6,-4 .. 12),8,3,1,0),
@@ -914,7 +927,9 @@ Pattern variant of `Data.List.Split.splitPlaces`.
 
 > psplitPlaces (fromList [1,2,3]) (pseries 1 1 6)
 
-There is a variant that joins the output pattern.
+## psplitPlaces'
+
+A variant that joins the output pattern.
 
 > psplitPlaces' (fromList [1,2,3]) (pseries 1 1 6)
 
@@ -944,15 +959,18 @@ The count input may be a pattern.
 
 > ptake 12 (pstutter (pseq [2,3] inf) (fromList [1,2,3,4]))
 
+Stutter scale degree and duration with the same random sequence.
+
     Pbind(\n,Pwhite(3,10,inf),
           \degree,Pstutter(Pkey(\n),Pwhite(-4,11,inf)),
-          \dur,Pstutter(Pkey(\n),Pwhite(0.1,0.4,inf)),
+          \dur,Pstutter(Pkey(\n),Pwhite(0.05,0.4,inf)),
           \legato,0.3).play
 
-> let n = pwhite 'α' 3 10 inf
-> in audition (pbind [("degree",pstutter n (pwhite 'β' (-4) 11 inf))
->                    ,("dur",pstutter n (pwhite 'γ' 0.1 0.4 inf))
->                    ,("legato",0.3)])
+> let {n = pwhite 'α' 3 10 inf
+>     ;p = [("degree",pstutter n (pwhitei 'β' (-4) 11 inf))
+>          ,("dur",pstutter n (pwhite 'γ' 0.05 0.4 inf))
+>          ,("legato",0.3)]}
+> in audition (pbind p)
 
 ## pswitch1
 
@@ -961,7 +979,10 @@ retrieve the next value from.  Only one value is selected from each
 pattern.  This is in comparison to `pswitch`, which embeds the pattern
 in its entirety.
 
-    Pswitch1([Pseq([1,2,3],inf),Pseq([65,76],inf),8],Pseq([2,2,0,1],6)).asStream.all
+    Pswitch1([Pseq([1,2,3],inf),
+              Pseq([65,76],inf),
+              8],
+             Pseq([2,2,0,1],6)).asStream.all
 
 > pswitch1 [pseq [1,2,3] inf,pseq [65,76] inf,8] (pseq [2,2,0,1] 6)
 
@@ -1032,12 +1053,19 @@ indeterminate, so that the below is zero.
 
 > let p = ptake 4 (pwhite 'α' 0.0 1.0 inf) in p - p
 
-There is a variant where the range inputs are patterns.  The below is
+## pwhite'
+
+A variant where the range inputs are patterns.  The below is
 alternately lower and higher noise.
 
-> ptake 10 (pwhite' 'α' (pseq [0.0,10.0] inf) (pseq [1.0,11.0] inf))
+> let {l = pseq [0.0,9.0] inf
+>     ;h = pseq [1.0,12.0] inf}
+> in audition (pbind [("freq",pwhite' 'α' l h * 20 + 800)
+>                    ,("dur",0.25)])
 
-There is a variant that generates integral (rounded) values.
+## pwhitei
+
+A variant that generates integral (rounded) values.
 
 > audition (pbind [("degree",pwhitei 'α' 0 8 inf),("dur",0.15)])
 
@@ -1294,6 +1322,6 @@ Multiple nested `ppar` patterns.
 A frequency value of `NaN` indicates a rest.  There is a constant
 value `nan` that can be used for this purpose.
 
-> audition (pbind [("legato",0.1)
->                 ,("dur",fromList [0.1,0.1,0.6])
->                 ,("freq",pseq [440,880,nan] inf)])
+> audition (pbind [("dur",fromList [0.1,0.7])
+>                 ,("legato",0.2)
+>                 ,("degree",pseq [0,2,nan] inf)])
