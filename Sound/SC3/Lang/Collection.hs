@@ -1,3 +1,7 @@
+-- | In cases where a method takes arguments, these precede the
+-- collection argument in the haskell variant, so that @c.m(i,j)@
+-- becomes @m i j c@.
+
 module Sound.SC3.Lang.Collection where
 
 import Data.List.Split {- split -}
@@ -102,33 +106,57 @@ with_counter f =
     in go
 
 -- | Arithmetic series (size, start, step)
+--
+-- > Array.series(5,10,2) == [10,12,14,16,18]
+-- > series 5 10 2 == [10,12 .. 18]
+--
+-- Note that this is quite different from the SimpleNumber.series
+-- method, which is equal to 'enumFromThenTo'.
+--
+-- > 5.series(7,10) == [5,7,9]
+-- > enumFromThenTo 5 7 10 == [5,7,9]
 series :: (Num a) => Int -> a -> a -> [a]
 series n i j =
     case n of
       0 -> []
       _ -> i : series (n - 1) (i + j) j
 
--- | Geometric series (size, start, grow)
+-- | Geometric series (size, start, grow).
+--
+-- > Array.geom(5,3,6) == [3,18,108,648,3888]
+-- > geom 5 3 6 == [3,18,108,648,3888]
 geom :: (Num a) => Int -> a -> a -> [a]
 geom n i j =
     case n of
       0 -> []
       _ -> i : geom (n - 1) (i * j) j
 
--- | Fibonacci series (size, initial step, start)
+-- | Fibonacci series where 'n' number of elements, 'i' is the initial
+--   step and 'j' the initial value.
+--
+-- > Array.fib(5,2,32) == [32,34,66,100,166]
+-- > fib 5 2 32 == [32,34,66,100,166]
 fib :: (Num a) => Int -> a -> a -> [a]
 fib n i j =
     case n of
       0 -> []
       _ -> j : fib (n - 1) j (i + j)
 
--- | The first element.
+-- | Total variant of 'L.head'.
+--
+-- > [3,4,5].first == 3
+-- > first [3,4,5] == Just 3
+-- > first' [3,4,5] == 3
+--
+-- > [].first == nil
+-- > first [] == Nothing
 first :: [t] -> Maybe t
 first xs =
     case xs of
       [] -> Nothing
       x:_ -> Just x
 
+-- | Synonym for 'L.head'.
 first' :: [t] -> t
 first' = head
 
@@ -139,10 +167,18 @@ lastM xs =
       [x] -> Just x
       _:xs' -> lastM xs'
 
--- | The last element.
+-- | Total variant of 'L.last'.
+--
+-- > (1..5).last == 5
+-- > last [1..5] == Just 5
+-- > L.last [1..5] == 5
+--
+-- > [].last == nil
+-- > last [] == Nothing
 last :: [t] -> Maybe t
 last = lastM
 
+-- | Synonym for 'L.last'.
 last' :: [t] -> t
 last' = L.last
 
