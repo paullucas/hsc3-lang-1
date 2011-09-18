@@ -32,16 +32,24 @@ data P a = P {unP :: [a]
 pappend' :: P a -> P a -> P a
 pappend' (P xs _) (P ys st) = P (xs ++ ys) st
 
+-- | 'Data.Monoid.mappend' variant to sequence two patterns.
+--
+-- Note that in order for 'Data.Monoid.mappend' to be productive in
+-- 'Data.Monoid.mconcat' on an infinite list it cannot store the
+-- right-hand stop/continue mode, see 'pappend''
+--
+-- > fromList [1,2] `pappend` fromList [2,3] == fromList [1,2,2,3]
+-- > ptake 3 (prepeat 3 `pappend` prepeat 4) == fromList' [3,3,3]
+-- > ptake 3 (pconcat (cycle [prepeat 3])) == fromList' [3,3,3]
+-- > pempty `pappend` pempty == pempty
 pappend :: P a -> P a -> P a
 pappend p q = fromList (unP p ++ unP q)
 
--- in order for mappend to be productive in mconcat on an infinite
--- list it cannot store the right-hand stop/continue mode
 instance Monoid (P a) where
     mappend = pappend
     mempty = P [] Continue
 
--- | A variant using the continuation maintaining pappend' function.
+-- | A '>>=' variant using the continuation maintaining 'pappend'' function.
 (>>=*) ::P a -> (a -> P b) -> P b
 m >>=* k = F.foldr (pappend' . k) mempty m
 
@@ -82,9 +90,11 @@ instance (OrdE a) => OrdE (P a) where
     (<*) = pzipWith (<*)
     (<=*) = pzipWith (<=*)
 
+-- | Pseudo-/infinite/ value for use at repeat counts.
 inf :: Int
 inf = maxBound
 
+-- | Constant /NaN/ (not a number) value for use as a rest indicator.
 nan :: (Monad m,Floating a) => m a
 nan = return (sqrt (-1))
 
@@ -168,9 +178,26 @@ fromList xs = P xs Continue
 fromList' :: [a] -> P a
 fromList' xs = P xs Stop
 
+-- | Pattern variant of 'repeat'. See also 'pure' and 'pcycle'.
+--
+-- > ptake 5 (prepeat 3) == fromList' [3,3,3,3,3]
+-- > ptake 5 (Control.Applicative.pure 3) == fromList' [3]
+-- > take 5 (Control.Applicative.pure 3) == [3]
 prepeat :: a -> P a
 prepeat = fromList . repeat
 
+-- | Pattern variant of `zipWith`.  Note that `zipWith` is truncating,
+-- whereas the numerical instances are extending.
+--
+-- > zipWith (*) [1,2,3] [5,6] == [5,12]
+-- > pzipWith (*) (fromList [1,2,3]) (fromList [5,6]) == fromList [5,12,15]
+-- > fromList [1,2,3] * fromList [5,6] == fromList [5,12,15]
+--
+-- Note that the list instance of applicative is combinatorial
+-- (ie. Monadic).
+--
+-- > (pure (*) <*> [1,2,3] <*> [5,6]) == [5,6,10,12,15,18]
+-- > (pure (*) <*> fromList [1,2] <*> fromList [5]) == fromList [5,10]
 pzipWith :: (a -> b -> c) -> P a -> P b -> P c
 pzipWith f p q =
     let u = fmap (const ())
@@ -195,6 +222,14 @@ pzipWith4 f p q r s =
         z = L.zipWith5 (\_ i j k l -> f i j k l) x (c p) (c q) (c r) (c s)
     in P z (stP_join [stP p,stP q,stP r,stP s])
 
+-- | Pattern variant of `zip`.
+--
+-- > ptake 2 (pzip (prepeat 3) (prepeat 4)) == fromList' [(3,4),(3,4)]
+--
+-- Note that haskell `zip` is truncating wheras `pzip` is extending.
+--
+-- > zip [1 .. 2] [0] == [(1,0)]
+-- > pzip (fromList [1..2]) (fromList [0]) == fromList [(1,0),(2,0)]
 pzip :: P a -> P b -> P (a,b)
 pzip = pzipWith (,)
 
@@ -209,6 +244,10 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 
 -- * SC3 patterns
 
+-- | Add a value to an existing key, or set the key if it doesn't exist.
+--
+-- > Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
+-- > padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
 padd :: E.Key -> P E.Value -> P E.Event -> P E.Event
 padd k p = pzipWith (\i j -> E.edit_v k 0 (+ i) j) p
 
@@ -230,6 +269,9 @@ brown_ (l,r,s) (n,g) =
     let (i,g') = randomR (-s,s) g
     in (fold' l r (n + i),g')
 
+-- | A variant of 'pbrown' where the l, r and s inputs are patterns.
+--
+-- > pbrown' 'α' 1 700 (pseq [1,20] inf) 5 == fromList' [415,419,420,428,427]
 brown' :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
 brown' e l_ r_ s_ =
     let go _ [] = []
@@ -237,12 +279,16 @@ brown' e l_ r_ s_ =
                                in n' : go (n',g') z
     in go (randomR (head l_,head r_) (mkStdGen (fromEnum e))) (zip3 l_ r_ s_)
 
+-- | A 'pbrown' variant where the l, r and s inputs are patterns.
 pbrown' :: (Enum e,Random n,Num n,Ord n) => e -> P n -> P n -> P n -> Int -> P n
 pbrown' e l r s n = let f = liftP3 (brown' e) in ptake n (f l r s)
 
 brown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> [n]
 brown e l r s = brown' e (repeat l) (repeat r) (repeat s)
 
+-- | SC3 pattern to generate psuedo-brownian motion.
+--
+-- > pbrown 'α' 0 9 1 5 == fromList' [4,4,5,4,3]
 pbrown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> Int -> P n
 pbrown e l r s n = ptake n (fromList (brown e l r s))
 
@@ -251,6 +297,13 @@ pclutch p q =
     let r = fmap (+ 1) (pcountpost q)
     in pstutter r p
 
+-- | SC3 name for 'fmap', ie. patterns are functors.
+--
+-- > Pcollect({arg i;i * 3},Pseq(#[1,2,3],inf)).asStream.nextN(9)
+-- > pcollect (* 3) (fromList [1,2,3]) == fromList [3,6,9]
+--
+-- > Pseq(#[1,2,3],3).collect({arg i;i * 3}).asStream.nextN(9)
+-- > fmap (* 3) (fromList [1,2,3]) == fromList [3,6,9]
 pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
 
@@ -265,6 +318,9 @@ pconst n p t =
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3 P.degree_to_key
 
+-- | SC3 pattern to calculate adjacent element difference.
+--
+-- > pdiff (fromList [0,2,3,5,6,8,9]) == fromList [-2,-1,-2,-1,-2,-1,7]
 pdiff :: Num n => P n -> P n
 pdiff p = p - ptail p
 
@@ -285,6 +341,11 @@ pedit k f = fmap (E.edit k f)
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
 pexprand e l r n = fmap (M.exprandrng l r) (pwhite e 0 1 n)
 
+-- | SC3 pattern to take the first n elements of the pattern.  See
+-- also 'ptake'.
+--
+-- > Pfinval(5,Pseq(#[1,2,3],inf)).asStream.nextN(5)
+-- > pfinval 5 (pseq [1,2,3] inf) == fromList' [1,2,3,1,2]
 pfinval :: Int -> P a -> P a
 pfinval = ptake
 
@@ -300,6 +361,15 @@ pfuncn' g_ f n =
 pfuncn :: (Enum e) => e -> (StdGen -> (n,StdGen)) -> Int -> P n
 pfuncn e f n = pfuncn' (mkStdGen (fromEnum e)) f n
 
+-- | SC3 geometric series pattern.
+--
+-- > Pgeom(3,6,5).asStream.nextN(5)
+-- > pgeom 3 6 5 == fromList' [3,18,108,648,3888]
+-- > pgeom 1 2 10 == fromList' [1,2,4,8,16,32,64,128,256,512]
+--
+-- Real numbers work as well.
+--
+-- > pgeom 1.0 1.1 6
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s n = P (C.geom n i s) Stop
 
@@ -315,6 +385,17 @@ ifTruncating  a b c = map ifF' (zip3 a b c)
 ifExtending :: [Bool] -> [a] -> [a] -> [a]
 ifExtending a b c = map ifF' (C.zip3_c a b c)
 
+-- | SC3 pattern-based conditional expression.
+--
+-- > var a = Pfunc({0.3.coin});
+-- > var b = Pwhite(0,9,in);
+-- > var c = Pwhite(10,19,inf);
+-- > Pif(a,b,c).asStream.nextN(9)
+--
+-- > let {a = fmap (< 0.3) (pwhite 'α' 0.0 1.0 inf)
+-- >     ;b = pwhite 'β' 0 9 inf
+-- >     ;c = pwhite 'γ' 10 19 inf}
+-- > in ptake 9 (pif a b c) == fromList' [11,3,6,11,11,15,17,4,7]
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
@@ -327,6 +408,14 @@ pinstr_s p = pinstr (fmap I.InstrumentName p)
 pinstr_d :: P Synthdef -> P E.Event -> P E.Event
 pinstr_d p = pinstr (fmap I.InstrumentDef p)
 
+-- | SC3 interlaced embedding of subarrays.
+--
+-- > Place([0,[1,2],[3,4,5]],3).asStream.all
+-- > place [[0],[1,2],[3,4,5]] 3 == fromList' [0,1,3,0,2,4,0,1,5]
+--
+-- > Place(#[1,[2,5],[3,6]],2).asStream.nextN(6)
+-- > place [[1],[2,5],[3,6]] 2 == fromList' [1,2,3,1,5,6]
+-- > place [[1],[2,5],[3,6..]] 4 == fromList' [1,2,3,1,5,6,1,2,9,1,5,12]
 place :: [[a]] -> Int -> P a
 place a n =
     let i = length a
@@ -358,6 +447,26 @@ ppatlace a n =
         f = if n == inf then id else take (n * i)
     in stoppingN n (P (f (L.concat (C.flop (map unP a)))) Continue)
 
+-- | SC3 pattern to repeats the enclosed pattern a number of times.
+--
+-- > pn 1 4 == fromList' [1,1,1,1]
+-- > pn (fromList [1,2,3]) 3 == fromList' [1,2,3,1,2,3,1,2,3]
+--
+-- This is related to `concat`.`replicate` in standard list processing.
+--
+-- > concat (replicate 4 [1]) == [1,1,1,1]
+-- > concat (replicate 3 [1,2,3]) == [1,2,3,1,2,3,1,2,3]
+--
+-- There is a `pconcatReplicate` near-alias (reversed argument order).
+--
+-- > pconcatReplicate 4 1 == fromList' [1,1,1,1]
+-- > pconcatReplicate 3 (fromList [1,2]) == fromList' [1,2,1,2,1,2]
+--
+-- This is productive over infinite lists.
+--
+-- > concat (replicate inf [1])
+-- > pconcat (replicate inf 1)
+-- > pconcatReplicate inf 1
 pn :: P a -> Int -> P a
 pn = flip pconcatReplicate
 
@@ -376,9 +485,25 @@ rand' e a n =
 prand' :: Enum e => e -> [P a] -> Int -> P (P a)
 prand' e a n = P (rand' e a n) (stp n)
 
+-- | SC3 pattern to make n random selections from a list of patterns,
+-- the resulting pattern is flattened (joined).
+--
+-- > Prand([1,Pseq([10,20,30]),2,3,4,5],6).asStream.all
+-- > prand 'α' [1,fromList [10,20],2,3,4,5] 4 == fromList' [5,2,10,20,2]
 prand :: Enum e => e -> [P a] -> Int -> P a
 prand e a = pjoin' . prand' e a
 
+-- | SC3 pattern to rejects values for which the predicate is true.  reject
+-- f is equal to filter (not . f).
+--
+-- > preject (== 1) (pseq [1,2,3] 2) == fromList' [2,3,2,3]
+-- > pfilter (not . (== 1)) (pseq [1,2,3] 2) == fromList' [2,3,2,3]
+--
+-- > Pwhite(0,255,20).reject({|x| x.odd}).asStream.all
+-- > preject odd (pwhite 'α' 0 255 10) == fromList [32,158,62,216,240,20]
+--
+-- > Pwhite(0,255,20).select({|x| x.odd}).asStream.all
+-- > pselect odd (pwhite 'α' 0 255 10) == fromList [241,187,119,127]
 preject :: (a -> Bool) -> P a -> P a
 preject f = liftP (filter (not . f))
 
@@ -403,12 +528,25 @@ prorate' p =
 prorate :: Num a => P (Either a [a]) -> P a -> P a
 prorate p = join . pzipWith prorate' p
 
+-- | See 'pfilter'.
+--
+-- > pselect (< 3) (pseq [1,2,3] 2) == fromList' [1,2,1,2]
 pselect :: (a -> Bool) -> P a -> P a
 pselect f = liftP (filter f)
 
 pseq1 :: [P a] -> Int -> P a
 pseq1 a i = pjoin' (ptake i (pflop a))
 
+-- | SC3 pattern to cycle over a list of patterns. The repeats pattern
+-- gives the number of times to repeat the entire list.
+--
+-- > pseq [return 1,return 2,return 3] 2 == fromList' [1,2,3,1,2,3]
+-- > pseq [1,2,3] 2 == fromList' [1,2,3,1,2,3]
+-- > pseq [1,pn 2 2,3] 2 == fromList' [1,2,2,3,1,2,2,3]
+--
+-- There is an 'inf' value for the repeats variable.
+--
+-- > ptake 3 (pdrop 1000000 (pseq [1,2,3] inf)) == fromList' [2,3,1]
 pseq :: [P a] -> Int -> P a
 pseq a i = stoppingN i (pn (pconcat a) i)
 
@@ -514,6 +652,14 @@ pwhite' e = liftP2 (white' e)
 white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
 white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
+-- | SC3 pattern to generate a uniform linear distribution in given range.
+--
+-- > pwhite 'α' 0 9 5 == fromList [3,0,1,6,6]
+--
+-- It is important to note that this structure is not actually
+-- indeterminate, so that the below is zero.
+--
+-- > let p = pwhite 'α' 0.0 1.0 3 in p - p == fromList [0,0,0]
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite e l r = fromList . white e l r
 
@@ -550,14 +696,27 @@ pxrand e a n = P (xrand e (map unP a) n) Continue
 
 -- * Monoid aliases
 
+-- | 'pconcat' is 'Data.Monoid.mconcat'.  See also 'pjoin'.
+--
+-- > take 3 (concat (replicate maxBound [1,2])) == [1,2,1]
+-- > ptake 3 (pconcat (cycle [fromList [1,2]])) == fromList' [1,2,1]
+-- > ptake 3 (pconcat [pseq [1,2] 1,pseq [3,4] 1]) == fromList' [1,2,3]
 pconcat :: [P a] -> P a
 pconcat = mconcat
 
+-- | Pattern variant for `Data.Monoid.mempty`, ie. the empty pattern.
+--
+-- > pempty `pappend` pempty == pempty
+-- > pempty `pappend` 1 == 1 `pappend` pempty
 pempty :: P a
 pempty = mempty
 
 -- * Monad aliases
 
+-- | `Control.Monad.join` pattern variant.  See also `pconcat`.
+--
+-- > take 3 (Control.Monad.join (replicate maxBound [1,2])) == [1,2,1]
+-- > ptake 3 (pjoin (preplicate inf (fromList [1,2]))) == fromList' [1,2,1]
 pjoin :: P (P a) -> P a
 pjoin = join
 
@@ -567,33 +726,83 @@ pjoin' x = (join x) {stP = stP x}
 
 -- * Data.List functions
 
+-- | Pattern variant of ':'.
+--
+-- > pcons 'α' (pn (return 'β') 2) == fromList' "αββ"
 pcons :: a -> P a -> P a
 pcons i (P j st) = P (i:j) st
 
+-- | Pattern variant of `cycle`.
+--
+-- > ptake 5 (pcycle (fromList [1,2,3])) == fromList' [1,2,3,1,2]
+-- > ptake 5 (pseq [1,2,3] inf) == fromList' [1,2,3,1,2]
 pcycle :: P a -> P a
 pcycle = continuing . liftP cycle
 
+-- | Pattern variant of `drop`.
+--
+-- > Pseries(1,1,20).drop(5).asStream.nextN(15)
+--
+-- > pdrop 5 (pseries 1 1 10) == fromList' [6,7,8,9,10]
+-- > pdrop 1 pempty == pempty
 pdrop :: Int -> P a -> P a
 pdrop n = liftP (drop n)
 
+-- | Pattern variant of `filter`.  Allows values for which the
+-- predicate is true.  Aliased to `pselect`.  See also `preject`.
+--
+-- > pfilter (< 3) (pseq [1,2,3] 2) == fromList' [1,2,1,2]
 pfilter :: (a -> Bool) -> P a -> P a
 pfilter f = liftP (filter f)
 
+-- | Pattern variant of `replicate`.
+--
+-- > preplicate 4 1 == fromList [1,1,1,1]
+--
+-- Compare to `pn`:
+--
+-- > pn 1 4 == fromList' [1,1,1,1]
+-- > pn (fromList [1,2]) 3 == fromList' [1,2,1,2,1,2]
+-- > preplicate 4 (fromList [1,2]) :: P (P Int)
 preplicate :: Int -> a -> P a
 preplicate n = fromList . replicate n
 
+-- | Pattern variant of `scanl`.  `scanl` is similar to `foldl`, but
+-- returns a list of successive reduced values from the left.
+--
+-- > Data.Foldable.foldl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1) == 43
+-- > pscanl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1) == fromList' [4,9,20,43]
 pscanl :: (a -> b -> a) -> a -> P b -> P a
 pscanl f i = liftP (L.scanl f i)
 
--- | Data.List.tail is partial
+-- | Variant of 'drop', note that 'tail' is partial
+--
+-- > ptail (fromList [1,2]) == fromList [2]
+-- > ptail pempty == pempty
 ptail :: P a -> P a
 ptail = pdrop 1
 
+-- | Pattern variant of 'take', see also 'pfinval'.
+--
+-- > ptake 5 (pseq [1,2,3] 2) == fromList' [1,2,3,1,2]
+-- > ptake 5 (fromList [1,2,3]) == fromList' [1,2,3]
+-- > ptake 5 (pseq [1,2,3] inf) == fromList' [1,2,3,1,2]
+-- > ptake 5 (pwhite 'α' 0 5 inf) == fromList' [5,2,1,2,0]
+--
+-- Note that `ptake` does not extend the input pattern, unlike `pser`.
+--
+-- > ptake 5 (fromList [1,2,3]) == fromList' [1,2,3]
+-- > pser [1,2,3] 5 == fromList' [1,2,3,1,2]
 ptake :: Int -> P a -> P a
 ptake n = stoppingN n . liftP (take n)
 
 -- * Non-SC3 patterns
 
+-- | Transforms a numerical pattern into a boolean pattern where
+-- values greater than zero are 'True' and zero and negative values
+-- 'False'.
+--
+-- > pbool (fromList [2,1,0,-1]) == fromList [True,True,False,False]
 pbool :: (Ord a,Num a) => P a -> P Bool
 pbool = fmap (> 0)
 
@@ -609,6 +818,9 @@ countpost =
                      in if not x then f (i + 1) xs else r
     in tail . f 0
 
+-- | Count the number of `False` values following each `True` value.
+--
+-- > pcountpost (pbool (pseq [1,0,1,0,0,0,1,1] 1)) == fromList' [1,3,0,0]
 pcountpost :: P Bool -> P Int
 pcountpost = liftP countpost
 
@@ -621,6 +833,9 @@ countpre =
                      in if x then r else f (i + 1) xs
     in f 0
 
+-- | Count the number of `False` values preceding each `True` value.
+--
+-- > pcountpre (pbool (pseq [0,0,1,0,0,0,1,1] 1)) == fromList' [2,3,0]
 pcountpre :: P Bool -> P Int
 pcountpre = liftP countpre
 
@@ -631,6 +846,15 @@ interleave p q =
       (_,[]) -> p
       (x:xs,y:ys) -> x : y : interleave xs ys
 
+-- | Interleave elements from two patterns.  If one pattern ends the
+-- other pattern continues until it also ends.
+--
+-- > let {p = pseq [1,2,3] 2
+-- >     ;q = pseq [4,5,6,7] 1}
+-- > in pinterleave p q == fromList' [1,4,2,5,3,6,1,7,2,4,3,5]
+--
+-- > ptake 5 (pinterleave (pcycle 1) (pcycle 2)) == fromList' [1,2,1,2,1]
+-- > ptake 10 (pinterleave (pwhite 'α' 1 9 inf) (pseries 10 1 5))
 pinterleave :: P a -> P a -> P a
 pinterleave = liftP2 interleave
 
@@ -639,6 +863,10 @@ rsd =
     let f (p,_) i = (Just i,if Just i == p then Nothing else Just i)
     in mapMaybe snd . scanl f (Nothing,Nothing)
 
+-- | Pattern to remove successive duplicates.
+--
+-- > prsd (pstutter 2 (fromList [1,2,3])) == fromList [1,2,3]
+-- > prsd (pseq [1,2,3] 2) == fromList' [1,2,3,1,2,3]
 prsd :: (Eq a) => P a -> P a
 prsd = liftP rsd
 

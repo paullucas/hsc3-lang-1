@@ -27,8 +27,6 @@ Case a) uses the instrument stored at each event; case b) uses the
 indicated instrument for the whole pattern, and in the case of a
 `Synthdef` argument sends the instrument definition to the server.
 
-> let p = pbind [("degree",fromList [0,2,4,7]),("dur",0.25)]
-
 > let sineInstrument =
 >   let {f = control KR "freq" 440
 >       ;g = control KR "gate" 1
@@ -38,13 +36,15 @@ indicated instrument for the whole pattern, and in the case of a
 >       ;o = out 0 (sinOsc AR f 0 * e)}
 >   in synthdef "sine" o
 
+> let p = pbind [("degree",fromList [0,2,4,7]),("dur",0.25)]
 > audition p
 > audition (sineInstrument,p)
 > audition ("sine",p)
 
 ## fromList
 
-This is the basic list to pattern function.
+This is the basic list to pattern function.  The pattern is
+continuing.
 
 > audition (pbind [("degree",pxrand 'α' [0,1,5,7] inf)
 >                 ,("dur",fromList [0.1,0.2,0.1])])
@@ -61,10 +61,6 @@ A variant to make stopping patterns.
 SC3 `Event` pattern to add a value to an existing key, or set the key
 if it doesn't exist.
 
-    Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
-
-> padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
-
     Padd(\freq,Pseq([401,801],2),Pbind(\freq,100)).play
 
 > audition (padd "freq" (pseq [401,801] 2) (pbind [("freq",100)]))
@@ -77,14 +73,11 @@ if it doesn't exist.
 
 ## pappend
 
-`Data.Monoid.mappend` variant to sequence two patterns.
+`Data.List.append` variant to sequence two patterns.
 
-> fromList [1,2] `pappend` fromList [2,3]
-> fromList [1,2] `mappend` fromList [2,3]
-> ptake 5 (prepeat 3 `pappend` prepeat 4)
-> ptake 5 (mconcat (cycle [prepeat 3]))
-> let e = mempty :: P ()
-> e `mappend` e == e
+> let {p = prand 'α' [0,1] 3
+>     ;q = prand 'β' [5,7] 3}
+> in audition (pbind [("degree",pappend p q),("dur",0.15)])
 
 ## pbind'
 
@@ -147,6 +140,7 @@ A finite binding stops the `Event` pattern.
 
     Pbind(\freq,Prand([300,500,231.2,399.2],inf),
           \dur,Prand([0.1,0.3],inf)).play
+
 > audition (pbind [("freq",prand 'α' [300,500,231.2,399.2] inf)
 >                 ,("dur",prand 'β' [0.1,0.3] inf)])
 
@@ -238,24 +232,14 @@ A finite binding stops the `Event` pattern.
 
 ## pbool
 
-Transforms a numerical pattern into a boolean pattern where values
-greater than zero are `True` and zero and negative values `False`.
-
-> pbool (fromList [1,0,1,0,0,0,1,-1,2])
-
 ## pbrown
 
 SC3 pattern to generate psuedo-brownian motion.
 
-> pbrown 'α' 0 1 0.125 5
 > audition (pbind [("dur",0.065)
 >                 ,("freq",pbrown 'α' 440 880 20 inf)])
 
 ## pbrown'
-
-A variant where the l,r and s inputs are patterns.
-
-> pbrown' 'α' 0 1 (pseq [0.0625,0.125] inf) 5
 
 ## pclutch
 
@@ -270,7 +254,7 @@ step the value pattern, else hold the previous value.
 
     [1,1,2,2,2,2,3,4,5,5,1,1,1,1,2,3,4,4,5,5,5,5,1,2,3,3,4,4,4,4,5]
 
-Note the initialization behavior,nothing
+Note the initialization behavior, nothing
 is generated until the first true value.
 
 > let {p = pseq [1,2,3,4,5] 3
@@ -291,30 +275,9 @@ is generated until the first true value.
 
 ## pcollect
 
-SC3 name for `fmap`, ie. patterns are functors.
-
-    Pcollect({arg i;i * 3},Pseq(#[1,2,3],inf)).asStream.nextN(9)
-
-> pcollect (* 3) (pseq [1,2,3] 3)
-
-    Pseq(#[1,2,3],3).collect({arg i;i * 3}).asStream.nextN(9)
-
-> fmap (* 3) (pseq [1,2,3] 3)
-
 ## pconcat
 
-`pconcat` is `Data.Monoid.mconcat`.  See also `pjoin`.
-
-> take 3 (mconcat (replicate maxBound [1,2]))
-> ptake 3 (pconcat (cycle [fromList [1,2]]))
-
-> ptake 3 (pconcat [pseq [1,2] 1,pseq [3,4] 1])
-
 ## pcons
-
-Pattern variant of `Data.List.:`.
-
-> pcons 'α' (pn (return 'β') 5)
 
 ## pconst
 
@@ -326,7 +289,7 @@ the pattern.
     Pconst(10,Prand([1,2,0.5,0.1],inf),0.001).asStream.nextN(15,())
 
 > let p = pconst 10 (prand 'α' [1,2,0.5,0.1] inf) 0.001
-> in (p,F.sum p)
+> in (p,Data.Foldable.sum p)
 
     Pbind(\degree,Pseq([-7,Pwhite(0,11,inf)],1),
           \dur,Pconst(4,Pwhite(1,4,inf) * 0.25)).play
@@ -337,22 +300,9 @@ the pattern.
 
 ## pcountpost
 
-Count the number of `False` values following each `True` value.
-
-> pcountpost (pbool (pseq [1,0,1,0,0,0,1,1] 1))
-
 ## pcountpre
 
-Count the number of `False` values preceding each `True` value.
-
-> pcountpre (pbool (pseq [0,0,1,0,0,0,1,1] 1))
-
 ## pcycle
-
-Pattern variant of `Data.List.cycle`.
-
-> ptake 5 (pcycle (fromList [1,2,3]))
-> ptake 5 (pseq [1,2,3] inf)
 
 ## pdegreeToKey
 
@@ -394,18 +344,7 @@ The `degree_to_key` function is also given.
 
 ## pdiff
 
-SC3 pattern to calculate adjacent element difference.
-
-> pdiff (fromList [0,2,3,5,6,8,9,11])
-
 ## pdrop
-
-Pattern variant of `Data.List.drop`.
-
-    Pseries(1,1,20).drop(5).asStream.nextN(15)
-
-> pdrop 5 (pseries 1 1 20)
-> pdrop 1 pempty == pempty
 
 ## pdurStutter
 
@@ -438,12 +377,6 @@ Applied to frequency.
 
 ## pempty
 
-Pattern variant for `Data.Monoid.mempty`, ie. the empty pattern.
-
-> pempty == mempty
-> pempty `mappend` pempty == pempty
-> pempty `mappend` 1 == 1 `mappend` pempty
-
 ## pexprand
 
 An SC3 pattern of random values that follow a exponential distribution.
@@ -459,31 +392,7 @@ An SC3 pattern of random values that follow a exponential distribution.
 
 ## pfilter
 
-Pattern variant of `Data.List.filter`.  Allows values for which the
-predicate is true.  Aliased to `pselect`.  See also `preject`.
-
-> pfilter (< 3) (pseq [1,2,3] 3)
-> pselect (< 3) (pseq [1,2,3] 3)
-
-    Pwhite(0,255,20).select({|x| x.odd}).asStream.all
-
-> pselect odd (pwhite 'α' 0 255 20)
-
 ## pfinval
-
-SC3 pattern to take the first n elements of the pattern.  See also ptake.
-
-  n - number of elements to take
-  x - value pattern
-
-    Pfinval(5,Pseq(#[1,2,3],inf)).asStream.nextN(5)
-> pfinval 5 (pseq [1,2,3] inf)
-> ptake 5 (pseq [1,2,3] inf)
-
-Note that `ptake` does not extend the input pattern, unlike `pser`.
-
-> ptake 5 (pseq [1,2,3] 1)
-> pser [1,2,3] 5
 
 ## pfold
 
@@ -522,43 +431,19 @@ Of course in this case there is a pattern equivalent.
 
 SC3 geometric series pattern.
 
-  start - start value
-   grow - multiplication factor
- length - number of values produced
-
-    Pgeom(3,6,5).asStream.nextN(5)
-
-> pgeom 3 6 5
-> pgeom 1 2 12
-
-Real numbers work as well.
-
-> pgeom 1.0 1.1 6
-
-There is a list variant also.
-
-    5.geom(3,6)
-
-> C.geom 5 3 6
-
     Pbind(\degree,Pseries(-7,1,15),
           \dur,Pgeom(0.5,0.89140193218427,15)).play;
 
 > audition (pbind [("degree",pseries (-7) 1 15)
 >                 ,("dur",pgeom 0.5 0.89140193218427 15)])
 
+There is a list variant.
+
+    5.geom(3,6)
+
+> C.geom 5 3 6 == [3,18,108,648,3888]
+
 ## pif
-
-SC3 pattern-based conditional expression.
-
-    Pif(Pfunc({0.3.coin}),
-        Pwhite(0,9,inf),
-        Pwhite(10,19,inf)).asStream.nextN(9)
-
-> let {a = fmap (< 0.3) (pwhite 'α' 0.0 1.0 inf)
->     ;b = pwhite 'β' 0 9 inf
->     ;c = pwhite 'γ' 10 19 inf}
-> in ptake 9 (pif a b c)
 
 ## pinstr
 
@@ -578,33 +463,9 @@ have a `Synthdef` for the first occurence of the instrument, and a
 
 ## pinterleave
 
-Interleave elements from two patterns.  If one pattern ends the other
-pattern continues until it also ends.
-
-> let {p = pseq [1,2,3] 3
->     ;q = pseq [4,5,6,7] 2}
-> in pinterleave p q
-
-> ptake 10 (pinterleave (pcycle 1) (pcycle 2))
-> ptake 10 (pinterleave (pwhite 'α' 1 9 inf) (pseries 10 1 5))
-
 ## pjoin
 
-`Control.Monad.join` pattern variant.  See also `pconcat`.
-
-> take 3 (join (replicate maxBound [1,2]))
-> ptake 3 (pjoin (preplicate maxBound (fromList [1,2])))
-
 ## place
-
-SC3 interlaced embedding of subarrays.
-
-    Place([0,[1,2],[3,4,5]],3).asStream.all
-> place [[0],[1,2],[3,4,5]] 3
-
-    Place(#[1,[2,5],[3,6]],2).asStream.nextN(6)
-> place [[1],[2,5],[3,6]] 2
-> place [[1],[2,5],[3,6..]] 5
 
 ## pmono
 
@@ -626,27 +487,6 @@ it doesn't exist.
 
 ## pn
 
-SC3 pattern to repeats the enclosed pattern a number of times.
-
-> pn 1 4
-> pn (fromList [1,2,3]) 4
-
-This is related to `concat.replicate` in standard list processing.
-
-> concat (replicate 4 [1])
-> concat (replicate 4 [1,2,3])
-
-This is productive over infinite lists.
-
-> concat (replicate inf [1])
-> pconcat (replicate inf 1)
-
-There is a `pconcatReplicate` near-alias (reversed argument order).
-
-> pconcatReplicate 4 1
-> pconcatReplicate 4 (fromList [1,2])
-> pconcatReplicate inf 1
-
 ## ppatlace
 
 SC3 pattern to lace input patterns.  Note that the current
@@ -664,10 +504,6 @@ implementation stops late, it cycles the second series one place.
 SC3 pattern to make n random selections from a list of patterns, the
 resulting pattern is flattened (joined).
 
-    Prand([1,Pseq([10,20,30]),2,3,4,5],6).asStream.all
-
-> prand 'α' [1,fromList [10,20,30],2,3,4,5] 6
-
     Pbind(\note,Prand([0,1,5,7],inf),\dur,0.25).play
 
 > audition (pbind [("note",prand 'α' [0,1,5,7] inf),("dur",0.25)])
@@ -682,7 +518,7 @@ Nested sequences of pitches:
 > let n = prand 'α' [pseq [60,61,63,65,67,63] 1
 >                   ,prand 'β' [72,73,75,77,79] 6
 >                   ,pshuf 'γ' [48,53,55,58] 2] inf
-> in audition (pbind [("midinote",n),("dur",0.25)])
+> in audition (pbind [("midinote",n),("dur",0.075)])
 
 The below cannot be written as intended with the list
 based pattern library.  This is precisely because the
@@ -705,34 +541,9 @@ A variant that does not join the result pattern.
 
 ## preject
 
-SC3 pattern to rejects values for which the predicate is true.  reject
-f is equal to filter (not . f).
-
-> preject (== 1) (pseq [1,2,3] 3)
-> pfilter (not . (== 1)) (pseq [1,2,3] 3)
-
-    Pwhite(0,255,20).reject({|x| x.odd}).asStream.all
-> preject odd (pwhite 'α' 0 255 20)
-
 ## prepeat
 
-Pattern variant of `Data.List.repeat`. See also
-`Data.Applicative.pure` and `pcycle`.
-
-> ptake 5 (prepeat 3)
-> ptake 5 (pure 3)
-
 ## preplicate
-
-Pattern variant of `Data.List.replicate`.
-
-> preplicate 4 1
-
-Compare to `pn`:
-
-> pn 1 4 :: P Int
-> pn (fromList [1,2]) 4 :: P Int
-> preplicate 4 (fromList [1,2]) :: P (P Int)
 
 ## prorate
 
@@ -760,45 +571,25 @@ SC3 sub-dividing pattern.
 
 ## prsd
 
-Pattern to remove successive duplicates.
-
-> prsd (pstutter 2 (fromList [1,2,3]))
-> prsd (pseq [1,2,3] 2)
-
 ## pscanl
 
-Pattern variant of `Data.List.scanl`.  `scanl` is similar to `foldl`,
-but returns a list of successive reduced values from the left.
-
-> F.foldl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1)
-> pscanl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1)
-
 ## pseq
-
-SC3 pattern to cycle over a list of patterns. The repeats pattern
-gives the number of times to repeat the entire list.
-
-> pseq [return 1,return 2,return 3] 2
-> pseq [1,2,3] 2
-> pseq [1,pn 2 2,3] 2
 
 Unlike the SC3 Pseq, `pseq` does not have an offset argument to give a
 starting offset into the list.
 
 > pseq (C.rotate 3 [1,2,3,4]) 3
 
-There is an _infinite_ value for the repeats variable.
-
-> ptake 9 (pdrop 1000000 (pseq [1,2,3] inf))
-
 As scale degrees.
 
     Pbind(\degree,Pseq(#[0,0,4,4,5,5,4],1),
           \dur,Pseq(#[0.5,0.5,0.5,0.5,0.5,0.5,1],1)).play
+
 > audition (pbind [("degree",pseq [0,0,4,4,5,5,4] 1)
 >                 ,("dur",pseq [0.5,0.5,0.5,0.5,0.5,0.5,1] 1)])
 
     Pseq(#[60,62,63,65,67,63],inf) + Pseq(#[0,0,0,0,-12],inf)
+
 > let n = pseq [60,62,63,65,67,63] inf + pser [0,0,0,0,-12] 25
 > in audition (pbind [("midinote",n),("dur",0.2)])
 
@@ -1010,13 +801,6 @@ Note that the haskell `tail` function is partial, although `drop` is not.
 
 ## ptake
 
-Pattern variant of `Data.List.take`.  See also `pfinval`.
-
-> ptake 5 (pseq [1,2,3] 2) == pseq [1,2,3,1,2] 1
-> ptake 5 (fromList [1,2,3]) == pseq [1,2,3] 1
-> ptake 5 (pseq [1,2,3] inf) == pseq [1,2,3,1,2] 1
-> ptake 5 (pwhite 'α' 0.0 1.0 inf)
-
 ## ptrigger
 
 Pattern where the 'tr' pattern determines the rate at which values are
@@ -1043,15 +827,6 @@ also `pflop`.
 >        ,pseq [4,4,4,2,2,0,0,-3] 1] 1
 
 ## pwhite
-
-SC3 pattern to generate a uniform linear distribution in given range.
-
-> ptake 5 (pwhite 'α' 0.0 1.0 inf)
-
-It is important to note that this structure is not actually
-indeterminate, so that the below is zero.
-
-> let p = ptake 4 (pwhite 'α' 0.0 1.0 inf) in p - p
 
 ## pwhite'
 
@@ -1108,29 +883,7 @@ SC3 pattern that is like `prand` but filters sucessive duplicates.
 
 ## pzip
 
-Pattern variant of `Data.List.zip`.
-
-> ptake 5 (pzip (prepeat 3) (prepeat 4))
-
-Note that haskell `zip` is truncating wheras `pzip` is extending.
-
-> zip [1 .. 6] [-1,-2,-3]
-> pzip (fromList [1 .. 6]) (fromList [-1,-2,-3])
-
 ## pzipWith
-
-Pattern variant of `Data.List.zipWith`.  Note that `zipWith` is
-truncating, whereas the numerical instances are extending.
-
-> zipWith (*) [1,2,3,4] [5,6,7]
-> pzipWith (*) (fromList [1,2,3,4]) (fromList [5,6,7])
-> fromList [1,2,3,4] * fromList [5,6,7]
-
-Note that the list instance of applicative is combinatorial
-(ie. Monadic).
-
-> pure (*) <*> [1,2,3,4] <*> [5,6,7]
-> pure (*) <*> fromList [1,2,3,4] <*> fromList [5,6,7]
 
 ## +.x
 
