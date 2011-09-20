@@ -43,6 +43,7 @@ Library
                    Sound.SC3.Lang.Control.OverlapTexture
                    Sound.SC3.Lang.Math
                    Sound.SC3.Lang.Pattern.ID
+                   Sound.SC3.Lang.Pattern.List
                    Sound.SC3.Lang.Random.Gen
                    Sound.SC3.Lang.Random.IO
                    Sound.SC3.Lang.Random.Monad

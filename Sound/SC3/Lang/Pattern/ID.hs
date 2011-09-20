@@ -3,7 +3,7 @@ module Sound.SC3.Lang.Pattern.ID where
 
 import Control.Applicative hiding ((<*))
 import Control.Monad
-import Data.Foldable as F
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.Split as S
 import qualified Data.Map as M
@@ -17,18 +17,24 @@ import qualified Sound.SC3.Lang.Control.Event as E
 import qualified Sound.SC3.Lang.Control.Instrument as I
 import qualified Sound.SC3.Lang.Control.Pitch as P
 import qualified Sound.SC3.Lang.Math as M
+import Sound.SC3.Lang.Pattern.List
 import qualified Sound.SC3.Lang.Random.Gen as R
 import System.Random
 
 -- * P type and instances
 
-data M = Stop | Continue deriving (Eq,Show)
+-- | Pattern continuation mode
+data M = Stop
+       | Continue
+         deriving (Eq,Show)
+
+-- | Pattern data type (opaque)
 data P a = P {unP :: [a]
              ,stP :: M}
     deriving (Eq,Show)
 
--- | A variant that preserves the continuation mode but is strict in
---   it's right argument.
+-- | A variant of 'pappend' that preserves the continuation mode but
+-- is strict in the right argument.
 pappend' :: P a -> P a -> P a
 pappend' (P xs _) (P ys st) = P (xs ++ ys) st
 
@@ -60,7 +66,7 @@ instance Monad P where
 instance Functor P where
     fmap f (P xs st) = P (map f xs) st
 
-instance Foldable P where
+instance F.Foldable P where
     foldr f i (P xs _) = L.foldr f i xs
 
 instance Applicative P where
@@ -100,21 +106,39 @@ nan = return (sqrt (-1))
 
 -- * Extension
 
+-- | Join a set of 'M' values, if any are 'Stop' then 'Stop' else
+-- 'Continue'.
 stP_join :: [M] -> M
 stP_join m = if L.any (== Stop) m then Stop else Continue
 
+-- | Extension of a set of patterns.  If any patterns are stopping,
+-- the longest such pattern, else the longest of the continuing
+-- patterns.
+--
+-- > pextension [fromList [1,2],fromList [3,4,5]] == [(),(),()]
+-- > pextension [fromList' [1,2],fromList [3,4,5]] == [(),()]
 pextension :: [P a] -> [()]
 pextension x =
     let x' = filter ((== Stop) . stP) x
     in if null x'
-       then C.extension (map toList x)
-       else C.extension (map toList x')
+       then C.extension (map F.toList x)
+       else C.extension (map F.toList x')
 
+-- | Extend a set of patterns following 'pextension' rule.
+--
+-- > let {p = fromList; p' = fromList'}
+-- > in pextend [p [1,2],p [3,4,5]] == [p' [1,2,1],p' [3,4,5]]
+--
+-- > let {p = fromList; p' = fromList'}
+-- > in pextend [p' [1,2],p [3,4,5]] == [p' [1,2],p' [3,4]]
 pextend :: [P a] -> [P a]
 pextend l =
     let f = pzipWith (\_ x -> x) (P (pextension l) Stop) . pcycle
     in map f l
 
+-- | Variant of 'transpose'.
+--
+-- > ptranspose [fromList [1,2],fromList [3,4,5]] == fromList [[1,3],[2,4],[5]]
 ptranspose :: [P a] -> P [a]
 ptranspose l =
     let d = L.transpose (map unP l)
@@ -157,24 +181,35 @@ liftP4 f p q r s =
 
 -- * P functions
 
+-- | Variant of 'null'.
 pnull :: P a -> Bool
-pnull = null . toList
+pnull = null . F.toList
 
+-- | Select 'M' according to repeat count, see 'inf'.
 stp :: Int -> M
 stp n = if n == inf then Continue else Stop
 
+-- | Set pattern mode to 'Stop'.
 stopping :: P a -> P a
 stopping (P xs _) = P xs Stop
 
+-- | Set pattern mode according to repeat count, see 'inf'.
 stoppingN :: Int -> P a -> P a
 stoppingN n (P xs _) = P xs (stp n)
 
+-- | Set pattern mode to 'Continue'.
 continuing :: P a -> P a
 continuing (P xs _) = P xs Continue
 
+-- | The basic list to pattern function.  The pattern is continuing.
+--
+-- > continuing (pseq [1,2,3] 1) == fromList [1,2,3]
 fromList :: [a] -> P a
 fromList xs = P xs Continue
 
+-- | A variant from 'fromList' to make stopping patterns.
+--
+-- > pseq [1,2,3] 1 == fromList' [1,2,3]
 fromList' :: [a] -> P a
 fromList' xs = P xs Stop
 
@@ -251,12 +286,22 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 padd :: E.Key -> P E.Value -> P E.Event -> P E.Event
 padd k p = pzipWith (\i j -> E.edit_v k 0 (+ i) j) p
 
+-- | A primitive form of the SC3 'pbind' pattern, with explicit type
+-- and identifier inputs.
 pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> [(String,P E.Value)] -> P E.Event
 pbind' ty is ss xs =
     let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
         p = fromList
     in pure E.from_list <*> p ty <*> p is <*> p ss <*> xs'
 
+-- | SC3 pattern to assign keys to a set of value patterns making an
+-- 'E.Event' pattern. A finite binding stops the 'E.Event' pattern.
+--
+-- > Pbind(\x,Pseq([1,2,3]),
+-- >       \y,Prand([100,300,200],inf)).asStream.nextN(3,())
+--
+-- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
+-- >                 ,("y",pseq [1,2,3] 1)]) == fromList' [200,200,300]
 pbind :: [(String,P E.Value)] -> P E.Event
 pbind =
     let ty = repeat "s_new"
@@ -264,27 +309,11 @@ pbind =
         s = repeat Nothing
     in pbind' ty i s
 
-brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
-brown_ (l,r,s) (n,g) =
-    let (i,g') = randomR (-s,s) g
-    in (fold' l r (n + i),g')
-
 -- | A variant of 'pbrown' where the l, r and s inputs are patterns.
 --
--- > pbrown' 'α' 1 700 (pseq [1,20] inf) 5 == fromList' [415,419,420,428,427]
-brown' :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
-brown' e l_ r_ s_ =
-    let go _ [] = []
-        go (n,g) ((l,r,s):z) = let (n',g') = brown_ (l,r,s) (n,g)
-                               in n' : go (n',g') z
-    in go (randomR (head l_,head r_) (mkStdGen (fromEnum e))) (zip3 l_ r_ s_)
-
--- | A 'pbrown' variant where the l, r and s inputs are patterns.
+-- > pbrown' 'α' 1 700 (pseq [1,20] inf) 4 == fromList' [415,419,420,428]
 pbrown' :: (Enum e,Random n,Num n,Ord n) => e -> P n -> P n -> P n -> Int -> P n
 pbrown' e l r s n = let f = liftP3 (brown' e) in ptake n (f l r s)
-
-brown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> [n]
-brown e l r s = brown' e (repeat l) (repeat r) (repeat s)
 
 -- | SC3 pattern to generate psuedo-brownian motion.
 --
@@ -292,6 +321,22 @@ brown e l r s = brown' e (repeat l) (repeat r) (repeat s)
 pbrown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> Int -> P n
 pbrown e l r s n = ptake n (fromList (brown e l r s))
 
+-- | SC3 sample and hold pattern.  For true values in the control
+-- pattern, step the value pattern, else hold the previous value.
+--
+-- > Pclutch(Pser([1,2,3,4,5],8),
+-- >         Pseq([1,0,1,0,0,0,1,1],inf)).asStream.all
+--
+-- > let {c = pbool (pseq [1,0,1,0,0,1,1] 1)
+-- >     ;r = fromList' [1,1,2,2,2,3,4,5,5,1,1,1,2,3]}
+-- > in pclutch (pser [1,2,3,4,5] 8) c == r
+--
+-- Note the initialization behavior, nothing is generated until the
+-- first true value.
+--
+-- > let {p = pseq [1,2,3,4,5] 1
+-- >     ;q = pbool (pseq [0,0,0,0,0,0,1,0,0,1,0,1] 1)}
+-- > in pclutch p q
 pclutch :: P a -> P Bool -> P a
 pclutch p q =
     let r = fmap (+ 1) (pcountpost q)
@@ -323,14 +368,6 @@ pdegreeToKey = pzipWith3 P.degree_to_key
 -- > pdiff (fromList [0,2,3,5,6,8,9]) == fromList [-2,-1,-2,-1,-2,-1,7]
 pdiff :: Num n => P n -> P n
 pdiff p = p - ptail p
-
-durStutter :: Fractional a => [Int] -> [a] -> [a]
-durStutter p =
-    let f s d = case s of
-                0 -> []
-                1 -> [d]
-                _ -> replicate s (d / fromIntegral s)
-    in L.concat . C.zipWith_c f p
 
 pdurStutter :: Fractional a => P Int -> P a -> P a
 pdurStutter = liftP2 durStutter
@@ -373,18 +410,6 @@ pfuncn e f n = pfuncn' (mkStdGen (fromEnum e)) f n
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s n = P (C.geom n i s) Stop
 
-ifF :: Bool -> a -> a -> a
-ifF x y z = if x then y else z
-
-ifF' :: (Bool,a,a) -> a
-ifF' (x,y,z) = if x then y else z
-
-ifTruncating :: [Bool] -> [a] -> [a] -> [a]
-ifTruncating  a b c = map ifF' (zip3 a b c)
-
-ifExtending :: [Bool] -> [a] -> [a] -> [a]
-ifExtending a b c = map ifF' (C.zip3_c a b c)
-
 -- | SC3 pattern-based conditional expression.
 --
 -- > var a = Pfunc({0.3.coin});
@@ -407,6 +432,16 @@ pinstr_s p = pinstr (fmap I.InstrumentName p)
 
 pinstr_d :: P Synthdef -> P E.Event -> P E.Event
 pinstr_d p = pinstr (fmap I.InstrumentDef p)
+
+pkey_m :: E.Key -> P E.Event -> P (Maybe E.Value)
+pkey_m k = fmap (E.lookup_m k)
+
+-- | Read value of key at 'E.Event' pattern.
+--
+-- > pkey "freq" (pbind [("freq",440)]) == fromList' [440]
+-- > pkey "amp" (pbind [("amp",fromList [0,1])]) == fromList' [0,1]
+pkey :: E.Key -> P E.Event -> P E.Value
+pkey k = fmap (fromJust . E.lookup_m k)
 
 -- | SC3 interlaced embedding of subarrays.
 --
@@ -473,15 +508,6 @@ pn = flip pconcatReplicate
 pnormalizeSum :: Fractional n => P n -> P n
 pnormalizeSum = liftP C.normalizeSum
 
-rand' :: Enum e => e -> [a] -> Int -> [a]
-rand' e a n =
-    let k = length a - 1
-        f m g = if m == 0
-                then []
-                else let (i,g') = randomR (0,k) g
-                     in (a !! i) : f (m - 1) g'
-    in f n (mkStdGen (fromEnum e))
-
 prand' :: Enum e => e -> [P a] -> Int -> P (P a)
 prand' e a n = P (rand' e a n) (stp n)
 
@@ -506,18 +532,6 @@ prand e a = pjoin' . prand' e a
 -- > pselect odd (pwhite 'α' 0 255 10) == fromList [241,187,119,127]
 preject :: (a -> Bool) -> P a -> P a
 preject f = liftP (filter (not . f))
-
-rorate_n' :: Num a => a -> a -> [a]
-rorate_n' p i = [i * p,i * (1 - p)]
-
-rorate_n :: Num a => [a] -> [a] -> [a]
-rorate_n p = L.concat . C.zipWith_c rorate_n' p
-
-rorate_l' :: Num a => [a] -> a -> [a]
-rorate_l' p i = map (* i) p
-
-rorate_l :: Num a => [[a]] -> [a] -> [a]
-rorate_l p = L.concat . C.zipWith_c rorate_l' p
 
 prorate' :: Num a => Either a [a] -> a -> P a
 prorate' p =
@@ -574,26 +588,6 @@ pshuf e a =
     let (a',_) = R.scramble a (mkStdGen (fromEnum e))
     in pn (P a' Continue)
 
-wrap' :: (Num a,Ord a) => (a,a) -> a -> a
-wrap' (l,r) i =
-    let d = r - l
-        f = wrap' (l,r)
-    in if i < l then f (i + d) else if i >= r then f (i - d) else i
-
-segment :: [a] -> Int -> (Int,Int) -> [a]
-segment a k (l,r) =
-    let i = map (wrap' (0,k)) [l .. r]
-    in map (a !!) i
-
-slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
-slide a n j s i wr =
-    let k = length a
-        l = enumFromThen i (i + s)
-        r = map (+ (j - 1)) l
-    in if wr
-       then L.concat (take n (map (segment a k) (zip l r)))
-       else error "slide: non-wrap variant not implemented"
-
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
 pslide a n j s i = stoppingN n . fromList . slide a n j s i
 
@@ -609,29 +603,11 @@ psplitPlaces n = fmap fromList . psplitPlaces' n
 pstretch :: P E.Value -> P E.Event -> P E.Event
 pstretch = pmul "stretch"
 
-stutterTruncating :: [Int] -> [a] -> [a]
-stutterTruncating ns = L.concat . zipWith replicate ns
-
-stutterExtending :: [Int] -> [a] -> [a]
-stutterExtending ns = L.concat . C.zipWith_c replicate ns
-
 pstutter :: P Int -> P a -> P a
 pstutter = liftP2 stutterExtending
 
-switch :: [[a]] -> [Int] -> [a]
-switch l i = i >>= (l !!)
-
 pswitch :: [P a] -> P Int -> P a
 pswitch l = liftP (switch (map unP l))
-
-switch1 :: [[a]] -> [Int] -> [a]
-switch1 ps =
-    let go _ [] = []
-        go m (i:is) = case M.lookup i m of
-                        Nothing -> []
-                        Just [] -> []
-                        Just (x:xs) -> x : go (M.insert i xs m) is
-    in go (M.fromList (zip [0..] (C.extendSequences ps)))
 
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
@@ -639,18 +615,8 @@ pswitch1 l = liftP (switch1 (map unP l))
 ptuple :: [P a] -> Int -> P [a]
 ptuple p = pseq [pflop' p]
 
-white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
-white' e l r =
-    let g = mkStdGen (fromEnum e)
-        n = zip l r
-        f a b = let (a',b') = randomR b a in (b',a')
-    in snd (L.mapAccumL f g n)
-
 pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
 pwhite' e = liftP2 (white' e)
-
-white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
-white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
 -- | SC3 pattern to generate a uniform linear distribution in given range.
 --
@@ -666,30 +632,11 @@ pwhite e l r = fromList . white e l r
 pwhitei :: (RealFrac n,Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhitei e l r = fmap roundf . pwhite e l r
 
-wrand' :: (Enum e) =>e -> [[a]] -> [Double] -> [a]
-wrand' e a w =
-    let f g = let (r,g') = R.wchoose a w g
-              in r ++ f g'
-    in f (mkStdGen (fromEnum e))
-
-wrand :: (Enum e) => e -> [[a]] -> [Double] -> Int -> [a]
-wrand e a w n = take n (wrand' e a w)
-
 pwrand :: Enum e => e -> [P a] -> [Double] -> Int -> P a
 pwrand e a w n = P (wrand e (map unP a) w n) Continue
 
 pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
 pwrap xs l r = fmap (wrap' (l,r)) xs
-
-xrand' :: Enum e => e -> [[a]] -> [a]
-xrand' e a =
-    let k = length a - 1
-        f j g = let (i,g') = randomR (0,k) g
-                in if i == j then f j g' else (a !! i) ++ f i g'
-    in f (-1) (mkStdGen (fromEnum e))
-
-xrand :: Enum e => e -> [[a]] -> Int -> [a]
-xrand e a n = take n (xrand' e a)
 
 pxrand :: Enum e => e -> [P a] -> Int -> P a
 pxrand e a n = P (xrand e (map unP a) n) Continue
@@ -809,42 +756,17 @@ pbool = fmap (> 0)
 pconcatReplicate :: Int -> P a -> P a
 pconcatReplicate i = stoppingN i . pconcat . replicate i
 
-countpost :: [Bool] -> [Int]
-countpost =
-    let f i p = if null p
-                then [i]
-                else let (x:xs) = p
-                         r = i : f 0 xs
-                     in if not x then f (i + 1) xs else r
-    in tail . f 0
-
 -- | Count the number of `False` values following each `True` value.
 --
 -- > pcountpost (pbool (pseq [1,0,1,0,0,0,1,1] 1)) == fromList' [1,3,0,0]
 pcountpost :: P Bool -> P Int
 pcountpost = liftP countpost
 
-countpre :: [Bool] -> [Int]
-countpre =
-    let f i p = if null p
-                then if i == 0 then [] else [i]
-                else let (x:xs) = p
-                         r = i : f 0 xs
-                     in if x then r else f (i + 1) xs
-    in f 0
-
 -- | Count the number of `False` values preceding each `True` value.
 --
 -- > pcountpre (pbool (pseq [0,0,1,0,0,0,1,1] 1)) == fromList' [2,3,0]
 pcountpre :: P Bool -> P Int
 pcountpre = liftP countpre
-
-interleave :: [a] -> [a] -> [a]
-interleave p q =
-    case (p,q) of
-      ([],_) -> q
-      (_,[]) -> p
-      (x:xs,y:ys) -> x : y : interleave xs ys
 
 -- | Interleave elements from two patterns.  If one pattern ends the
 -- other pattern continues until it also ends.
@@ -858,11 +780,6 @@ interleave p q =
 pinterleave :: P a -> P a -> P a
 pinterleave = liftP2 interleave
 
-rsd :: (Eq a) => [a] -> [a]
-rsd =
-    let f (p,_) i = (Just i,if Just i == p then Nothing else Just i)
-    in mapMaybe snd . scanl f (Nothing,Nothing)
-
 -- | Pattern to remove successive duplicates.
 --
 -- > prsd (pstutter 2 (fromList [1,2,3])) == fromList [1,2,3]
@@ -870,20 +787,25 @@ rsd =
 prsd :: (Eq a) => P a -> P a
 prsd = liftP rsd
 
-trigger :: [Bool] -> [a] -> [Maybe a]
-trigger p q =
-    let r = countpre p
-        f i x = replicate i Nothing ++ [Just x]
-    in L.concat (C.zipWith_c f r q)
-
+-- | Pattern where the 'tr' pattern determines the rate at which
+-- values are read from the `x` pattern.  For each sucessive true
+-- value at 'tr' the output is a `Just e` of each succesive element at
+-- x.  False values at 'tr' generate `Nothing` values.
+--
+-- > let {tr = pbool (fromList [0,1,0,0,1,1])
+-- >     ;r = [Nothing,Just 1,Nothing,Nothing,Just 2,Just 3]}
+-- > in ptrigger tr (fromList [1,2,3]) == fromList r
 ptrigger :: P Bool -> P a -> P (Maybe a)
-ptrigger = liftP2 trigger
+ptrigger p q =
+    let r = pcountpre p
+        f i x = preplicate i Nothing `pappend` return (Just x)
+    in pjoin (pzipWith f r q)
 
 -- * Parallel patterns
 
 ptmerge :: (E.Time,P E.Event) -> (E.Time,P E.Event) -> P E.Event
 ptmerge (pt,p) (qt,q) =
-    fromList (E.merge (pt,toList p) (qt,toList q))
+    fromList (E.merge (pt,F.toList p) (qt,F.toList q))
 
 pmerge :: P E.Event -> P E.Event -> P E.Event
 pmerge p q = ptmerge (0,p) (0,q)

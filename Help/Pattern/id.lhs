@@ -43,8 +43,7 @@ indicated instrument for the whole pattern, and in the case of a
 
 ## fromList
 
-This is the basic list to pattern function.  The pattern is
-continuing.
+The basic list to pattern function.  The pattern is continuing.
 
 > audition (pbind [("degree",pxrand 'α' [0,1,5,7] inf)
 >                 ,("dur",fromList [0.1,0.2,0.1])])
@@ -105,38 +104,24 @@ instantiated synthesis node.
 ## pbind
 
 SC3 pattern to combine several value patterns into an event pattern.
-Each input pattern is assigned to one or more keys in the resulting
-event pattern.
-
-> pbind [("freq",440)]
-> pbind [("freq",440.0)]
-> pbind [("freq",fromList [440,550.0])]
+Each input pattern is assigned to a key in the resulting event
+pattern.
 
 There are a set of reserved keys that have particular roles in the
 pattern library.
 
-> pbind [("freq",440)
->       ,("amp",fromList [0.1,0.2])
->       ,("pan",fromList [-1,0,1])]
-
 > audition (pbind [("freq",pseq [440,550,660,770] 2)
 >                 ,("dur",pseq [0.1,0.15,0.1] 1)
->                 ,("amp",pseq [0.1,0.05] 1)])
+>                 ,("amp",pseq [0.1,0.05] 1)
+>                 ,("pan",fromList [-1,0,1])])
 
 A finite binding stops the `Event` pattern.
 
-    Pbind(\x,Pseq([1,2,3]),
-          \y,Prand([100,300,200],inf),
-          \zzz,99).asStream.nextN(3,())
-
-> pbind [("x",pseq [1,2,3] 1)
->       ,("y",prand 'α' [100,300,200] inf)
->       ,("zzz",99)]
-
-    Pbind(\freq,Prand([300,500,231.2,399.2],inf),\dur,0.1).play;
+    Pbind(\freq,Prand([300,500,231.2,399.2],inf),
+          \dur,Pseq([0.1,0.2],3)).play;
 
 > audition (pbind [("freq",prand 'α' [300,500,231.2,399.2] inf)
->                 ,("dur",0.1)])
+>                 ,("dur",pseq [0.1,0.2] 3)])
 
     Pbind(\freq,Prand([300,500,231.2,399.2],inf),
           \dur,Prand([0.1,0.3],inf)).play
@@ -245,21 +230,6 @@ SC3 pattern to generate psuedo-brownian motion.
 
 SC3 sample and hold pattern.  For true values in the control pattern,
 step the value pattern, else hold the previous value.
-
-    Pclutch(Pseq([1,2,3,4,5],3),
-            Pseq([1,0,1,0,0,0,1,1],inf)).asStream.nextN(31)
-
-> pclutch (pseq [1,2,3,4,5] 3)
->         (pbool (pseq [1,0,1,0,0,0,1,1] 1))
-
-    [1,1,2,2,2,2,3,4,5,5,1,1,1,1,2,3,4,4,5,5,5,5,1,2,3,3,4,4,4,4,5]
-
-Note the initialization behavior, nothing
-is generated until the first true value.
-
-> let {p = pseq [1,2,3,4,5] 3
->     ;q = pbool (pseq [0,0,0,0,0,0,1,0,0,1,0,1] 1)}
-> in pclutch p q
 
     Pbind(\degree,Pstutter(Pwhite(3,10,inf),Pwhite(-4,11,inf)),
           \dur,Pclutch(Pwhite(0.1,0.4,inf),
@@ -803,16 +773,6 @@ Note that the haskell `tail` function is partial, although `drop` is not.
 
 ## ptrigger
 
-Pattern where the 'tr' pattern determines the rate at which values are
-read from the `x` pattern.  For each sucessive true value at 'tr' the
-output is a `Just e` of each succesive element at x.  False values at
-'tr' generate `Nothing` values.
-
-  tr - boolean pattern
-   x - value pattern
-
-> ptrigger (pbool (fromList [0,0,1,0,0,0,1,1])) (fromList [1,2,3])
-
 ## ptuple
 
 SC3 pattern to combine a list of streams to a stream of lists.  See
@@ -907,8 +867,8 @@ The SC3 .x adverb is like to `Control.Monad.liftM2`.
 
 ## Pkey
 
-There is no haskell equivalent to the SC3 Pkey pattern, rather name the
-pattern using let.
+While there is a haskell variant of the SC3 Pkey pattern, it is more
+appropriate to name the pattern using let.
 
     Pbind(\degree,Pseq([Pseries(-7,1,14),Pseries(7,-1,14)],inf),
           \dur,0.25,
