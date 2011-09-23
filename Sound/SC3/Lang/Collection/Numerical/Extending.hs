@@ -1,4 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+-- | List instances of the standard haskell numerical classes with SC3
+-- extension behaviour.
+--
+-- > [1,2] + [3,4,5] == [4,6,6]
+-- > [1,2,3] * [4,5] == [4,10,12]
+--
+-- Literals are interpreted as single element lists.
+--
+-- > [1,2,3] + 4 == [5,6,7]
+-- > [1,2,3] * 4 == [4,8,12]
 module Sound.SC3.Lang.Collection.Numerical.Extending where
 
 import Sound.SC3.Lang.Collection.Extension (zipWith_c)
@@ -36,9 +46,3 @@ instance Floating a => Floating [a] where
     asinh = map asinh
     acosh = map acosh
     atanh = map atanh
-
-
-{-
-[1,2,3] * [4,5]
-[1,2,3] * 2
--}
