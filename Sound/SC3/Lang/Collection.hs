@@ -10,59 +10,118 @@ import Data.Maybe
 
 -- * Collection
 
+-- | Collection.*fill is 'map' over indices to /n/.
+--
+-- > fill 4 (* 2) == [0,2,4,6]
 fill :: Int -> (Int -> a) -> [a]
 fill n f = map f [0 .. n - 1]
 
+-- | Collection.size is 'length'.
+--
+-- > size [1,2,3,4] == 4
 size :: [a] -> Int
 size = length
 
+-- | Collection.isEmpty is 'null'.
+--
+-- > isEmpty [] == True
 isEmpty :: [a] -> Bool
 isEmpty = null
 
+-- | Utility equal to 'const' of /f/ of /e/.
+--
+-- > select (ignoringIndex even) [1,2,3,4] == [2,4]
 ignoringIndex :: (a -> b) -> a -> Int -> b
-ignoringIndex f e _ = f e
+ignoringIndex f e = const (f e)
 
+-- | Collection.collect is 'map' with element indices.
+--
+-- > collect (\i _ -> i + 10) [1,2,3,4] == [11,12,13,14]
+-- > collect (\_ j -> j + 11) [1,2,3,4] == [11,12,13,14]
 collect :: (a -> Int -> b) -> [a] -> [b]
 collect f l = zipWith f l [0..]
 
+-- | Collection.select is 'filter' with element indices.
+--
+-- > select (\i _ -> even i) [1,2,3,4] == [2,4]
+-- > select (\_ j -> even j) [1,2,3,4] == [1,3]
 select :: (a -> Int -> Bool) -> [a] -> [a]
 select f l = map fst (filter (uncurry f) (zip l [0..]))
 
+-- | Collection.reject is negated 'filter' with element indices.
+--
+-- > reject (\i _ -> even i) [1,2,3,4] == [1,3]
+-- > reject (\_ j -> even j) [1,2,3,4] == [2,4]
 reject :: (a -> Int -> Bool) -> [a] -> [a]
 reject f l = map fst (filter (not . uncurry f) (zip l [0..]))
 
+-- | Collection.detect is 'first' '.' 'select'.
+--
+-- > detect (\i _ -> even i) [1,2,3,4] == Just 2
 detect :: (a -> Int -> Bool) -> [a] -> Maybe a
 detect f l = maybe Nothing (Just . fst) (find (uncurry f) (zip l [0..]))
 
+-- | Collection.detectIndex is the index locating variant of 'detect'.
+--
+-- > detectIndex (\i _ -> even i) [1,2,3,4] == Just 1
 detectIndex :: (a -> Int -> Bool) -> [a] -> Maybe Int
 detectIndex f l = maybe Nothing (Just . snd) (find (uncurry f) (zip l [0..]))
 
+-- | Collection.inject is a variant on 'foldl'.
+--
+-- > inject 0 (+) [1..5] == 15
+-- > inject 1 (*) [1..5] == 120
 inject :: a -> (a -> b -> a) -> [b] -> a
 inject i f = foldl f i
 
+-- | Collection.any is 'True' if 'detect' is not 'Nothing'.
+--
+-- > any' (\i _ -> even i) [1,2,3,4] == True
 any' :: (a -> Int -> Bool) -> [a] -> Bool
 any' f = isJust . detect f
 
+-- | Collection.every is 'True' if /f/ applies at all elements.
+--
+-- > every (\i _ -> even i) [1,2,3,4] == False
 every :: (a -> Int -> Bool) -> [a] -> Bool
-every f = let g e = not . f e
-          in not . any' g
+every f =
+    let g e = not . f e
+    in not . any' g
 
+-- | Collection.count is 'length' '.' 'select'.
+--
+-- > count (\i _ -> even i) [1,2,3,4] == 2
 count :: (a -> Int -> Bool) -> [a] -> Int
 count f = length . select f
 
+-- | Collection.occurencesOf is an '==' variant of 'count'.
+--
+-- > occurencesOf 2 [1,2,3,4] == 1
+-- > occurencesOf 't' "test" == 2
 occurencesOf :: (Eq a) => a -> [a] -> Int
 occurencesOf k = count (\e _ -> e == k)
 
+-- | Collection.sum is 'sum' '.' 'collect'.
+--
+-- > sum' (ignoringIndex (* 2)) [1,2,3,4] == 20
 sum' :: (Num a) => (b -> Int -> a) -> [b] -> a
 sum' f = sum . collect f
 
+-- | Collection.maxItem is 'maximum' '.' 'collect'.
+--
+-- > maxItem (ignoringIndex (* 2)) [1,2,3,4] == 8
 maxItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
 maxItem f = maximum . collect f
 
+-- | Collection.minItem is 'maximum' '.' 'collect'.
+--
+-- > minItem (ignoringIndex (* 2)) [1,2,3,4] == 2
 minItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
 minItem f = minimum . collect f
 
--- | Variant that cycles the shorter input.
+-- | Variant of 'zipWith' that cycles the shorter input.
+--
+-- > zipWith_c (+) [1,2] [3,4,5] == [4,6,6]
 zipWith_c :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWith_c f a b =
     let g [] [] _ = []
@@ -71,9 +130,15 @@ zipWith_c f a b =
         g (a0 : aN) (b0 : bN) e = f a0 b0 : g aN bN e
     in g a b (False,False)
 
+-- | 'zipWith_c' base variant of 'zip'.
+--
+-- > zip_c [1,2] [3,4,5] == [(1,3),(2,4),(1,5)]
 zip_c :: [a] -> [b] -> [(a,b)]
 zip_c = zipWith_c (,)
 
+-- | Variant of 'zipWith3' that cycles the shorter inputs.
+--
+-- > zipWith3_c (,,) [1] [2,3] [4,5,6] == [(1,2,4),(1,3,5),(1,2,6)]
 zipWith3_c :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
 zipWith3_c f p q r =
     let g = map (const ())
@@ -81,19 +146,17 @@ zipWith3_c f p q r =
         f' _ = f
     in zipWith4 f' (extension l) (cycle p) (cycle q) (cycle r)
 
+-- | 'zipWith3_c' based variant of 'zip3'.
+--
+-- > zip3_c [1] [2,3] [4,5,6] == [(1,2,4),(1,3,5),(1,2,6)]
 zip3_c :: [a] -> [b] -> [c] -> [(a,b,c)]
 zip3_c = zipWith3_c (\a b c -> (a,b,c))
 
-{-
-zip3_c [1..2] [3..5] [6..9]
--}
-
+-- | 'zipWith_c' based variant of applicative '<*>'.
+--
+-- > zap_c [(+1),negate] [1..6] == [2,-2,4,-4,6,-6]
 zap_c :: [a -> b] -> [a] -> [b]
 zap_c = zipWith_c (\f e -> f e)
-
-{-
-zap_c [(+1)] [1..10]
--}
 
 -- * Sequenceable Collection
 
