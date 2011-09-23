@@ -10,77 +10,77 @@ import Data.Maybe
 
 -- * Collection
 
--- | Collection.*fill is 'map' over indices to /n/.
+-- | @Collection.*fill@ is 'map' over indices to /n/.
 --
 -- > fill 4 (* 2) == [0,2,4,6]
 fill :: Int -> (Int -> a) -> [a]
 fill n f = map f [0 .. n - 1]
 
--- | Collection.size is 'length'.
+-- | @Collection.size@ is 'length'.
 --
 -- > size [1,2,3,4] == 4
 size :: [a] -> Int
 size = length
 
--- | Collection.isEmpty is 'null'.
+-- | @Collection.isEmpty@ is 'null'.
 --
 -- > isEmpty [] == True
 isEmpty :: [a] -> Bool
 isEmpty = null
 
--- | Utility equal to 'const' of /f/ of /e/.
+-- | Function equal to 'const' of /f/ of /e/.
 --
 -- > select (ignoringIndex even) [1,2,3,4] == [2,4]
 ignoringIndex :: (a -> b) -> a -> Int -> b
 ignoringIndex f e = const (f e)
 
--- | Collection.collect is 'map' with element indices.
+-- | @Collection.collect@ is 'map' with element indices.
 --
 -- > collect (\i _ -> i + 10) [1,2,3,4] == [11,12,13,14]
 -- > collect (\_ j -> j + 11) [1,2,3,4] == [11,12,13,14]
 collect :: (a -> Int -> b) -> [a] -> [b]
 collect f l = zipWith f l [0..]
 
--- | Collection.select is 'filter' with element indices.
+-- | @Collection.select@ is 'filter' with element indices.
 --
 -- > select (\i _ -> even i) [1,2,3,4] == [2,4]
 -- > select (\_ j -> even j) [1,2,3,4] == [1,3]
 select :: (a -> Int -> Bool) -> [a] -> [a]
 select f l = map fst (filter (uncurry f) (zip l [0..]))
 
--- | Collection.reject is negated 'filter' with element indices.
+-- | @Collection.reject@ is negated 'filter' with element indices.
 --
 -- > reject (\i _ -> even i) [1,2,3,4] == [1,3]
 -- > reject (\_ j -> even j) [1,2,3,4] == [2,4]
 reject :: (a -> Int -> Bool) -> [a] -> [a]
 reject f l = map fst (filter (not . uncurry f) (zip l [0..]))
 
--- | Collection.detect is 'first' '.' 'select'.
+-- | @Collection.detect@ is 'first' '.' 'select'.
 --
 -- > detect (\i _ -> even i) [1,2,3,4] == Just 2
 detect :: (a -> Int -> Bool) -> [a] -> Maybe a
 detect f l = maybe Nothing (Just . fst) (find (uncurry f) (zip l [0..]))
 
--- | Collection.detectIndex is the index locating variant of 'detect'.
+-- | @Collection.detectIndex@ is the index locating variant of 'detect'.
 --
 -- > detectIndex (\i _ -> even i) [1,2,3,4] == Just 1
 detectIndex :: (a -> Int -> Bool) -> [a] -> Maybe Int
 detectIndex f l = maybe Nothing (Just . snd) (find (uncurry f) (zip l [0..]))
 
--- | Collection.inject is a variant on 'foldl'.
+-- | @Collection.inject@ is a variant on 'foldl'.
 --
 -- > inject 0 (+) [1..5] == 15
 -- > inject 1 (*) [1..5] == 120
 inject :: a -> (a -> b -> a) -> [b] -> a
 inject i f = foldl f i
 
--- | Collection.any is 'True' if 'detect' is not 'Nothing'.
+-- | @Collection.any@ is 'True' if 'detect' is not 'Nothing'.
 --
 -- > any' (\i _ -> even i) [1,2,3,4] == True
 any' :: (a -> Int -> Bool) -> [a] -> Bool
 any' f = isJust . detect f
 
--- | Collection.every is 'True' if /f/ applies at all elements.
+-- | @Collection.every@ is 'True' if /f/ applies at all elements.
 --
 -- > every (\i _ -> even i) [1,2,3,4] == False
 every :: (a -> Int -> Bool) -> [a] -> Bool
@@ -88,32 +88,32 @@ every f =
     let g e = not . f e
     in not . any' g
 
--- | Collection.count is 'length' '.' 'select'.
+-- | @Collection.count@ is 'length' '.' 'select'.
 --
 -- > count (\i _ -> even i) [1,2,3,4] == 2
 count :: (a -> Int -> Bool) -> [a] -> Int
 count f = length . select f
 
--- | Collection.occurencesOf is an '==' variant of 'count'.
+-- | @Collection.occurencesOf@ is an '==' variant of 'count'.
 --
 -- > occurencesOf 2 [1,2,3,4] == 1
 -- > occurencesOf 't' "test" == 2
 occurencesOf :: (Eq a) => a -> [a] -> Int
 occurencesOf k = count (\e _ -> e == k)
 
--- | Collection.sum is 'sum' '.' 'collect'.
+-- | @Collection.sum@ is 'sum' '.' 'collect'.
 --
 -- > sum' (ignoringIndex (* 2)) [1,2,3,4] == 20
 sum' :: (Num a) => (b -> Int -> a) -> [b] -> a
 sum' f = sum . collect f
 
--- | Collection.maxItem is 'maximum' '.' 'collect'.
+-- | @Collection.maxItem@ is 'maximum' '.' 'collect'.
 --
 -- > maxItem (ignoringIndex (* 2)) [1,2,3,4] == 8
 maxItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
 maxItem f = maximum . collect f
 
--- | Collection.minItem is 'maximum' '.' 'collect'.
+-- | @Collection.minItem@ is 'maximum' '.' 'collect'.
 --
 -- > minItem (ignoringIndex (* 2)) [1,2,3,4] == 2
 minItem :: (Ord b) => (a -> Int -> b) -> [a] -> b
@@ -160,15 +160,8 @@ zap_c = zipWith_c (\f e -> f e)
 
 -- * Sequenceable Collection
 
-with_counter :: (a -> (b,a)) -> Int -> a -> [b]
-with_counter f =
-    let go n i =
-            case n of
-              0 -> []
-              _ -> let (r,i') = f i in r : go n i'
-    in go
-
--- | Arithmetic series (size, start, step)
+-- | @SequenceableCollection.*series@ is an arithmetic series with
+-- arguments /size/, /start/ and /step/.
 --
 -- > Array.series(5,10,2) == [10,12,14,16,18]
 -- > series 5 10 2 == [10,12 .. 18]
@@ -184,7 +177,8 @@ series n i j =
       0 -> []
       _ -> i : series (n - 1) (i + j) j
 
--- | Geometric series (size, start, grow).
+-- | @SequenceableCollection.*geom@ is a geometric series with arguments
+-- /size/, /start/ and /grow/.
 --
 -- > Array.geom(5,3,6) == [3,18,108,648,3888]
 -- > geom 5 3 6 == [3,18,108,648,3888]
@@ -194,8 +188,9 @@ geom n i j =
       0 -> []
       _ -> i : geom (n - 1) (i * j) j
 
--- | Fibonacci series where 'n' number of elements, 'i' is the initial
---   step and 'j' the initial value.
+-- | @SequenceableCollection.*fib@ is the Fibonacci series where /n/
+-- is number of elements, /i/ is the initial step and /j/ the initial
+-- value.
 --
 -- > Array.fib(5,2,32) == [32,34,66,100,166]
 -- > fib 5 2 32 == [32,34,66,100,166]
@@ -205,7 +200,7 @@ fib n i j =
       0 -> []
       _ -> j : fib (n - 1) j (i + j)
 
--- | Total variant of 'L.head'.
+-- | @SequenceableCollection.first@ is a total variant of 'L.head'.
 --
 -- > [3,4,5].first == 3
 -- > first [3,4,5] == Just 3
@@ -223,6 +218,14 @@ first xs =
 first' :: [t] -> t
 first' = head
 
+-- | Total variant of 'L.last'.
+--
+-- > (1..5).last == 5
+-- > lastM [1..5] == Just 5
+-- > L.last [1..5] == 5
+--
+-- > [].last == nil
+-- > lastM [] == Nothing
 lastM :: [t] -> Maybe t
 lastM xs =
     case xs of
@@ -230,14 +233,7 @@ lastM xs =
       [x] -> Just x
       _:xs' -> lastM xs'
 
--- | Total variant of 'L.last'.
---
--- > (1..5).last == 5
--- > last [1..5] == Just 5
--- > L.last [1..5] == 5
---
--- > [].last == nil
--- > last [] == Nothing
+-- | @SequenceableCollection.last@ is a synonym for 'lastM'.
 last :: [t] -> Maybe t
 last = lastM
 
@@ -245,25 +241,32 @@ last = lastM
 last' :: [t] -> t
 last' = L.last
 
--- | Variant of 'elemIndex' with reversed arguments.
+-- | @SequenceableCollection.indexOf@ is a variant of 'elemIndex' with
+-- reversed arguments.
 --
 -- > [3,4,100,5].indexOf(100) == 2
 -- > indexOf [3,4,100,5] 100 == Just 2
 indexOf :: Eq a => [a] -> a -> Maybe Int
 indexOf = flip elemIndex
 
+-- | 'fromJust' variant of 'indexOf'.
 indexOf' :: Eq a => [a] -> a -> Int
 indexOf' l = fromJust . indexOf l
 
--- | indexOf
+-- | @SequenceableCollection.indexOfEqual@ is just 'indexOf'.
 indexOfEqual :: Eq a => [a] -> a -> Maybe Int
 indexOfEqual = indexOf
 
--- | Collection is sorted, index of first greater element.
+-- | @SequenceableCollection.indexOfGreaterThan@ is the index of the
+-- first greater element.
+--
+-- > indexOfGreaterThan 70 [10,5,77,55,12,123] == Just 2
 indexOfGreaterThan :: (Ord a) => a -> [a] -> Maybe Int
 indexOfGreaterThan e = detectIndex (ignoringIndex (> e))
 
--- | Collection is sorted, index of nearest element.
+-- | @SequenceableCollection.indexIn@ is the index of nearest element.
+--
+-- > indexIn 5.2 [2,3,5,6] == 2
 indexIn :: (Ord a,Num a) => a -> [a] -> Int
 indexIn e l =
     let f 0 = 0
@@ -273,7 +276,10 @@ indexIn e l =
               in if (e - left) < (right - e) then i else j
     in maybe (size l - 1) f (indexOfGreaterThan e l)
 
--- | Collection is sorted, linearly interpolated fractional index.
+-- | @SequenceableCollection.indexInBetween@ is the linearly
+-- interpolated fractional index.
+--
+-- > indexInBetween 5.2 [2,3,5,6] == 2.2
 indexInBetween :: (Ord a,Fractional a) => a -> [a] -> a
 indexInBetween e l =
     let f 0 = 0
@@ -284,8 +290,9 @@ indexInBetween e l =
               in if d == 0 then i else ((e - a) / d) + i - 1
     in maybe (fromIntegral (size l) - 1) f (indexOfGreaterThan e l)
 
--- | For positive 'n' a synonym for 'take', for negative 'n'
--- a variant on 'L.drop' based on the 'length' of 'l'.
+-- | @SequenceableCollection.keep@ is, for positive /n/ a synonym for
+-- 'take', and for negative /n/ a variant on 'L.drop' based on the
+-- 'length' of /l/.
 --
 -- > [1,2,3,4,5].keep(3) == [1,2,3]
 -- > keep 3 [1,2,3,4,5] == [1,2,3]
@@ -301,8 +308,9 @@ keep n l =
     then L.drop (length l + n) l
     else take n l
 
--- | For positive 'n' a synonym for 'L.drop', for negative 'n'
--- a variant on 'take' based on the 'length' of 'l'.
+-- | @SequenceableCollection.drop@ is, for positive /n/ a synonym for
+-- 'L.drop', for negative /n/ a variant on 'take' based on the
+-- 'length' of /l/.
 --
 -- > [1,2,3,4,5].drop(3) == [4,5]
 -- > drop 3 [1,2,3,4,5] == [4,5]
@@ -318,6 +326,11 @@ drop n l =
     then take (length l + n) l
     else L.drop n l
 
+-- | Function to calculate a list equal in length to the longest input
+-- list, therefore being productive over infinite lists.
+--
+-- > extension [[1],[2,3],[4,5,6]] == [(),(),()]
+-- > take 3 (extension [[1],[2..]]) == [(),(),()]
 extension :: [[a]] -> [()]
 extension x =
     if null x
@@ -325,8 +338,8 @@ extension x =
     else let x' = filter (not . null) (map tail x)
          in () : extension x'
 
--- | Variant of 'transpose' that cycles input sequences and extends
--- rather than truncates.
+-- | @SequenceableCollection.flop@ is a variant of 'transpose' that
+-- cycles input sequences and extends rather than truncates.
 --
 -- > [(1..3),(4..5),(6..9)].flop == [[1,4,6],[2,5,7],[3,4,8],[1,5,9]]
 -- > flop [[1..3],[4..5],[6..9]] == [[1,4,6],[2,5,7],[3,4,8],[1,5,9]]
@@ -350,15 +363,18 @@ flop l =
     let l' = map cycle l
     in zipWith (\_ x -> x) (extension l) (transpose l')
 
--- | Concatenated transposition of cycled subsequences.
+-- * List and Array
+
+-- | @List.lace@ is a concatenated transposition of cycled
+-- subsequences.
 --
 -- > [[1,2,3],[6],[8,9]].lace(12) == [1,6,8,2,6,9,3,6,8,1,6,9]
 -- > lace 12 [[1,2,3],[6],[8,9]] == [1,6,8,2,6,9,3,6,8,1,6,9]
 lace :: Int -> [[a]] -> [a]
 lace n = take n . concat . transpose . map cycle
 
--- | Extend sequence by /cycling/.  'wrapExtend' is in terms of 'take'
--- and 'cycle'.
+-- | @List.wrapExtend@ extends a sequence by
+-- /cycling/.  'wrapExtend' is in terms of 'take' and 'cycle'.
 --
 -- > [1,2,3,4,5].wrapExtend(9) == [1,2,3,4,5,1,2,3,4]
 -- > wrapExtend 9 [1,2,3,4,5] == [1,2,3,4,5,1,2,3,4]
@@ -369,32 +385,36 @@ wrapExtend n = take n . cycle
 cycleFold :: [a] -> [a]
 cycleFold = cycle . mirror1
 
--- | Extend sequence by /folding/ backwards at end.  'foldExtend' is
--- in terms of 'cycleFold', which is in terms of 'mirror1'.
+-- | @List.foldExtend@ extends sequence by /folding/ backwards at end.
+-- 'foldExtend' is in terms of 'cycleFold', which is in terms of
+-- 'mirror1'.
 --
 -- > [1,2,3,4,5].foldExtend(10)
 -- > foldExtend 10 [1,2,3,4,5] == [1,2,3,4,5,4,3,2,1,2]
 foldExtend :: Int -> [a] -> [a]
 foldExtend n = take n . cycleFold
 
--- | Extend sequence by repeating last element.
+-- | @Array.clipExtend@ extends sequence by repeating last element.
 --
 -- > [1,2,3,4,5].clipExtend(9) == [1,2,3,4,5,5,5,5,5]
 -- > clipExtend 9 [1,2,3,4,5] == [1,2,3,4,5,5,5,5,5]
 clipExtend :: Int -> [a] -> [a]
 clipExtend n = take n . cycleClip
 
+-- | Infinite variant of 'clipExtend'.
 cycleClip :: [a] -> [a]
 cycleClip l =
     case lastM l of
       Nothing -> []
       Just e -> l ++ repeat e
 
+-- | Cycle input sequences to 'extension' of input.
 extendSequences :: [[a]] -> [[a]]
 extendSequences l =
     let f = zipWith (\_ x -> x) (extension l) . cycle
     in map f l
 
+-- | Variant of 'separate' that performs initial separation.
 separateAt :: (a -> a -> Bool) -> [a] -> ([a],[a])
 separateAt f xs =
     case xs of
@@ -405,9 +425,9 @@ separateAt f xs =
                in x1 `g` separateAt f (x2:xs')
       _ -> (xs,[])
 
--- | Separates by applying the predicate 'f' to each adjacent pair of
--- elements at 'l'. If the predicate is 'True', then a separation is
--- made between the elements.
+-- | @SequenceableCollection.separate@ applies the predicate 'f' to
+-- each adjacent pair of elements at /l/. If the predicate is 'True',
+-- then a separation is made between the elements.
 --
 -- > [3,2,1,2,3,2].separate({|a,b| a<b}) == [[3,2,1],[2],[3,2]]
 -- > separate (<) [3,2,1,2,3,2] == [[3,2,1],[2],[3,2]]
@@ -419,14 +439,16 @@ separate f l =
     let (e,r) = separateAt f l
     in if null r then [e] else e : separate f r
 
--- | Synonym for 'Data.List.Split.splitEvery'.
+-- | @SequenceableCollection.clump@ is a synonym for
+-- 'Data.List.Split.splitEvery'.
 --
 -- > [1,2,3,4,5,6,7,8].clump(3) == [[1,2,3],[4,5,6],[7,8]]
 -- > clump 3 [1,2,3,4,5,6,7,8] == [[1,2,3],[4,5,6],[7,8]]
 clump :: Int -> [a] -> [[a]]
 clump = splitEvery
 
--- | Synonym for 'Data.List.Split.splitPlaces'.
+-- | @SequenceableCollection.clumps@ is a synonym for
+-- 'Data.List.Split.splitPlaces'.
 --
 -- > [1,2,3,4,5,6,7,8].clumps([1,2]) == [[1],[2,3],[4],[5,6],[7],[8]]
 -- > clumps [1,2] [1,2,3,4,5,6,7,8] == [[1],[2,3],[4],[5,6],[7],[8]]
@@ -439,15 +461,21 @@ clumps m s =
          [] -> []
          _ -> f (cycle m) s
 
--- | dx -> d
+-- | @SequenceableCollection.integrate@ is the incremental sum of
+-- elements.
+--
+-- > integrate [3,4,1,1] == [3,7,8,9]
 integrate :: (Num a) => [a] -> [a]
 integrate = scanl1 (+)
 
--- | d -> dx
+-- | @SequenceableCollection.differentiate@ is the pairwise difference
+-- between elements.
+--
+-- > differentiate [3,4,1,1] == [3,1,-3,0]
 differentiate :: (Num a) => [a] -> [a]
 differentiate l = zipWith (-) l (0:l)
 
--- | Rotate n places to the left
+-- | Rotate /n/ places to the left.
 --
 -- > rotateLeft 3 [1..7] == [4,5,6,7,1,2,3]
 rotateLeft :: Int -> [a] -> [a]
@@ -455,7 +483,7 @@ rotateLeft n p =
     let (b,a) = splitAt n p
     in a ++ b
 
--- | Rotate n places to the right
+-- | Rotate /n/ places to the right.
 --
 -- > rotateRight 3 [1..7] == [5,6,7,1,2,3,4]
 rotateRight :: Int -> [a] -> [a]
@@ -464,14 +492,16 @@ rotateRight n p =
         (b,a) = splitAt (k - n) p
     in a ++ b
 
--- | Ensure sum of elements is one.
+-- | @ArrayedCollection.normalizeSum@ ensures sum of elements is one.
+--
+-- > normalizeSum [1,2,3] == [1/6,2/6,3/6]
 normalizeSum :: (Fractional a) => [a] -> [a]
 normalizeSum l =
     let n = sum l
     in map (/ n) l
 
--- | Identity window function with subsequences of length 'w' and
--- stride of 'n'.
+-- | @List.slide@ is an identity window function with subsequences of
+-- length /w/ and stride of /n/.
 --
 -- > [1,2,3,4,5,6].slide(3,1)
 -- > slide 3 1 [1,2,3,4,5,6] == [1,2,3,2,3,4,3,4,5,4,5,6]
@@ -486,14 +516,15 @@ slide w n l =
     let k = length l
     in concat (map (\i -> take w (L.drop i l)) [0,n .. k-w])
 
--- | Concatentate with 'tail' of 'reverse' to make a palindrome.
+-- | @List.mirror@ concatentates with 'tail' of 'reverse' to make a
+-- palindrome.
 --
 -- > [1,2,3,4].mirror == [1,2,3,4,3,2,1]
 -- > mirror [1,2,3,4] == [1,2,3,4,3,2,1]
 mirror :: [a] -> [a]
 mirror l = l ++ (tail (reverse l))
 
--- | As 'mirror' but with last element removed.
+-- | @List.mirror1@ is as 'mirror' but with last element removed.
 --
 -- > [1,2,3,4].mirror1 == [1,2,3,4,3,2]
 -- > mirror1 [1,2,3,4] == [1,2,3,4,3,2]
@@ -504,23 +535,23 @@ mirror1 l =
       [e] -> [e]
       _ -> l ++ tail (reverse (tail l))
 
--- | Concatenate with 'reverse' to make a palindrome, as 'mirror'
--- does, but with the center element duplicated.
+-- | @List.mirror2@ concatenate with 'reverse' to make a palindrome,
+-- as 'mirror' does, but with the center element duplicated.
 --
 -- > [1,2,3,4].mirror2 == [1,2,3,4,4,3,2,1]
 -- > mirror2 [1,2,3,4] == [1,2,3,4,4,3,2,1]
 mirror2 :: [a] -> [a]
 mirror2 l = l ++ (reverse l)
 
--- | Repeated each element 'n' times.
+-- | @List.stutter@ repeats each element /n/ times.
 --
 -- > [1,2,3].stutter(2) == [1,1,2,2,3,3]
 -- > stutter 2 [1,2,3] == [1,1,2,2,3,3]
 stutter :: Int -> [a] -> [a]
 stutter n = concatMap (replicate n)
 
--- | 'rotate' is in terms of 'rotateLeft' and 'rotateRight', where
---    negative 'n' rotates left and positive 'n' rotates right.
+-- | @Array.rotate@ is in terms of 'rotateLeft' and 'rotateRight',
+-- where negative /n/ rotates left and positive /n/ rotates right.
 --
 -- > (1..5).rotate(1) == [5,1,2,3,4]
 -- > rotate 1 [1..5] == [5,1,2,3,4]
