@@ -2,10 +2,13 @@ module Sound.SC3.Lang.Control.Instrument where
 
 import Sound.SC3.ID
 
+-- | An 'Instrument' is either a 'Synthdef' or the 'String' naming a
+-- 'Synthdef'.
 data Instrument = InstrumentDef Synthdef
                 | InstrumentName String
                   deriving (Eq,Show)
 
+-- | The SC3 /default/ instrument 'Synthdef'.
 defaultInstrument :: Synthdef
 defaultInstrument =
     let f = control KR "freq" 440

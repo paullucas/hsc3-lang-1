@@ -1,3 +1,4 @@
+-- | An 'Event' is a ('Key','Value') map.
 module Sound.SC3.Lang.Control.Event where
 
 import qualified Data.Map as M
@@ -17,6 +18,7 @@ data Event = Event {e_type :: Type
                    ,e_map :: M.Map Key Value}
                   deriving (Eq,Show)
 
+-- | The /default/ empty event.
 defaultEvent :: Event
 defaultEvent =
     Event {e_type = "unknown"
@@ -24,21 +26,33 @@ defaultEvent =
           ,e_instrument = Nothing
           ,e_map = M.empty}
 
+-- | Lookup /k/ in /e/.
+--
+-- > lookup_m "k" defaultEvent == Nothing
 lookup_m :: Key -> Event -> Maybe Value
 lookup_m k e = M.lookup k (e_map e)
 
+-- | Variant of 'lookup_m' with a default value /v/.
+--
+-- > lookup_v 1 "k" defaultEvent == 1
 lookup_v :: Value -> Key -> Event -> Value
 lookup_v v k e =
     case lookup_m k e of
       Nothing -> v
       Just v' -> v'
 
+-- | Variant of 'lookup_v' with a transformation function.
+--
+-- > lookup_t 1 negate "k" defaultEvent == 1
+-- > lookup_t 1 negate "k" (insert "k" 1 defaultEvent) == -1
 lookup_t :: t -> (Value -> t) -> Key -> Event -> t
 lookup_t v f k e =
     case lookup_m k e of
       Nothing -> v
       Just v' -> f v'
 
+-- | Lookup 'Pitch' model parameters at /e/ and construct a 'Pitch'
+-- value.
 pitch :: Event -> P.Pitch Double
 pitch e =
     let get_r v k = lookup_v v k e
@@ -71,9 +85,16 @@ duration e =
                   ,D.lag = get_r 0.1 "lag"
                   ,D.fwd' = get_o "fwd'"}
 
+-- | Insert (/k/,/v/) into /e/.
+--
+-- > lookup_m "k" (insert "k" 1 defaultEvent) == Just 1
 insert :: Key -> Value -> Event -> Event
 insert k v e = e {e_map = M.insert k v (e_map e)}
 
+-- | The frequency of the 'pitch' of /e/.
+--
+-- > freq (event [("degree",5)]) == 440
+-- > freq (event [("midinote",69)]) == 440
 freq :: Event -> Double
 freq = P.detunedFreq . pitch
 
@@ -83,15 +104,27 @@ db = lookup_v (-20) "db"
 dbAmp' :: Floating a => a -> a
 dbAmp' a = 10 ** (a * 0.05)
 
+-- | The linear amplitude of the amplitude model at /e/.
+--
+-- > amp (event [("db",-20)]) == 0.1
 amp :: Event -> Value
 amp e = lookup_v (dbAmp' (db e)) "amp" e
 
+-- | The /fwd/ value of the duration model at /e/.
+--
+-- > fwd (event [("dur",1),("stretch",2)]) == 2
 fwd :: Event -> Double
 fwd = D.fwd . duration
 
+-- | The /sustain/ value of the duration model at /e/.
+--
+-- > sustain (event [("dur",1),("legato",0.5)]) == 0.5
 sustain :: Event -> Double
 sustain = D.sustain . duration
 
+-- | List of reserved /keys/ for pitch, duration and amplitude models.
+--
+-- > ("degree" `elem` reserved) == True
 reserved :: [Key]
 reserved =
     ["amp","db"
@@ -126,6 +159,9 @@ from_list t n i l =
           ,e_instrument = i
           ,e_map = M.fromList l}
 
+-- | Construct an 'Event' from a list of (/key/,/value/) pairs.
+--
+-- > lookup_m "k" (event [("k",1)]) == Just 1
 event :: [(Key,Value)] -> Event
 event l =
     Event {e_type = "s_new"
@@ -147,6 +183,10 @@ instrument_def e =
       Just (I.InstrumentDef s) -> Just s
       Just (I.InstrumentName _) -> Nothing
 
+-- | Merge two sorted sequence of (/location/,/value/) pairs.
+--
+-- > let m = f_merge (zip [0,2..6] ['a'..]) (zip [0,3,6] ['A'..])
+-- > in m == [(0,'a'),(0,'A'),(2,'b'),(3,'B'),(4,'c'),(6,'d'),(6,'C')]
 f_merge :: Ord a => [(a,t)] -> [(a,t)] -> [(a,t)]
 f_merge p q =
     case (p,q) of
@@ -156,10 +196,6 @@ f_merge p q =
             if t0 <= t1
             then (t0,e0) : f_merge r0 q
             else (t1,e1) : f_merge p r1
-
-{-
-f_merge (zip [0,2..10] ['a'..]) (zip [0,4..12] ['A'..])
--}
 
 type Time = Double
 
