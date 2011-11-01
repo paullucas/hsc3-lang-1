@@ -1,7 +1,38 @@
+-- | Data set giving formant locations for 'Vowel's.
 module Sound.SC3.Lang.Data.Vowel where
 
 import Data.List
 import Data.Maybe
+
+-- * Lookup functions
+
+-- | Extract 'Fn'th formant triple of an 'Fdata'.
+--
+-- > formant F1 (fdata Bass I) == (1750,-30,90)
+formant :: Num n => Fn -> Fdata n -> (n,n,n)
+formant n v = formants v !! fromEnum n
+
+-- | Lookup formant 'Fdata' given 'Voice' and 'Vowel'.
+--
+-- > fdata Bass I == (Bass,I,[250,1750,2600,3050,3340]
+-- >                        ,[0,-30,-16,-22,-28]
+-- >                        ,[60,90,100,120,120])
+fdata :: Num n => Voice -> Vowel -> Fdata n
+fdata v i =
+    let f (p,q,_,_,_) = p == v && q == i
+    in fromMaybe (error "fdata") (find f fdata_table)
+
+-- | Formant triples of an 'Fdata'.
+--
+-- > formants (fdata Bass I) == [(250,0,60)
+-- >                            ,(1750,-30,90)
+-- >                            ,(2600,-16,100)
+-- >                            ,(3050,-22,120)
+-- >                            ,(3340,-28,120)]
+formants :: Num n => Fdata n -> [(n,n,n)]
+formants (_,_,f,a,bw) = map triple' (transpose [f,a,bw])
+
+-- * Data types
 
 -- | Enumeration of voices.
 data Voice = Soprano | Alto | CounterTenor | Tenor | Bass
@@ -17,6 +48,8 @@ type Fdata n = (Voice,Vowel,[n],[n],[n])
 -- | Enumeration of formant indices.
 data Fn = F0 | F1 | F2 | F3 | F4
         deriving (Enum,Bounded,Eq,Read,Show)
+
+-- * Table
 
 -- | 'Fdata' table.
 fdata_table :: Num n => [Fdata n]
@@ -147,7 +180,11 @@ fdata_table =
      ,[0,-20,-32,-28,-36]
      ,[40,80,100,120,120])]
 
+-- * Tuple/List functions
+
 -- | Construct a triple from a three element list.
+--
+-- > triple [1..3] == Just (1,2,3)
 triple :: [a] -> Maybe (a,a,a)
 triple x =
     case x of
@@ -155,21 +192,7 @@ triple x =
       _ -> Nothing
 
 -- | Partial variant of 'triple'.
+--
+-- > triple' [1..3] == (1,2,3)
 triple' :: [a] -> (a,a,a)
 triple' = fromJust . triple
-
--- | Formant triples of an 'Fdata'.
-formants :: Num n => Fdata n -> [(n,n,n)]
-formants (_,_,f,a,bw) = map triple' (transpose [f,a,bw])
-
--- | 'Fn'th formant triple of an 'Fdata'.
-formant :: Num n => Fn -> Fdata n -> (n,n,n)
-formant n v = formants v !! fromEnum n
-
--- | Lookup formant data given 'Voice' and 'Vowel'.
---
--- > formant F1 (fdata Bass I) == (1750,-30,90)
-fdata :: Num n => Voice -> Vowel -> Fdata n
-fdata v i =
-    let f (p,q,_,_,_) = p == v && q == i
-    in fromMaybe (error "fdata") (find f fdata_table)

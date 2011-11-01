@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | List instances of the standard haskell numerical classes with SC3
--- extension behaviour.
+-- extension behaviour.  Provides instances for 'Num', 'Fractional'
+-- and 'Floating'.
 --
 -- > [1,2] + [3,4,5] == [4,6,6]
 -- > [1,2,3] * [4,5] == [4,10,12]

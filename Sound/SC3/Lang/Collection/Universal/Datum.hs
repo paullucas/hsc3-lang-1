@@ -1,4 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+-- | Functions to allow using the "Sound.OpenSoundControl" 'Datum' as
+-- a /universal/ data type.  In addition to the functions defined
+-- below it provides instances for 'IsString', 'Num', 'Fractional',
+-- 'Floating', 'Real', 'RealFrac', 'Ord', 'Enum' and 'Random'.
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
 import Data.Maybe
@@ -10,6 +14,9 @@ import System.Random
 instance IsString Datum where
     fromString = String
 
+-- | 'Datum' as real number if 'Double', 'Float' or 'Int', else 'Nothing'.
+--
+-- > map datum_r [Int 5,Float 5,String "5"] == [Just 5,Just 5,Nothing]
 datum_r :: Datum -> Maybe Double
 datum_r d =
     case d of
@@ -18,18 +25,29 @@ datum_r d =
       Int n -> Just (fromIntegral n)
       _ -> Nothing
 
+-- | A 'fromJust' variant of 'datum_r'.
+--
+-- > map datum_r' [Int 5,Float 5] == [5,5]
 datum_r' :: Datum -> Double
 datum_r' = fromJust . datum_r
 
+-- | Extract 'String' from 'Datum', else 'Nothing'.
+--
+-- > map datum_str [String "5",Int 5] == [Just "5",Nothing]
 datum_str :: Datum -> Maybe String
 datum_str d =
     case d of
       String s -> Just s
       _ -> Nothing
 
+-- | A 'fromJust' variant of 'datum_str'.
 datum_str' :: Datum -> String
 datum_str' = fromJust . datum_str
 
+-- | Lift an equivalent set of 'Int' and 'Double' unary functions to
+-- 'Datum'.
+--
+-- > map (datum_lift negate negate) [Int 5,Float 5] == [Int (-5),Float (-5)]
 datum_lift :: (Int -> Int) -> (Double -> Double) -> Datum -> Datum
 datum_lift fi fd d =
     case d of
@@ -38,6 +56,9 @@ datum_lift fi fd d =
       Double n -> Double (fd n)
       _ -> error "datum_lift"
 
+-- | Promote 'Int' and 'Float' 'Datum' to 'Double' 'Datum'.
+--
+-- > map datum_promote [Int 5,Float 5] == [Double 5,Double 5]
 datum_promote :: Datum -> Datum
 datum_promote d =
     case d of
@@ -45,13 +66,25 @@ datum_promote d =
       Float n -> Double n
       _ -> d
 
+-- | Lift a 'Double' unary operator to 'Datum' via 'datum_promote'.
+--
+-- > datum_lift' negate (Int 5) == Double (-5)
 datum_lift' :: (Double -> Double) -> Datum -> Datum
 datum_lift' f = datum_lift (error "datum_lift:non integral") f .
                 datum_promote
 
+-- | An 'Int' binary operator.
 type I_Binop = Int -> Int -> Int
+
+-- | A 'Double' binary operator.
 type F_Binop = Double -> Double -> Double
 
+-- | Given 'Int' and 'Double' binary operators generate 'Datum'
+-- operator.  If 'Datum' are of equal type result type is equal, else
+-- result type is 'Double'.
+--
+-- > datum_lift2 (+) (+) (Float 1) (Float 2) == Float 3
+-- > datum_lift2 (*) (*) (Int 3) (Float 4) == Double 12
 datum_lift2 :: I_Binop -> F_Binop -> Datum -> Datum -> Datum
 datum_lift2 fi fd d1 d2 =
     case (d1,d2) of
@@ -62,6 +95,9 @@ datum_lift2 fi fd d1 d2 =
              (Just n1,Just n2) -> Double (fd n1 n2)
              _ -> error "datum_lift2"
 
+-- | A 'datum_promote' variant of 'datum_lift2'.
+--
+-- > datum_lift2' (+) (Float 1) (Float 2) == Double 3
 datum_lift2' :: F_Binop -> Datum -> Datum -> Datum
 datum_lift2' f d1 =
     let d1' = datum_promote d1
@@ -122,6 +158,10 @@ instance Ord Datum where
               (Just i,Just j) -> i < j
               _ -> error "datum,ord,partial"
 
+-- | Direct unary 'Int' and 'Double' functions at 'Datum' fields, or
+-- 'error'.
+--
+-- > at_d1 show show (Int 5) == "5"
 at_d1 :: (Int -> a) -> (Double -> a) -> Datum -> a
 at_d1 fi fr d =
     case d of
@@ -130,6 +170,8 @@ at_d1 fi fr d =
       Double n -> fr n
       _ -> error "at_d1,partial"
 
+-- | Direct binary 'Int' and 'Double' functions at 'Datum' fields, or
+-- 'error'.
 at_d2 :: (Int -> Int -> a) ->
          (Double -> Double -> a) ->
          Datum -> Datum -> a
@@ -140,6 +182,8 @@ at_d2 fi fr d1 d2 =
       (Double n1,Double n2) -> fr n1 n2
       _ -> error "at_d2,partial"
 
+-- | Direct ternary 'Int' and 'Double' functions at 'Datum' fields, or
+-- 'error'.
 at_d3 :: (Int -> Int -> Int -> a) ->
          (Double -> Double -> Double -> a) ->
          Datum -> Datum -> Datum -> a
