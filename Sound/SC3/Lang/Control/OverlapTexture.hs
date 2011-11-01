@@ -14,7 +14,7 @@ mk_env a s =
     in envGen KR 1 1 0 1 RemoveSynth p
 
 with_env' :: UGen -> UGen -> UGen -> UGen
-with_env' g a s = out 0 (g * (mk_env a s))
+with_env' g a s = out 0 (g * mk_env a s)
 
 with_env :: (Double,Double) -> UGen -> UGen
 with_env (a,s) g = with_env' g (constant a) (constant s)

@@ -36,10 +36,7 @@ lookup_m k e = M.lookup k (e_map e)
 --
 -- > lookup_v 1 "k" defaultEvent == 1
 lookup_v :: Value -> Key -> Event -> Value
-lookup_v v k e =
-    case lookup_m k e of
-      Nothing -> v
-      Just v' -> v'
+lookup_v v k e = fromMaybe v (lookup_m k e)
 
 -- | Variant of 'lookup_v' with a transformation function.
 --
@@ -225,9 +222,7 @@ to_sc3_osc t j e =
         rt = sustain e
         f = freq e
         pr = ("freq",f) : ("amp",amp e) : ("sustain",rt) : parameters e
-        i = case e_id e of
-              Nothing -> j
-              Just i' -> i'
+        i = fromMaybe j (e_id e)
     in if isNaN f
        then Nothing
        else let m_on = case e_type e of

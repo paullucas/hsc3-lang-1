@@ -21,7 +21,7 @@ bitChar c =
 parseBits :: Bits a => String -> a
 parseBits x =
     let x' = filter (id . bitChar . snd) (zip [0..] (reverse x))
-    in foldr (.|.) 0 (map (bit . fst) x')
+    in foldr ((.|.) . bit . fst) 0 x'
 
 -- * SimpleNumber
 

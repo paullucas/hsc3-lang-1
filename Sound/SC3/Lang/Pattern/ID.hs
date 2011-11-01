@@ -297,7 +297,7 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 -- > Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
 -- > padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
 padd :: E.Key -> P E.Value -> P E.Event -> P E.Event
-padd k p = pzipWith (\i j -> E.edit_v k 0 (+ i) j) p
+padd k = pzipWith (\i j -> E.edit_v k 0 (+ i) j)
 
 -- | A primitive form of the SC3 'pbind' pattern, with explicit type
 -- and identifier inputs.
@@ -409,7 +409,7 @@ pfuncn' g_ f n =
   in P (go (replicate n f) g_) (stp n)
 
 pfuncn :: (Enum e) => e -> (StdGen -> (n,StdGen)) -> Int -> P n
-pfuncn e f n = pfuncn' (mkStdGen (fromEnum e)) f n
+pfuncn e = pfuncn' (mkStdGen (fromEnum e))
 
 -- | SC3 geometric series pattern.
 --
@@ -438,7 +438,7 @@ pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
 pinstr :: P I.Instrument -> P E.Event -> P E.Event
-pinstr p = pzipWith (\i e -> e {E.e_instrument = Just i}) p
+pinstr = pzipWith (\i e -> e {E.e_instrument = Just i})
 
 pinstr_s :: P String -> P E.Event -> P E.Event
 pinstr_s p = pinstr (fmap I.InstrumentName p)
@@ -483,11 +483,11 @@ pmono_s s i =
     in pbind' ty (repeat (Just i)) ss
 
 pmul :: E.Key -> P E.Value -> P E.Event -> P E.Event
-pmul k p = pzipWith (\i j -> E.edit_v k 1 (* i) j) p
+pmul k = pzipWith (\i j -> E.edit_v k 1 (* i) j)
 
 -- | Variant that does not insert key.
 pmul' :: E.Key -> P E.Value -> P E.Event -> P E.Event
-pmul' k p = pzipWith (\i j -> E.edit k (* i) j) p
+pmul' k = pzipWith (\i j -> E.edit k (* i) j)
 
 -- | SC3 pattern to lace input patterns.  Note that the current
 -- implementation stops late, it cycles the second series one place.

@@ -172,6 +172,4 @@ formant n v = formants v !! fromEnum n
 fdata :: Num n => Voice -> Vowel -> Fdata n
 fdata v i =
     let f (p,q,_,_,_) = p == v && q == i
-    in case find f fdata_table of
-         Just r -> r
-         Nothing -> error "fdata"
+    in fromMaybe (error "fdata") (find f fdata_table)

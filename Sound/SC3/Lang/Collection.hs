@@ -59,13 +59,13 @@ reject f l = map fst (filter (not . uncurry f) (zip l [0..]))
 --
 -- > detect (\i _ -> even i) [1,2,3,4] == Just 2
 detect :: (a -> Int -> Bool) -> [a] -> Maybe a
-detect f l = maybe Nothing (Just . fst) (find (uncurry f) (zip l [0..]))
+detect f l = fmap fst (find (uncurry f) (zip l [0..]))
 
 -- | @Collection.detectIndex@ is the index locating variant of 'detect'.
 --
 -- > detectIndex (\i _ -> even i) [1,2,3,4] == Just 1
 detectIndex :: (a -> Int -> Bool) -> [a] -> Maybe Int
-detectIndex f l = maybe Nothing (Just . snd) (find (uncurry f) (zip l [0..]))
+detectIndex f l = fmap snd (find (uncurry f) (zip l [0..]))
 
 -- | @Collection.inject@ is a variant on 'foldl'.
 --
@@ -514,7 +514,7 @@ normalizeSum l =
 slide :: Int -> Int -> [a] -> [a]
 slide w n l =
     let k = length l
-    in concat (map (\i -> take w (L.drop i l)) [0,n .. k-w])
+    in concatMap (\i -> take w (L.drop i l)) [0,n .. k-w]
 
 -- | @List.mirror@ concatentates with 'tail' of 'reverse' to make a
 -- palindrome.
@@ -522,7 +522,7 @@ slide w n l =
 -- > [1,2,3,4].mirror == [1,2,3,4,3,2,1]
 -- > mirror [1,2,3,4] == [1,2,3,4,3,2,1]
 mirror :: [a] -> [a]
-mirror l = l ++ (tail (reverse l))
+mirror l = l ++ tail (reverse l)
 
 -- | @List.mirror1@ is as 'mirror' but with last element removed.
 --
@@ -541,7 +541,7 @@ mirror1 l =
 -- > [1,2,3,4].mirror2 == [1,2,3,4,4,3,2,1]
 -- > mirror2 [1,2,3,4] == [1,2,3,4,4,3,2,1]
 mirror2 :: [a] -> [a]
-mirror2 l = l ++ (reverse l)
+mirror2 l = l ++ reverse l
 
 -- | @List.stutter@ repeats each element /n/ times.
 --

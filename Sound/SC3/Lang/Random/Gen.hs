@@ -1,6 +1,7 @@
 module Sound.SC3.Lang.Random.Gen where
 
 import Data.List
+import Data.Maybe
 import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Math as M
 import System.Random {- random -}
@@ -29,7 +30,7 @@ rand2 :: (RandomGen g,Random n,Num n) => n -> g -> (n,g)
 rand2 n = randomR (-n,n)
 
 nrand2 :: (RandomGen g,Random a,Num a) => Int -> a -> g -> ([a],g)
-nrand2 n i = nrrand n 0 i
+nrand2 n = nrrand n 0
 
 coin :: (RandomGen g, Random a, Ord a, Fractional a) => a -> g -> (Bool,g)
 coin n g =
@@ -47,9 +48,7 @@ windex w n = findIndex (n <) (C.integrate w)
 wchoose :: (RandomGen g,Random a,Ord a,Fractional a) => [b] -> [a] -> g -> (b,g)
 wchoose l w g =
   let (i,g') = randomR (0.0,1.0) g
-      n = case windex w i of
-            Nothing -> error "wchoose: windex"
-            Just n' -> n'
+      n = fromMaybe (error "wchoose: windex") (windex w i)
   in (l !! n,g')
 
 choose :: RandomGen g => [a] -> g -> (a,g)

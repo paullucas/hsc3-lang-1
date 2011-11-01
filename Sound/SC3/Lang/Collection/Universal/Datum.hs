@@ -30,7 +30,7 @@ datum_str d =
 datum_str' :: Datum -> String
 datum_str' = fromJust . datum_str
 
-datum_lift :: (Int -> Int) -> (Double -> Double) -> (Datum -> Datum)
+datum_lift :: (Int -> Int) -> (Double -> Double) -> Datum -> Datum
 datum_lift fi fd d =
     case d of
       Int n -> Int (fi n)
@@ -45,14 +45,14 @@ datum_promote d =
       Float n -> Double n
       _ -> d
 
-datum_lift' :: (Double -> Double) -> (Datum -> Datum)
+datum_lift' :: (Double -> Double) -> Datum -> Datum
 datum_lift' f = datum_lift (error "datum_lift:non integral") f .
                 datum_promote
 
 type I_Binop = Int -> Int -> Int
 type F_Binop = Double -> Double -> Double
 
-datum_lift2 :: I_Binop -> F_Binop -> (Datum -> Datum -> Datum)
+datum_lift2 :: I_Binop -> F_Binop -> Datum -> Datum -> Datum
 datum_lift2 fi fd d1 d2 =
     case (d1,d2) of
       (Int n1,Int n2) -> Int (fi n1 n2)
@@ -62,7 +62,7 @@ datum_lift2 fi fd d1 d2 =
              (Just n1,Just n2) -> Double (fd n1 n2)
              _ -> error "datum_lift2"
 
-datum_lift2' :: F_Binop -> (Datum -> Datum -> Datum)
+datum_lift2' :: F_Binop -> Datum -> Datum -> Datum
 datum_lift2' f d1 =
     let d1' = datum_promote d1
     in datum_lift2 (error "datum_lift2:non integral") f d1' .
@@ -159,7 +159,7 @@ instance Enum Datum where
                        (\a -> map Double . enumFromTo a)
     enumFromThenTo = at_d3 (\a b ->  map Int . enumFromThenTo a b)
                            (\a b ->  map Double . enumFromThenTo a b)
-    toEnum n = Int n
+    toEnum = Int
 
 instance Random Datum where
   randomR i g =
