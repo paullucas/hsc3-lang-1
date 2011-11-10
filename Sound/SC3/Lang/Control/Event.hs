@@ -9,9 +9,17 @@ import qualified Sound.SC3.Lang.Control.Duration as D
 import qualified Sound.SC3.Lang.Control.Instrument as I
 import qualified Sound.SC3.Lang.Control.Pitch as P
 
+-- | The type of the /key/ at an 'Event'.
 type Key = String
+
+-- | The type of the /value/ at an 'Event'.
 type Value = Double
+
+-- | The /type/ of an 'Event'.
 type Type = String
+
+-- | An 'Event' has a 'Type', possibly an integer identifier, possibly
+-- an 'I.Instrument' and a map of ('Key','Value') pairs.
 data Event = Event {e_type :: Type
                    ,e_id :: Maybe Int
                    ,e_instrument :: Maybe I.Instrument
@@ -68,6 +76,8 @@ pitch e =
                ,P.midinote_f = get_m P.default_midinote_f "midinote"
                ,P.note_f = get_m P.default_note_f "note"}
 
+-- | Lookup 'D.Duration' model parameters at an 'Event' and construct a
+-- 'D.Duration' value.
 duration :: Event -> D.Duration Double
 duration e =
     let get_r v k = lookup_v v k e
@@ -95,9 +105,11 @@ insert k v e = e {e_map = M.insert k v (e_map e)}
 freq :: Event -> Double
 freq = P.detunedFreq . pitch
 
+-- | Lookup /db/ field of 'Event', the default value is @-20db@.
 db :: Event -> Value
 db = lookup_v (-20) "db"
 
+-- | Function to convert from decibels to linear amplitude.
 dbAmp' :: Floating a => a -> a
 dbAmp' a = 10 ** (a * 0.05)
 
@@ -128,27 +140,33 @@ reserved =
     ,"delta","dur","legato","fwd'","stretch","sustain","tempo"
     ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"]
 
+-- | If 'Key' is 'reserved' then 'Nothing', else 'id'.
 parameters' :: (Key,Value) -> Maybe (Key,Value)
 parameters' (k,v) =
     if k `elem` reserved
     then Nothing
     else Just (k,v)
 
+-- | Extract non-'reserved' 'Keys' from 'Event'.
 parameters :: Event -> [(Key,Value)]
 parameters = mapMaybe parameters' . M.toList . e_map
 
+-- | 'Value' editor for 'Key' at 'Event', with default value in case
+-- 'Key' is not present.
 edit_v :: Key -> Value -> (Value -> Value) -> Event -> Event
 edit_v k v f e =
     case lookup_m k e of
       Just n -> insert k (f n) e
       Nothing -> insert k (f v) e
 
+-- | Variant of 'edit_v' with no default value.
 edit :: Key -> (Value -> Value) -> Event -> Event
 edit k f e =
     case lookup_m k e of
       Just n -> insert k (f n) e
       Nothing -> e
 
+-- | Basic 'Event' constructor function with 'e_map' given as a list.
 from_list :: Type -> Maybe Int -> Maybe I.Instrument -> [(Key,Value)] -> Event
 from_list t n i l =
     Event {e_type = t
@@ -166,6 +184,7 @@ event l =
           ,e_instrument = Nothing
           ,e_map = M.fromList l}
 
+-- | Extract 'I.Instrument' name from 'Event', or @default@.
 instrument_name :: Event -> String
 instrument_name e =
     case e_instrument e of
@@ -173,6 +192,7 @@ instrument_name e =
       Just (I.InstrumentDef s) -> S.synthdefName s
       Just (I.InstrumentName s) -> s
 
+-- | Extract 'I.Instrument' definition from 'Event' if present.
 instrument_def :: Event -> Maybe S.Synthdef
 instrument_def e =
     case e_instrument e of
@@ -194,15 +214,18 @@ f_merge p q =
             then (t0,e0) : f_merge r0 q
             else (t1,e1) : f_merge p r1
 
+-- | Times are real valued @UTC@.
 type Time = Double
 
--- note that this uses fwd to calculate start times.
+-- | Merge two time-stamped 'Event' sequences.  Note that this uses
+-- 'fwd' to calculate start times.
 merge' :: (Time,[Event]) -> (Time,[Event]) -> [(Time,Event)]
 merge' (pt,p) (qt,q) =
     let p_st = map (+ pt) (0 : scanl1 (+) (map fwd p))
         q_st = map (+ qt) (0 : scanl1 (+) (map fwd q))
     in f_merge (zip p_st p) (zip q_st q)
 
+-- | Insert /fwd/ 'Key's into a time-stamped 'Event' sequence.
 add_fwd :: [(Time,Event)] -> [Event]
 add_fwd e =
     case e of
@@ -210,16 +233,17 @@ add_fwd e =
           insert "fwd'" (t1 - t0) e0 : add_fwd ((t1,e1):e')
       _ -> map snd e
 
+-- | Composition of 'add_fwd' and 'merge''.
 merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
 merge p q = add_fwd (merge' p q)
 
--- t = time, s = instrument name
--- rt = release time, pr = parameters
--- ty:_p suffix (p = persist) does not send gate
-to_sc3_osc :: Double -> Int -> Event -> Maybe (O.OSC,O.OSC)
+-- | Generate @SC3@ 'O.OSC' messages describing 'Event'.  If the
+-- 'Event' 'Type' has a @_p@ suffix, where @p@ stands for /persist/,
+-- this does not generate a gate command.
+to_sc3_osc :: Time -> Int -> Event -> Maybe (O.OSC,O.OSC)
 to_sc3_osc t j e =
     let s = instrument_name e
-        rt = sustain e
+        rt = sustain e {- rt = release time -}
         f = freq e
         pr = ("freq",f) : ("amp",amp e) : ("sustain",rt) : parameters e
         i = fromMaybe j (e_id e)

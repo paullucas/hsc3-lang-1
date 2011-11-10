@@ -1,4 +1,6 @@
 {-# Language FlexibleInstances #-}
+-- | @sclang@ pattern library functions.
+-- See <http://slavepianos.org/rd/?t=hsc3-texts> for tutorial.
 module Sound.SC3.Lang.Pattern.ID where
 
 import Control.Applicative hiding ((<*))
@@ -163,21 +165,25 @@ pflopJoin = pjoin . pflop
 
 -- * P lifting
 
+-- | Lift unary list function to 'P'.
 liftP :: ([a] -> [b]) -> P a -> P b
 liftP f (P xs st) = P (f xs) st
 
+-- | Lift binary list function to 'P'.
 liftP2 :: ([a] -> [b] -> [c]) -> P a -> P b -> P c
 liftP2 f p q =
     let P l st = pzip p q
         (a,b) = unzip l
     in P (f a b) st
 
+-- | Lift ternary list function to 'P'.
 liftP3 :: ([a] -> [b] -> [c] -> [d]) -> P a -> P b -> P c -> P d
 liftP3 f p q r =
     let P l st = pzip3 p q r
         (a,b,c) = unzip3 l
     in P (f a b c) st
 
+-- | Lift quaternary list function to 'P'.
 liftP4 :: ([a] -> [b] -> [c] -> [d] -> [e]) -> P a -> P b -> P c -> P d -> P e
 liftP4 f p q r s =
     let P l st = pzip4 p q r s
@@ -234,7 +240,7 @@ toP' = fromList'
 prepeat :: a -> P a
 prepeat = fromList . repeat
 
--- | Pattern variant of `zipWith`.  Note that `zipWith` is truncating,
+-- | Pattern variant of 'zipWith'.  Note that 'zipWith' is truncating,
 -- whereas the numerical instances are extending.
 --
 -- > zipWith (*) [1,2,3] [5,6] == [5,12]
@@ -254,6 +260,7 @@ pzipWith f p q =
         l = zipWith3 (\_ i j -> f i j) x (c p) (c q)
     in P l (stP_join [stP p,stP q])
 
+-- | Pattern variant of 'zipWith3'.
 pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
 pzipWith3 f p q r =
     let u = fmap (const ())
@@ -262,6 +269,7 @@ pzipWith3 f p q r =
         z = L.zipWith4 (\_ i j k -> f i j k) x (c p) (c q) (c r)
     in P z (stP_join [stP p,stP q,stP r])
 
+-- | Pattern variant of 'zipWith4'.
 pzipWith4 :: (a -> b -> c -> d -> e) -> P a -> P b -> P c -> P d -> P e
 pzipWith4 f p q r s =
     let u = fmap (const ())
@@ -270,23 +278,26 @@ pzipWith4 f p q r s =
         z = L.zipWith5 (\_ i j k l -> f i j k l) x (c p) (c q) (c r) (c s)
     in P z (stP_join [stP p,stP q,stP r,stP s])
 
--- | Pattern variant of `zip`.
+-- | Pattern variant of 'zip'.
 --
 -- > ptake 2 (pzip (prepeat 3) (prepeat 4)) == toP' [(3,4),(3,4)]
 --
--- Note that haskell `zip` is truncating wheras `pzip` is extending.
+-- Note that haskell 'zip' is truncating wheras 'pzip' is extending.
 --
 -- > zip [1 .. 2] [0] == [(1,0)]
 -- > pzip (toP [1..2]) (toP [0]) == toP [(1,0),(2,0)]
 pzip :: P a -> P b -> P (a,b)
 pzip = pzipWith (,)
 
+-- | Pattern variant of 'zip3'.
 pzip3 :: P a -> P b -> P c -> P (a,b,c)
 pzip3 = pzipWith3 (,,)
 
+-- | Tupling variant of 'pzipWith4'.
 pzip4 :: P a -> P b -> P c -> P d -> P (a,b,c,d)
 pzip4 = pzipWith4 (,,,)
 
+-- | Pattern variant on 'unzip'.
 punzip :: P (a,b) -> (P a,P b)
 punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 
@@ -301,7 +312,7 @@ padd k = pzipWith (\i j -> E.edit_v k 0 (+ i) j)
 
 -- | A primitive form of the SC3 'pbind' pattern, with explicit type
 -- and identifier inputs.
-pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> [(String,P E.Value)] -> P E.Event
+pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> [(E.Key,P E.Value)] -> P E.Event
 pbind' ty is ss xs =
     let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
         p = fromList
@@ -315,7 +326,7 @@ pbind' ty is ss xs =
 --
 -- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
 -- >                 ,("y",pseq [1,2,3] 1)]) == toP' [200,200,300]
-pbind :: [(String,P E.Value)] -> P E.Event
+pbind :: [(E.Key,P E.Value)] -> P E.Event
 pbind =
     let ty = repeat "s_new"
         i = repeat Nothing
@@ -365,6 +376,15 @@ pclutch p q =
 pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
 
+-- | SC3 pattern to constrain the sum of a numerical pattern.  Is
+-- equal to /p/ until the accumulated sum is within /t/ of /n/.  At
+-- that point, the difference between the specified sum and the
+-- accumulated sum concludes the pattern.
+--
+-- > Pconst(10,Prand([1,2,0.5,0.1],inf),0.001).asStream.nextN(15,())
+--
+-- > let p = pconst 10 (prand 'α' [1,2,0.5,0.1] inf) 0.001
+-- > in (p,Data.Foldable.sum p)
 pconst :: (Ord a,Num a) => a -> P a -> a -> P a
 pconst n p t =
     let f _ [] = []
@@ -373,6 +393,7 @@ pconst n p t =
                      else [n - j]
     in stopping (fromList (f 0 (unP p)))
 
+-- | SC3 pattern to derive notes from an index into a scale.
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3 P.degree_to_key
 
@@ -382,12 +403,30 @@ pdegreeToKey = pzipWith3 P.degree_to_key
 pdiff :: Num n => P n -> P n
 pdiff p = p - ptail p
 
+-- | SC3 pattern to partition a value into /n/ equal subdivisions.
+-- Subdivides each duration by each stutter and yields that value
+-- stutter times.  A stutter of @0@ will skip the duration value, a
+-- stutter of @1@ yields the duration value unaffected.
+--
+-- > s = Pseq(#[1,1,1,1,1,2,2,2,2,2,0,1,3,4,0],inf);
+-- > d = Pseq(#[0.5,1,2,0.25,0.25],inf);
+-- > PdurStutter(s,d).asStream.nextN(24)
+--
+-- > let {s = pseq [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0] inf
+-- >     ;d = pseq [0.5,1,2,0.25,0.25] inf}
+-- > in ptake 24 (pdurStutter s d)
 pdurStutter :: Fractional a => P Int -> P a -> P a
 pdurStutter = liftP2 durStutter
 
+-- | Edit 'E.Value' at 'E.Key' in each element of an 'E.Event' pattern.
 pedit :: E.Key -> (E.Value -> E.Value) -> P E.Event -> P E.Event
 pedit k f = fmap (E.edit k f)
 
+-- | An SC3 pattern of random values that follow a exponential
+-- distribution.
+--
+-- > Pexprand(0.0001,1,10).asStream.all
+-- > pexprand 'α' 0.0001 1 10
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
 pexprand e l r n = fmap (M.exprandrng l r) (pwhite e 0 1 n)
 
@@ -399,15 +438,28 @@ pexprand e l r n = fmap (M.exprandrng l r) (pwhite e 0 1 n)
 pfinval :: Int -> P a -> P a
 pfinval = ptake
 
+-- | SC3 pattern to fold values to lie within range (as opposed to
+-- wrap and clip).  This is /not/ related to the 'Data.Foldable'
+-- pattern instance.
+--
+-- > pfold (toP [10,11,12,-6,-7,-8]) (-7) 11 == toP [10,11,10,-6,-7,-6]
+--
+-- The underlying primitive is the 'fold_' function.
+--
+-- > let f n = fold_ n (-7) 11
+-- > in map f [10,11,12,-6,-7,-8] == [10,11,10,-6,-7,-6]
 pfold :: (RealFrac n) => P n -> n -> n -> P n
 pfold p i j = fmap (\n -> fold_ n i j) p
 
+-- | Underlying form of haskell 'pfuncn' pattern.
 pfuncn' :: (RandomGen g) => g -> (g -> (n,g)) -> Int -> P n
 pfuncn' g_ f n =
   let go [] _ = []
       go (h:hs) g = let (r,g') = h g in r : go hs g'
   in P (go (replicate n f) g_) (stp n)
 
+-- | A variant of the SC3 pattern that evaluates a closure at each
+-- step.  The haskell variant function has a 'StdGen' form.
 pfuncn :: (Enum e) => e -> (StdGen -> (n,StdGen)) -> Int -> P n
 pfuncn e = pfuncn' (mkStdGen (fromEnum e))
 
@@ -437,19 +489,36 @@ pgeom i s n = P (C.geom n i s) Stop
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
+-- | Pattern to assign 'I.Instrument's to 'E.Event's.  An
+-- 'I.Instrument' is either a 'Synthdef' or a 'String'.  In the
+-- 'Synthdef' case the instrument is asynchronously sent to the server
+-- before processing the event, which has timing implications.  In
+-- general the instrument pattern ought to have a 'Synthdef' for the
+-- first occurence of the instrument, and a 'String' for subsequent
+-- occurences.
 pinstr :: P I.Instrument -> P E.Event -> P E.Event
 pinstr = pzipWith (\i e -> e {E.e_instrument = Just i})
 
+-- | Variant of 'pinstr' which lifts the 'String' pattern to an
+-- 'I.Instrument' pattern.
 pinstr_s :: P String -> P E.Event -> P E.Event
 pinstr_s p = pinstr (fmap I.InstrumentName p)
 
+-- | Variant of 'pinstr' which lifts the 'Synthdef' pattern to an
+-- 'I.Instrument' pattern.
 pinstr_d :: P Synthdef -> P E.Event -> P E.Event
 pinstr_d p = pinstr (fmap I.InstrumentDef p)
 
+-- | Pattern to extract 'E.Value's at 'E.Key' from an 'E.Event'
+-- pattern.
+--
+-- > pkey_m "freq" (pbind [("freq",440)]) == toP' [Just 440]
 pkey_m :: E.Key -> P E.Event -> P (Maybe E.Value)
 pkey_m k = fmap (E.lookup_m k)
 
--- | Read value of key at 'E.Event' pattern.
+-- | SC3 pattern to read 'E.Value' of 'E.Key' at 'E.Event' pattern.
+-- Note however that in haskell is usually more appropriate to name
+-- the pattern using /let/.
 --
 -- > pkey "freq" (pbind [("freq",440)]) == toP' [440]
 -- > pkey "amp" (pbind [("amp",toP [0,1])]) == toP' [0,1]
@@ -470,18 +539,27 @@ place a n =
         f = if n == inf then id else take (n * i)
     in stoppingN n (fromList (f (L.concat (C.flop a))))
 
-pmono_d :: Synthdef -> Int -> [(String,P Double)] -> P E.Event
-pmono_d s i =
-    let ss = I.InstrumentDef s : repeat (I.InstrumentName (synthdefName s))
+-- | SC3 pattern that is a variant of 'pbind' for controlling
+-- monophonic (persistent) synthesiser nodes.
+pmono :: I.Instrument -> Int -> [(E.Key,P E.Value)] -> P E.Event
+pmono i k =
+    let i' = case i of
+               I.InstrumentDef d ->
+                   let nm = synthdefName d
+                   in i : repeat (I.InstrumentName nm)
+               I.InstrumentName _ -> repeat i
         ty = "s_new_p" : repeat "n_set_p"
-    in pbind' ty (repeat (Just i)) (map Just ss)
+    in pbind' ty (repeat (Just k)) (map Just i')
 
-pmono_s :: String -> Int -> [(String,P Double)] -> P E.Event
-pmono_s s i =
-    let ss = repeat (Just (I.InstrumentName s))
-        ty = "s_new_p" : repeat "n_set_p"
-    in pbind' ty (repeat (Just i)) ss
+-- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.
+pmono_d :: Synthdef -> Int -> [(E.Key,P E.Value)] -> P E.Event
+pmono_d s = pmono (I.InstrumentDef s)
 
+-- | Variant of 'pmono' that lifts 'String' to 'I.Instrument'.
+pmono_s :: String -> Int -> [(E.Key,P E.Value)] -> P E.Event
+pmono_s s = pmono (I.InstrumentName s)
+
+-- | Idiom to scale 'E.Value' at 'E.Key' in an 'E.Event' pattern.
 pmul :: E.Key -> P E.Value -> P E.Event -> P E.Event
 pmul k = pzipWith (\i j -> E.edit_v k 1 (* i) j)
 
@@ -522,9 +600,11 @@ ppatlace a n =
 pn :: P a -> Int -> P a
 pn = flip pconcatReplicate
 
+-- | Pattern variant of 'C.normalizeSum'.
 pnormalizeSum :: Fractional n => P n -> P n
 pnormalizeSum = liftP C.normalizeSum
 
+-- | Un-joined variant of 'prand'.
 prand' :: Enum e => e -> [P a] -> Int -> P (P a)
 prand' e a n = P (rand' e a n) (stp n)
 
@@ -550,12 +630,26 @@ prand e a = pjoin' . prand' e a
 preject :: (a -> Bool) -> P a -> P a
 preject f = liftP (filter (not . f))
 
+-- | Underlying pattern for 'prorate'.
 prorate' :: Num a => Either a [a] -> a -> P a
 prorate' p =
     case p of
       Left p' -> fromList . rorate_n' p'
       Right p' -> fromList . rorate_l' p'
 
+-- | SC3 sub-dividing pattern.
+--
+-- > Prorate(Pseq([0.35,0.5,0.8]),1).asStream.nextN(6)
+-- > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) 1
+--
+-- > Prorate(Pseq([0.35,0.5,0.8]),Prand([20,1],inf)).asStream.nextN(6)
+-- > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) (prand 'α' [20,1] 3)
+--
+-- > var l = [[1,2],[5,7],[4,8,9]]).collect(_.normalizeSum);
+-- > Prorate(Pseq(l,1).asStream.nextN(8)
+--
+-- > let l = map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]]
+-- > in prorate (toP l) 1
 prorate :: Num a => P (Either a [a]) -> P a -> P a
 prorate p = join . pzipWith prorate' p
 
@@ -587,9 +681,29 @@ pseq1 a i = pjoin' (ptake i (pflop a))
 pseq :: [P a] -> Int -> P a
 pseq a i = stoppingN i (pn (pconcat a) i)
 
+-- | A variant of 'pseq' that passes a new seed at each invocation,
+-- see also 'pfuncn'.
 pseqr :: (Int -> [P a]) -> Int -> P a
 pseqr f n = pconcat (L.concatMap f [1 .. n])
 
+-- | A variant of 'pseq' to aid translating a common SC3 idiom where a
+-- finite random pattern is included in a @Pseq@ list.  In the SC3
+-- case, at each iteration a new computation is run.  This idiom does
+-- not directly translate to the declarative haskell pattern library.
+--
+-- > Pseq([1,Prand([2,3],1)],5).asStream.all
+-- > pseq [1,prand 'α' [2,3] 1] 5
+--
+-- Although the intended pattern can usually be expressed using an
+-- alternate construction:
+--
+-- > Pseq([1,Prand([2,3],1)],5).asStream.all
+-- > ppatlace [1,prand 'α' [2,3] inf] 5 == toP' [1,3,1,2,1,3,1,2,1,2]
+--
+-- the 'pseqn' variant handles many common cases.
+--
+-- > Pseq([Pn(8,2),Pwhite(9,16,1)],5).asStream.all
+-- > pseqn [2,1] [8,pwhite 'α' 9 16 inf] 5
 pseqn :: [Int] -> [P a] -> Int -> P a
 pseqn n q =
     let go _ 0 = pempty
@@ -597,10 +711,14 @@ pseqn n q =
                  in pconcat i `pappend` go j (c - 1)
     in go (map pcycle q)
 
+-- | Variant of 'pser' that consumes sub-patterns one element per
+-- iteration.
+--
+-- > pser1 [1,pser [10,20] 3,3] 9 == toP' [1,10,3,1,20,3,1,10,3]
 pser1 :: [P a] -> Int -> P a
 pser1 a i = ptake i (pflopJoin a)
 
--- | SC3 pattern that is like `pseq`, however the repeats variable
+-- | SC3 pattern that is like 'pseq', however the repeats variable
 -- gives the number of elements in the sequence, not the number of
 -- cycles of the pattern.
 --
@@ -666,15 +784,42 @@ pstretch = pmul "stretch"
 pstutter :: P Int -> P a -> P a
 pstutter = liftP2 stutterExtending
 
+-- | SC3 pattern to select elements from a list of patterns by a
+-- pattern of indices.
+--
+-- > switch l i = i >>= (l !!)
+-- > pswitch [pseq [1,2,3] 2,pseq [65,76] 1,800] (toP [2,2,0,1])
 pswitch :: [P a] -> P Int -> P a
 pswitch l = liftP (switch (map unP l))
 
+-- | SC3 pattern that uses a pattern of indices to select which
+-- pattern to retrieve the next value from.  Only one value is
+-- selected from each pattern.  This is in comparison to 'pswitch',
+-- which embeds the pattern in its entirety.
+--
+-- > Pswitch1([Pseq([1,2,3],inf),
+-- >          Pseq([65,76],inf),
+-- >          8],
+-- >         Pseq([2,2,0,1],6)).asStream.all
+--
+-- > pswitch1 [pseq [1,2,3] inf,pseq [65,76] inf,8] (pseq [2,2,0,1] 6)
 pswitch1 :: [P a] -> P Int -> P a
 pswitch1 l = liftP (switch1 (map unP l))
 
+-- | SC3 pattern to combine a list of streams to a stream of lists.
+-- See also `pflop`.
+--
+-- > Ptuple([Pseries(7,-1,8),
+-- >        Pseq([9,7,7,7,4,4,2,2],1),
+-- >        Pseq([4,4,4,2,2,0,0,-3],1)],1).asStream.nextN(8)
+--
+-- > ptuple [pseries 7 (-1) 8
+-- >        ,pseq [9,7,7,7,4,4,2,2] 1
+-- >        ,pseq [4,4,4,2,2,0,0,-3] 1] 1
 ptuple :: [P a] -> Int -> P [a]
 ptuple p = pseq [pflop' p]
 
+-- | A variant of 'pwhite' where the range inputs are patterns.
 pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
 pwhite' e = liftP2 (white' e)
 
@@ -689,6 +834,7 @@ pwhite' e = liftP2 (white' e)
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite e l r = fromList . white e l r
 
+-- | A variant of 'pwhite' that generates integral (rounded) values.
 pwhitei :: (RealFrac n,Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhitei e l r = fmap roundf . pwhite e l r
 
@@ -707,9 +853,17 @@ pwhitei e l r = fmap roundf . pwhite e l r
 pwrand :: Enum e => e -> [P a] -> [Double] -> Int -> P a
 pwrand e a w n = P (wrand e (map unP a) w n) Continue
 
+-- | SC3 pattern to constrain the range of output values by wrapping.
+-- See also 'pfold'.
+--
+-- > Pn(Pwrap(Pgeom(200,1.07,26),200,1000.0),inf).asStream.nextN(26)
+-- > pwrap (pgeom 200 1.07 26) 200 1000
 pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
 pwrap xs l r = fmap (wrap' (l,r)) xs
 
+-- | SC3 pattern that is like 'prand' but filters successive duplicates.
+--
+-- > pxrand 'α' [1,toP [2,3],toP [4,5,6]] 15
 pxrand :: Enum e => e -> [P a] -> Int -> P a
 pxrand e a n = P (xrand e (map unP a) n) Continue
 
@@ -825,6 +979,7 @@ ptake n = stoppingN n . liftP (take n)
 pbool :: (Ord a,Num a) => P a -> P Bool
 pbool = fmap (> 0)
 
+-- | 'pconcat' '.' 'replicate', stopping after /n/ elements.
 pconcatReplicate :: Int -> P a -> P a
 pconcatReplicate i = stoppingN i . pconcat . replicate i
 
@@ -875,13 +1030,16 @@ ptrigger p q =
 
 -- * Parallel patterns
 
+-- | Merge two 'E.Event' patterns with indicated start 'E.Time's.
 ptmerge :: (E.Time,P E.Event) -> (E.Time,P E.Event) -> P E.Event
 ptmerge (pt,p) (qt,q) =
     fromList (E.merge (pt,F.toList p) (qt,F.toList q))
 
+-- | Variant of 'ptmerge' with zero start times.
 pmerge :: P E.Event -> P E.Event -> P E.Event
 pmerge p q = ptmerge (0,p) (0,q)
 
+-- | Merge a set of 'E.Event' patterns each with indicated start 'E.Time'.
 ptpar :: [(E.Time,P E.Event)] -> P E.Event
 ptpar l =
     case l of
@@ -889,29 +1047,42 @@ ptpar l =
       [(_,p)] -> p
       (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
 
+-- | Variant of 'ptpar' with zero start times.
 ppar :: [P E.Event] -> P E.Event
 ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern audition
 
--- dt = delta-time
+-- | Send 'E.Event' to @scsynth@ at 'Transport'.
+e_send :: Transport t => t -> E.Time -> Int -> E.Event -> IO ()
+e_send fd t j e =
+    case E.to_sc3_osc t j e of
+      Just (p,q) -> do case E.instrument_def e of
+                         Just d -> async fd (d_recv d) >> return ()
+                         Nothing -> return ()
+                       send fd p
+                       send fd q
+      Nothing -> return ()
+
+-- | Function to audition a sequence of 'E.Event's using the @scsynth@
+-- instance at 'Transport' starting at indicated 'E.Time'.
+e_tplay :: (Transport t) => t -> E.Time -> [Int] -> [E.Event] -> IO ()
+e_tplay fd t j e =
+    case (j,e) of
+      (_,[]) -> return ()
+      ([],_) -> error "e_tplay: no-id"
+      (i:j',d:e') -> do let t' = t + E.fwd d
+                        e_send fd t i d
+                        pauseThreadUntil t'
+                        e_tplay fd t' j' e'
+
+-- | Variant of 'e_tplay' with current clock time from 'utcr' as start
+-- time.  This function is used to implement the pattern instances of
+-- 'Audible'.
 e_play :: (Transport t) => t -> [Int] -> [E.Event] -> IO ()
 e_play fd lj le = do
-  let act _ _ [] = return ()
-      act _ [] _ = error "e_play:id?"
-      act t (j:js) (e:es) =
-          do let dt = E.fwd e
-             case E.to_sc3_osc t j e of
-               Just (p,q) -> do case E.instrument_def e of
-                                  Just d -> async fd (d_recv d) >> return ()
-                                  Nothing -> return ()
-                                send fd p
-                                send fd q
-               Nothing -> return ()
-             pauseThreadUntil (t + dt)
-             act (t + dt) js es
   st <- utcr
-  act st lj le
+  e_tplay fd st lj le
 
 instance Audible (P E.Event) where
     play fd = e_play fd [1000..] . unP

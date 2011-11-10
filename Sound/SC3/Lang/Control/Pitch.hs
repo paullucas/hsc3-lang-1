@@ -1,3 +1,4 @@
+-- | @SC3@ pitch model implementation.
 module Sound.SC3.Lang.Control.Pitch where
 
 -- | The supercollider language pitch model is organised as a tree

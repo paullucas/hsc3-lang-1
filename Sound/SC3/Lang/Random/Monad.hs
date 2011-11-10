@@ -1,3 +1,4 @@
+-- | 'Rand' monad based @sclang@ random number functions.
 module Sound.SC3.Lang.Random.Monad where
 
 import Control.Monad
@@ -54,8 +55,8 @@ choose l = do
 nchoose :: (RandomGen g) => Int -> [a] -> Rand g [a]
 nchoose k = replicateM k . choose
 
--- | @SimpleNumber.exprand@ exponentially distributed random number in
--- the interval.
+-- | @SimpleNumber.exprand@ generates exponentially distributed random
+-- number in the given interval.
 --
 -- > let r = replicateM 3 (exprand 10 100 >>= return.floor)
 -- > in evalRand r (mkStdGen 1) == [22,21,13]

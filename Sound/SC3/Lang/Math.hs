@@ -1,10 +1,11 @@
+-- | @sclang@ math functions.
 module Sound.SC3.Lang.Math where
 
 import Data.Bits
 
 -- * Binary
 
--- | 0 is false, 1 is True, else error.
+-- | @0@ is false, @1@ is True, else error.
 --
 -- > map bitChar "01" == [False,True]
 bitChar :: Char -> Bool

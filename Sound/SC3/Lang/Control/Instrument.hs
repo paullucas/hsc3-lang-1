@@ -1,3 +1,4 @@
+-- | An instrument abstraction and a /default/ instrument for patterns.
 module Sound.SC3.Lang.Control.Instrument where
 
 import Sound.SC3.ID

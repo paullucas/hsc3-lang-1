@@ -1,3 +1,4 @@
+-- | List variants of @SC3@ pattern functions.
 module Sound.SC3.Lang.Pattern.List where
 
 import qualified Data.Map as M
