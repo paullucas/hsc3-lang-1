@@ -65,15 +65,9 @@ rorate_l' p i = map (* i) p
 rorate_l :: Num a => [[a]] -> [a] -> [a]
 rorate_l p = concat . C.zipWith_c rorate_l' p
 
-wrap' :: (Num a,Ord a) => (a,a) -> a -> a
-wrap' (l,r) i =
-    let d = r - l
-        f = wrap' (l,r)
-    in if i < l then f (i + d) else if i >= r then f (i - d) else i
-
 segment :: [a] -> Int -> (Int,Int) -> [a]
 segment a k (l,r) =
-    let i = map (wrap' (0,k)) [l .. r]
+    let i = map (wrap'' (0,k)) [l .. r]
     in map (a !!) i
 
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
