@@ -859,7 +859,7 @@ pwrand e a w n = P (wrand e (map unP a) w n) Continue
 -- > Pn(Pwrap(Pgeom(200,1.07,26),200,1000.0),inf).asStream.nextN(26)
 -- > pwrap (pgeom 200 1.07 26) 200 1000
 pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
-pwrap xs l r = fmap (wrap' l r) xs
+pwrap xs l r = fmap (genericWrap l r) xs
 
 -- | SC3 pattern that is like 'prand' but filters successive duplicates.
 --

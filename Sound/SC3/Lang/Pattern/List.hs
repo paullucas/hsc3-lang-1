@@ -67,7 +67,7 @@ rorate_l p = concat . C.zipWith_c rorate_l' p
 
 segment :: [a] -> Int -> (Int,Int) -> [a]
 segment a k (l,r) =
-    let i = map (wrap'' (0,k)) [l .. r]
+    let i = map (S.genericWrap 0 k) [l .. r]
     in map (a !!) i
 
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
