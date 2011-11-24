@@ -5,8 +5,10 @@ import Sound.SC3.ID
 
 -- | An 'Instrument' is either a 'Synthdef' or the 'String' naming a
 -- 'Synthdef'.
-data Instrument = InstrumentDef Synthdef
-                | InstrumentName String
+data Instrument = InstrumentDef {instrument_def :: Synthdef
+                                ,send_release :: Bool}
+                | InstrumentName {instrument_name :: String
+                                 ,send_release :: Bool}
                   deriving (Eq,Show)
 
 -- | The SC3 /default/ instrument 'Synthdef'.

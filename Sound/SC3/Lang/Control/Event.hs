@@ -190,16 +190,23 @@ instrument_name :: Event -> String
 instrument_name e =
     case e_instrument e of
       Nothing -> "default"
-      Just (I.InstrumentDef s) -> S.synthdefName s
-      Just (I.InstrumentName s) -> s
+      Just (I.InstrumentDef s _) -> S.synthdefName s
+      Just (I.InstrumentName s _) -> s
 
 -- | Extract 'I.Instrument' definition from 'Event' if present.
 instrument_def :: Event -> Maybe S.Synthdef
 instrument_def e =
     case e_instrument e of
       Nothing -> Nothing
-      Just (I.InstrumentDef s) -> Just s
-      Just (I.InstrumentName _) -> Nothing
+      Just (I.InstrumentDef s _) -> Just s
+      Just (I.InstrumentName _ _) -> Nothing
+
+-- | 'I.send_release' of 'I.Instrument' at 'Event'.
+instrument_send_release :: Event -> Bool
+instrument_send_release e =
+    case e_instrument e of
+      Nothing -> True
+      Just i -> I.send_release i
 
 -- | Merge two sorted sequence of (/location/,/value/) pairs.
 --
@@ -245,12 +252,12 @@ is_rest e =
       Just r -> r > 0
       Nothing -> False
 
--- | Generate @SC3@ 'O.OSC' messages describing 'Event'.  If the
--- 'Event' 'Type' has a @_p@ suffix, where @p@ stands for /persist/,
--- this does not generate a gate command.
+-- | Generate @SC3@ 'O.OSC' messages describing 'Event'.  Consults the
+-- 'instrument_send_release' to in relation to gate command.
 to_sc3_osc :: Time -> Int -> Event -> Maybe (O.OSC,O.OSC)
 to_sc3_osc t j e =
     let s = instrument_name e
+        sr = instrument_send_release e
         rt = sustain e {- rt = release time -}
         f = freq e
         pr = ("freq",f) : ("amp",amp e) : ("sustain",rt) : parameters e
@@ -259,17 +266,12 @@ to_sc3_osc t j e =
        then Nothing
        else let m_on = case e_type e of
                          "s_new" -> [S.s_new s i S.AddToTail 1 pr]
-                         "s_new_p" -> [S.s_new s i S.AddToTail 1 pr]
                          "n_set" -> [S.n_set i pr]
-                         "n_set_p" -> [S.n_set i pr]
                          "rest" -> []
                          _ -> error "to_sc3_osc:m_on:type"
-                m_off = case e_type e of
-                         "s_new" -> [S.n_set i [("gate",0)]]
-                         "s_new_p" -> []
-                         "n_set" -> [S.n_set i [("gate",0)]]
-                         "n_set_p" -> []
-                         "rest" -> []
-                         _ -> error "to_sc3_osc:m_off:type"
+                m_off = case (e_type e,sr) of
+                          ("s_new",True) -> [S.n_set i [("gate",0)]]
+                          ("n_set",True) -> [S.n_set i [("gate",0)]]
+                          _ -> []
             in Just (O.Bundle (O.UTCr t) m_on
                     ,O.Bundle (O.UTCr (t+rt)) m_off)

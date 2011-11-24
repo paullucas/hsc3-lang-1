@@ -502,13 +502,13 @@ pinstr = pzipWith (\i e -> e {E.e_instrument = Just i})
 
 -- | Variant of 'pinstr' which lifts the 'String' pattern to an
 -- 'I.Instrument' pattern.
-pinstr_s :: P String -> P E.Event -> P E.Event
-pinstr_s p = pinstr (fmap I.InstrumentName p)
+pinstr_s :: P (String,Bool) -> P E.Event -> P E.Event
+pinstr_s p = pinstr (fmap (uncurry I.InstrumentName) p)
 
 -- | Variant of 'pinstr' which lifts the 'Synthdef' pattern to an
 -- 'I.Instrument' pattern.
-pinstr_d :: P Synthdef -> P E.Event -> P E.Event
-pinstr_d p = pinstr (fmap I.InstrumentDef p)
+pinstr_d :: P (Synthdef,Bool) -> P E.Event -> P E.Event
+pinstr_d p = pinstr (fmap (uncurry I.InstrumentDef) p)
 
 -- | Pattern to extract 'E.Value's at 'E.Key' from an 'E.Event'
 -- pattern.
@@ -545,20 +545,20 @@ place a n =
 pmono :: I.Instrument -> Int -> [(E.Key,P E.Value)] -> P E.Event
 pmono i k =
     let i' = case i of
-               I.InstrumentDef d ->
+               I.InstrumentDef d sr ->
                    let nm = synthdefName d
-                   in i : repeat (I.InstrumentName nm)
-               I.InstrumentName _ -> repeat i
-        ty = "s_new_p" : repeat "n_set_p"
+                   in i : repeat (I.InstrumentName nm sr)
+               I.InstrumentName _ _ -> repeat i
+        ty = "s_new" : repeat "n_set"
     in pbind' ty (repeat (Just k)) (map Just i')
 
 -- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.
 pmono_d :: Synthdef -> Int -> [(E.Key,P E.Value)] -> P E.Event
-pmono_d s = pmono (I.InstrumentDef s)
+pmono_d = pmono . flip I.InstrumentDef False
 
 -- | Variant of 'pmono' that lifts 'String' to 'I.Instrument'.
 pmono_s :: String -> Int -> [(E.Key,P E.Value)] -> P E.Event
-pmono_s s = pmono (I.InstrumentName s)
+pmono_s = pmono . flip I.InstrumentName False
 
 -- | Idiom to scale 'E.Value' at 'E.Key' in an 'E.Event' pattern.
 pmul :: E.Key -> P E.Value -> P E.Event -> P E.Event
@@ -1090,14 +1090,14 @@ instance Audible (P E.Event) where
 
 instance Audible (Synthdef,P E.Event) where
     play fd (s,p) = do
-      let i_d = I.InstrumentDef s
-          i_nm = I.InstrumentName (synthdefName s)
+      let i_d = I.InstrumentDef s True
+          i_nm = I.InstrumentName (synthdefName s) True
           i = pcons i_d (pn (return i_nm) inf)
       _ <- async fd (d_recv s)
       e_play fd [1000..] (unP (pinstr i p))
 
 instance Audible (String,P E.Event) where
     play fd (s,p) =
-        let i = I.InstrumentName s
+        let i = I.InstrumentName s True
         in e_play fd [1000..] (unP (pinstr (return i) p))
 
