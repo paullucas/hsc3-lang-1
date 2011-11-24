@@ -138,7 +138,8 @@ reserved :: [Key]
 reserved =
     ["amp","db"
     ,"delta","dur","legato","fwd'","stretch","sustain","tempo"
-    ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"]
+    ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"
+    ,"rest"]
 
 -- | If 'Key' is 'reserved' then 'Nothing', else 'id'.
 parameters' :: (Key,Value) -> Maybe (Key,Value)
@@ -237,6 +238,13 @@ add_fwd e =
 merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
 merge p q = add_fwd (merge' p q)
 
+-- | Does 'Event' have a non-zero @rest@ key.
+is_rest :: Event -> Bool
+is_rest e =
+    case lookup_m "rest" e of
+      Just r -> r > 0
+      Nothing -> False
+
 -- | Generate @SC3@ 'O.OSC' messages describing 'Event'.  If the
 -- 'Event' 'Type' has a @_p@ suffix, where @p@ stands for /persist/,
 -- this does not generate a gate command.
@@ -247,7 +255,7 @@ to_sc3_osc t j e =
         f = freq e
         pr = ("freq",f) : ("amp",amp e) : ("sustain",rt) : parameters e
         i = fromMaybe j (e_id e)
-    in if isNaN f
+    in if is_rest e || isNaN f
        then Nothing
        else let m_on = case e_type e of
                          "s_new" -> [S.s_new s i S.AddToTail 1 pr]

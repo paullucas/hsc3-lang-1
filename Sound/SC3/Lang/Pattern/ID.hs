@@ -101,7 +101,8 @@ instance (OrdE a) => OrdE (P a) where
 inf :: Int
 inf = maxBound
 
--- | Constant /NaN/ (not a number) value for use as a rest indicator.
+-- | Constant /NaN/ (not a number) value for use as a rest indicator
+-- at a frequency model input (not at a @rest@ key).
 nan :: (Monad m,Floating a) => m a
 nan = return (sqrt (-1))
 
