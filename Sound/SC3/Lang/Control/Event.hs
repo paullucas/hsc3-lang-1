@@ -262,6 +262,7 @@ to_sc3_osc t j e =
         f = freq e
         pr = ("freq",f) : ("amp",amp e) : ("sustain",rt) : parameters e
         i = fromMaybe j (e_id e)
+        latency_k = 0.1
     in if is_rest e || isNaN f
        then Nothing
        else let m_on = case e_type e of
@@ -273,5 +274,5 @@ to_sc3_osc t j e =
                           ("s_new",True) -> [S.n_set i [("gate",0)]]
                           ("n_set",True) -> [S.n_set i [("gate",0)]]
                           _ -> []
-            in Just (O.Bundle (O.UTCr t) m_on
-                    ,O.Bundle (O.UTCr (t+rt)) m_off)
+            in Just (O.Bundle (O.UTCr (t+latency_k)) m_on
+                    ,O.Bundle (O.UTCr (t+latency_k+rt)) m_off)
