@@ -5,44 +5,13 @@
 -- 'Floating', 'Real', 'RealFrac', 'Ord', 'Enum' and 'Random'.
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
-import Data.Maybe
 import Data.Ratio
 import GHC.Exts (IsString(..))
-import Sound.OpenSoundControl.Type (Datum(..))
+import Sound.OpenSoundControl.Type
 import System.Random
 
 instance IsString Datum where
     fromString = String
-
--- | 'Datum' as real number if 'Double', 'Float' or 'Int', else 'Nothing'.
---
--- > map datum_r [Int 5,Float 5,String "5"] == [Just 5,Just 5,Nothing]
-datum_r :: Datum -> Maybe Double
-datum_r d =
-    case d of
-      Double n -> Just n
-      Float n -> Just n
-      Int n -> Just (fromIntegral n)
-      _ -> Nothing
-
--- | A 'fromJust' variant of 'datum_r'.
---
--- > map datum_r' [Int 5,Float 5] == [5,5]
-datum_r' :: Datum -> Double
-datum_r' = fromJust . datum_r
-
--- | Extract 'String' from 'Datum', else 'Nothing'.
---
--- > map datum_str [String "5",Int 5] == [Just "5",Nothing]
-datum_str :: Datum -> Maybe String
-datum_str d =
-    case d of
-      String s -> Just s
-      _ -> Nothing
-
--- | A 'fromJust' variant of 'datum_str'.
-datum_str' :: Datum -> String
-datum_str' = fromJust . datum_str
 
 -- | Lift an equivalent set of 'Int' and 'Double' unary functions to
 -- 'Datum'.
@@ -91,7 +60,7 @@ datum_lift2 fi fd d1 d2 =
       (Int n1,Int n2) -> Int (fi n1 n2)
       (Float n1,Float n2) -> Float (fd n1 n2)
       (Double n1,Double n2) -> Double (fd n1 n2)
-      _ -> case (datum_r d1,datum_r d2) of
+      _ -> case (datum_real d1,datum_real d2) of
              (Just n1,Just n2) -> Double (fd n1 n2)
              _ -> error "datum_lift2"
 
@@ -147,14 +116,16 @@ instance Real Datum where
           _ -> error "datum,real,partial"
 
 instance RealFrac Datum where
-  properFraction d = let (i,j) = properFraction (datum_r' d) in (i,Double j)
-  truncate = truncate . datum_r'
-  round = round . datum_r'
-  ceiling = ceiling . datum_r'
-  floor = floor . datum_r'
+  properFraction d =
+      let (i,j) = properFraction (datum_real' d)
+      in (i,Double j)
+  truncate = truncate . datum_real'
+  round = round . datum_real'
+  ceiling = ceiling . datum_real'
+  floor = floor . datum_real'
 
 instance Ord Datum where
-    p < q = case (datum_r p,datum_r q) of
+    p < q = case (datum_real p,datum_real q) of
               (Just i,Just j) -> i < j
               _ -> error "datum,ord,partial"
 
