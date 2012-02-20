@@ -732,6 +732,7 @@ pser a i = ptake i (pcycle (pconcat a))
 -- | SC3 arithmetric series pattern, see also 'pgeom'.
 --
 -- > pseries 0 2 10 == toP' [0,2,4,6,8,10,12,14,16,18]
+-- > pseries 9 (-1) 10 == toP' [9,8 .. 0]
 -- > pseries 1.0 0.2 3 == toP' [1.0,1.2,1.4]
 pseries :: (Num a) => a -> a -> Int -> P a
 pseries i s n = P (C.series n i s) (stp n)
