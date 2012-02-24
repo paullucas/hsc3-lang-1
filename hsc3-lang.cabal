@@ -40,6 +40,7 @@ Library
                    Sound.SC3.Lang.Control.OverlapTexture
                    Sound.SC3.Lang.Data.Vowel
                    Sound.SC3.Lang.Math
+                   Sound.SC3.Lang.Math.Warp
                    Sound.SC3.Lang.Pattern.ID
                    Sound.SC3.Lang.Pattern.List
                    Sound.SC3.Lang.Random.Gen
