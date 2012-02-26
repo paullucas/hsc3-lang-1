@@ -396,7 +396,7 @@ pconst n p t =
 
 -- | SC3 pattern to derive notes from an index into a scale.
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
-pdegreeToKey = pzipWith3 P.degree_to_key
+pdegreeToKey = pzipWith3 (\i j k -> P.degree_to_key j k i)
 
 -- | SC3 pattern to calculate adjacent element difference.
 --

@@ -99,13 +99,13 @@ default_midinote_f e =
 default_note_f :: (RealFrac a) => Pitch a -> a
 default_note_f e =
     let d = degree e + mtranspose e
-    in degree_to_key d (scale e) (stepsPerOctave e)
+    in degree_to_key (scale e) (stepsPerOctave e) d
 
 -- | Translate degree, scale and steps per octave to key.
 --
--- > degree_to_key 5 [0,2,4,5,7,9,11] 12 == 9
-degree_to_key :: (RealFrac a) => a -> [a] -> a -> a
-degree_to_key d s n =
+-- > degree_to_key [0,2,4,5,7,9,11] 12 5 == 9
+degree_to_key :: (RealFrac a) => [a] -> a -> a -> a
+degree_to_key s n d =
     let l = length s
         d' = round d
         a = (d - fromIntegral d') * 10.0 * (n / 12.0)

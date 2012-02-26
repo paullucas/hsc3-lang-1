@@ -23,3 +23,7 @@ defaultInstrument =
         l = xLine KR (rand 'c' 4000 5000) (rand 'd' 2500 3200) 1 DoNothing
         z = lpf (mix (varSaw AR f3 0 0.3 * 0.3)) l * e
     in synthdef "default" (out 0 (pan2 z p a))
+
+{-
+withSC3 (\fd -> async fd (d_recv defaultInstrument))
+-}
