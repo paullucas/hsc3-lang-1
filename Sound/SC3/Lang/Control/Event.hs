@@ -98,13 +98,6 @@ duration e =
 insert :: Key -> Value -> Event -> Event
 insert k v e = e {e_map = M.insert k v (e_map e)}
 
--- | The frequency of the 'pitch' of /e/.
---
--- > freq (event [("degree",5)]) == 440
--- > freq (event [("midinote",69)]) == 440
-freq :: Event -> Double
-freq = P.detunedFreq . pitch
-
 -- | Lookup /db/ field of 'Event', the default value is @-20db@.
 db :: Event -> Value
 db = lookup_v (-20) "db"
@@ -125,26 +118,30 @@ amp e = lookup_v (dbAmp' (db e)) "amp" e
 fwd :: Event -> Double
 fwd = D.fwd . duration
 
--- | The /sustain/ value of the duration model at /e/.
---
--- > sustain (event [("dur",1),("legato",0.5)]) == 0.5
-sustain :: Event -> Double
-sustain = D.sustain . duration
-
 -- | The /latency/ to compensate for when sending messages based on
 -- the event.  Defaults to @0.1@.
 latency :: Event -> Double
 latency = lookup_v 0.1 "latency"
 
--- | List of reserved /keys/ for pitch, duration and amplitude models.
+-- | List of 'Key's used in pitch, duration and amplitude models.
 --
--- > ("degree" `elem` reserved) == True
-reserved :: [Key]
-reserved =
+-- > ("degree" `elem` model_keys) == True
+model_keys :: [Key]
+model_keys =
     ["amp","db"
     ,"delta","dur","legato","fwd'","stretch","sustain","tempo"
     ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"
     ,"rest"]
+
+-- | List of reserved 'Key's used in pitch, duration and amplitude
+-- models.  These are keys that may be provided explicitly, but if not
+-- will be calculated implicitly.
+--
+-- > ("freq" `elem` reserved) == True
+reserved :: [Key]
+reserved = ["freq","midinote","note"
+           ,"delta","sustain"
+           ,"amp"]
 
 -- | If 'Key' is 'reserved' then 'Nothing', else 'id'.
 parameters' :: (Key,Value) -> Maybe (Key,Value)
@@ -263,9 +260,14 @@ to_sc3_osc :: Time -> Int -> Event -> Maybe (O.OSC,O.OSC)
 to_sc3_osc t j e =
     let s = instrument_name e
         sr = instrument_send_release e
-        rt = sustain e {- rt = release time -}
-        f = freq e
-        pr = ("freq",f) : ("amp",amp e) : ("sustain",rt) : parameters e
+        p = pitch e
+        d = duration e
+        rt = D.sustain d {- rt = release time -}
+        f = P.detunedFreq p
+        pr = ("freq",f) : ("midinote",P.midinote p) : ("note",P.note p) :
+             ("delta",D.delta d) : ("sustain",rt) :
+             ("amp",amp e) :
+             parameters e
         i = fromMaybe j (e_id e)
         t' = t + latency e
     in if is_rest e || isNaN f
@@ -281,3 +283,18 @@ to_sc3_osc t j e =
                           _ -> []
             in Just (O.Bundle (O.UTCr t') m_on
                     ,O.Bundle (O.UTCr (t' + rt)) m_off)
+
+{-
+-- | The frequency of the 'pitch' of /e/.
+--
+-- > freq (event [("degree",5)]) == 440
+-- > freq (event [("midinote",69)]) == 440
+freq :: Event -> Double
+freq = P.detunedFreq . pitch
+
+-- | The /sustain/ value of the duration model at /e/.
+--
+-- > sustain (event [("dur",1),("legato",0.5)]) == 0.5
+sustain :: Event -> Double
+sustain = D.sustain . duration
+-}
