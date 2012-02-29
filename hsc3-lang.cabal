@@ -19,11 +19,13 @@ Data-files:        README
 Library
   Build-Depends:   array,
                    base == 4.*,
+                   bytestring,
                    containers,
                    data-default,
                    hosc == 0.12.*,
                    hsc3 == 0.12.*,
                    MonadRandom,
+                   mtl,
                    split,
                    random,
                    random-shuffle
@@ -36,6 +38,7 @@ Library
                    Sound.SC3.Lang.Control.Duration
                    Sound.SC3.Lang.Control.Event
                    Sound.SC3.Lang.Control.Instrument
+                   Sound.SC3.Lang.Control.Midi
                    Sound.SC3.Lang.Control.Pitch
                    Sound.SC3.Lang.Control.OverlapTexture
                    Sound.SC3.Lang.Data.Vowel
