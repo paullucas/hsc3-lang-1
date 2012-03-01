@@ -6,6 +6,7 @@
 module Sound.SC3.Lang.Control.Midi where
 
 import qualified Control.Exception as E
+import Control.Monad
 import "mtl" Control.Monad.State
 import Data.Bits
 import qualified Data.ByteString.Lazy as B {- bytestring -}
@@ -159,10 +160,6 @@ midi_act f o = do
            _ -> return (-1)
     liftIO (f m n)
 
--- | 'sequence_' '.' 'repeat'.
-repeatM_ :: (Monad m) => m a -> m ()
-repeatM_ = sequence_ . repeat
-
 -- | Run midi system, handles 'E.AsyncException's.
 start_midi :: (UDP -> Midi_Receiver IO Int) -> IO ()
 start_midi receiver = do
@@ -174,7 +171,7 @@ start_midi receiver = do
       ex e = print ("start_midi",show (e::E.AsyncException)) >>
              close m_fd >>
              close s_fd
-      runs = runStateT (repeatM_ step) (k_init 1000) >>
+      runs = runStateT (forever step) (k_init 1000) >>
              return ()
   E.catch runs ex
   return ()
