@@ -7,7 +7,8 @@ import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'getRandomR' in (0,/n/).
 --
--- > evalRand (replicateM 2 (rand 10)) (mkStdGen 6) == [5,8]
+-- > evalRand (replicateM 2 (rand (10::Int))) (mkStdGen 6) == [5,8]
+-- > evalRand (rand (1::Double)) (mkStdGen 6) == 0.21915126172825694
 rand :: (RandomGen g,Random n,Num n) => n -> Rand g n
 rand n = getRandomR (0,n)
 

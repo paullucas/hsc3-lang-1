@@ -1,7 +1,6 @@
 -- | In cases where a method takes arguments, these precede the
 -- collection argument in the haskell variant, so that @c.m(i,j)@
 -- becomes @m i j c@.
-
 module Sound.SC3.Lang.Collection where
 
 import Data.List.Split {- split -}
@@ -563,3 +562,11 @@ stutter n = concatMap (replicate n)
 -- > rotate 3 [1..5] == [3,4,5,1,2]
 rotate :: Int -> [a] -> [a]
 rotate n = if n < 0 then rotateLeft n else rotateRight n
+
+-- | @ArrayedCollection.windex@ takes a list of probabilities, which
+-- should sum to /n/, and returns the an index value given a (0,/n/)
+-- input.
+--
+-- > mapMaybe (windex [0.1,0.3,0.6]) [0,0.1 .. 0.4] == [0,1,1,1,2]
+windex :: (Ord a,Num a) => [a] -> a -> Maybe Int
+windex w n = findIndex (n <) (integrate w)

@@ -1,7 +1,6 @@
 -- | 'RandomGen' based @sclang@ random number functions.
 module Sound.SC3.Lang.Random.Gen where
 
-import Data.List
 import Data.Maybe
 import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Math as M
@@ -22,6 +21,8 @@ kvariant k f =
     in go [] k
 
 -- | Variant of 'rand' generating /k/ values.
+--
+-- > fst (nrand 10 (5::Int) (mkStdGen 246873)) == [0,5,4,0,4,5,3,2,3,1]
 nrand :: (RandomGen g,Random n,Num n) => Int -> n -> g -> ([n],g)
 nrand k = kvariant k . rand
 
@@ -84,19 +85,10 @@ scramble k g =
     let (_,g') = next g
     in (shuffle' k (length k) g,g')
 
--- | @ArrayedCollection.windex@ takes a list of probabilities, which
--- should sums to /n/, and returns the an index value given a (0,/n/)
--- input.
---
--- > map (windex [0.1,0.3,0.6]) [0,0.1 .. 0.4] == [Just 0,Just 1,Just 1,Just 1,Just 2]
-windex :: (Ord a,Num a) => [a] -> a -> Maybe Int
-windex w n = findIndex (n <) (C.integrate w)
-
 -- | @SequenceableCollection.wchoose@ selects an element from a list
 -- given a list of weights which sum to @1@.
 wchoose :: (RandomGen g,Random a,Ord a,Fractional a) => [b] -> [a] -> g -> (b,g)
 wchoose l w g =
   let (i,g') = randomR (0.0,1.0) g
-      n = fromMaybe (error "wchoose: windex") (windex w i)
+      n = fromMaybe (error "wchoose: windex") (C.windex w i)
   in (l !! n,g')
-
