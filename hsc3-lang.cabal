@@ -22,6 +22,7 @@ Library
                    bytestring,
                    containers,
                    data-default,
+                   hmatrix-special,
                    hosc == 0.12.*,
                    hsc3 == 0.12.*,
                    MonadRandom,
@@ -44,6 +45,7 @@ Library
                    Sound.SC3.Lang.Data.Vowel
                    Sound.SC3.Lang.Math
                    Sound.SC3.Lang.Math.Warp
+                   Sound.SC3.Lang.Math.Window
                    Sound.SC3.Lang.Pattern.ID
                    Sound.SC3.Lang.Pattern.List
                    Sound.SC3.Lang.Random.Lorrain_1980
