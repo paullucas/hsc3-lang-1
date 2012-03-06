@@ -570,3 +570,53 @@ rotate n = if n < 0 then rotateLeft n else rotateRight n
 -- > mapMaybe (windex [0.1,0.3,0.6]) [0,0.1 .. 0.4] == [0,1,1,1,2]
 windex :: (Ord a,Num a) => [a] -> a -> Maybe Int
 windex w n = findIndex (n <) (integrate w)
+
+-- * Signals & wavetables
+
+-- | List of 2-tuples of adjacent elements.
+--
+-- > t2_adjacent [1..6] == [(1,2),(3,4),(5,6)]
+-- > t2_adjacent [1..5] == [(1,2),(3,4)]
+t2_adjacent :: [t] -> [(t,t)]
+t2_adjacent x =
+    case x of
+      i:j:x' -> (i,j) : t2_adjacent x'
+      _ -> []
+
+-- | List of 2-tuples of overlapping elements.
+--
+-- > t2_overlap [1..4] == [(1,2),(2,3),(3,4)]
+t2_overlap :: [b] -> [(b,b)]
+t2_overlap x = zip x (tail x)
+
+-- | Concat of 2-tuples.
+--
+-- > t2_concat (t2_adjacent [1..6]) == [1..6]
+-- > t2_concat (t2_overlap [1..4]) == [1,2,2,3,3,4]
+t2_concat :: [(a,a)] -> [a]
+t2_concat x =
+    case x of
+      [] -> []
+      (i,j):x' -> i : j : t2_concat x'
+
+-- | A Signal is half the size of a Wavetable, each element is the sum
+-- of two adjacent elements of the Wavetable.
+--
+-- > from_wavetable [-0.5,0.5,0,0.5,1.5,-0.5,1,-0.5] == [0.0,0.5,1.0,0.5]
+-- > let s = [0,0.5,1,0.5] in from_wavetable (to_wavetable s) == s
+from_wavetable :: Num n => [n] -> [n]
+from_wavetable = map (uncurry (+)) . t2_adjacent
+
+-- | A Wavetable is has /n * 2 + 2/ elements, where /n/ is the number
+-- of elements of the Signal.  Each signal element /e0/ expands to the
+-- two elements /(2 * e0 - e1, e1 - e0)/ where /e1/ is the next
+-- element, or zero at the final element.  Properly wavetables are
+-- only of power of two element signals.
+--
+-- > Signal[0,0.5,1,0.5].asWavetable == Wavetable[-0.5,0.5,0,0.5,1.5,-0.5,1,-0.5]
+--
+-- > to_wavetable [0,0.5,1,0.5] == [-0.5,0.5,0,0.5,1.5,-0.5,1,-0.5]
+to_wavetable :: Num a => [a] -> [a]
+to_wavetable =
+    let f (e0,e1) = (2 * e0 - e1,e1 - e0)
+    in t2_concat . map f . t2_overlap . (++ [0])
