@@ -573,15 +573,22 @@ windex w n = findIndex (n <) (integrate w)
 
 -- * Signals & wavetables
 
+-- | List of 2-tuples of elements at distance (stride) /n/.
+--
+-- > t2_window 3 [1..9] == [(1,2),(4,5),(7,8)]
+t2_window :: Int -> [t] -> [(t,t)]
+t2_window n x =
+    case x of
+      i:j:_ -> (i,j) : t2_window n (L.drop n x)
+      _ -> []
+
+
 -- | List of 2-tuples of adjacent elements.
 --
 -- > t2_adjacent [1..6] == [(1,2),(3,4),(5,6)]
 -- > t2_adjacent [1..5] == [(1,2),(3,4)]
 t2_adjacent :: [t] -> [(t,t)]
-t2_adjacent x =
-    case x of
-      i:j:x' -> (i,j) : t2_adjacent x'
-      _ -> []
+t2_adjacent = t2_window 2
 
 -- | List of 2-tuples of overlapping elements.
 --
