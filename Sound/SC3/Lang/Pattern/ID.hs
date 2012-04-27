@@ -1058,7 +1058,7 @@ ppar l = ptpar (zip (repeat 0) l)
 -- | Send 'E.Event' to @scsynth@ at 'Transport'.
 e_send :: Transport t => t -> E.Time -> Int -> E.Event -> IO ()
 e_send fd t j e =
-    case E.to_sc3_osc t j e of
+    case E.to_sc3_bundle t j e of
       Just (p,q) -> do case E.instrument_def e of
                          Just d -> async fd (d_recv d) >> return ()
                          Nothing -> return ()

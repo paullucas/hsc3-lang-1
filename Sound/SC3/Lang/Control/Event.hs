@@ -254,10 +254,10 @@ is_rest e =
       Just r -> r > 0
       Nothing -> False
 
--- | Generate @SC3@ 'O.OSC' messages describing 'Event'.  Consults the
+-- | Generate @SC3@ 'O.Bundle' messages describing 'Event'.  Consults the
 -- 'instrument_send_release' to in relation to gate command.
-to_sc3_osc :: Time -> Int -> Event -> Maybe (O.OSC,O.OSC)
-to_sc3_osc t j e =
+to_sc3_bundle :: Time -> Int -> Event -> Maybe (O.Bundle,O.Bundle)
+to_sc3_bundle t j e =
     let s = instrument_name e
         sr = instrument_send_release e
         p = pitch e
@@ -276,7 +276,7 @@ to_sc3_osc t j e =
                          "s_new" -> [S.s_new s i S.AddToTail 1 pr]
                          "n_set" -> [S.n_set i pr]
                          "rest" -> []
-                         _ -> error "to_sc3_osc:m_on:type"
+                         _ -> error "to_sc3_bundle:m_on:type"
                 m_off = case (e_type e,sr) of
                           ("s_new",True) -> [S.n_set i [("gate",0)]]
                           ("n_set",True) -> [S.n_set i [("gate",0)]]

@@ -91,21 +91,21 @@ b_sep :: Bits t => t -> (t, t)
 b_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
 
 -- | Parse @midi-osc@ @/midi/@ message.
-parse_b :: Integral n => OSC -> [n]
+parse_b :: Integral n => Message -> [n]
 parse_b m =
     case m of
       Message "/midi" [Int _,Blob b] -> map fromIntegral (B.unpack b)
       _ -> []
 
 -- | Variant of 'parse_b' that give status byte as low and high.
-parse_c :: Integral n => OSC -> [n]
+parse_c :: Integral n => Message -> [n]
 parse_c m =
     case parse_b m of
       st:dt -> let (l,h) = st `divMod` 16 in l:h:dt
       _ -> []
 
 -- | Variant of 'parse_c' that constructs a 'Midi_Message'.
-parse_m :: (Bits n,Integral n) => OSC -> Midi_Message n
+parse_m :: (Bits n,Integral n) => Message -> Midi_Message n
 parse_m m =
     case parse_c m of
       [0x8,i,j,k] -> Note_Off i j k
@@ -151,7 +151,7 @@ type Midi_Receiver m n = Midi_Message n -> Int -> m ()
 
 -- | Parse incoming midi messages, do 'K' allocation, and run
 -- 'Midi_Receiver'.
-midi_act :: Midi_Receiver IO Int -> OSC -> StateT (K Int) IO ()
+midi_act :: Midi_Receiver IO Int -> Message -> StateT (K Int) IO ()
 midi_act f o = do
     let m = parse_m o
     n <- case m of
@@ -166,7 +166,7 @@ start_midi receiver = do
   s_fd <- openUDP "127.0.0.1" 57110 -- midi-osc
   m_fd <- openUDP "127.0.0.1" 57150 -- midi-osc
   send m_fd (Message "/receive" [Int 0xffff])
-  let step = liftIO (recv m_fd) >>=
+  let step = liftIO (recvMessage m_fd) >>=
              midi_act (receiver s_fd)
       ex e = print ("start_midi",show (e::E.AsyncException)) >>
              close m_fd >>
