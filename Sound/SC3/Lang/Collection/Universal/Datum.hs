@@ -117,12 +117,12 @@ instance Real Datum where
 
 instance RealFrac Datum where
   properFraction d =
-      let (i,j) = properFraction (datum_real' d)
+      let (i,j) = properFraction (datum_real_err d)
       in (i,Double j)
-  truncate = truncate . datum_real'
-  round = round . datum_real'
-  ceiling = ceiling . datum_real'
-  floor = floor . datum_real'
+  truncate = truncate . datum_real_err
+  round = round . datum_real_err
+  ceiling = ceiling . datum_real_err
+  floor = floor . datum_real_err
 
 instance Ord Datum where
     p < q = case (datum_real p,datum_real q) of

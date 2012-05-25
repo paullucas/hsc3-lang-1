@@ -1062,8 +1062,8 @@ e_send fd t j e =
       Just (p,q) -> do case E.instrument_def e of
                          Just d -> async fd (d_recv d) >> return ()
                          Nothing -> return ()
-                       send fd p
-                       send fd q
+                       sendBundle fd p
+                       sendBundle fd q
       Nothing -> return ()
 
 -- | Function to audition a sequence of 'E.Event's using the @scsynth@
