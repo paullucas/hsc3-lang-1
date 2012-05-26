@@ -1,8 +1,8 @@
 {-# LANGUAGE PackageImports #-}
 -- | For a single input controller, key events always arrive in
--- sequence (ie. on->off), ie. for any key an on message can allocate
--- an ID and associate it with the key, an off message can retrieve
--- the ID given the key.
+-- sequence (ie. on->off), ie. for any key on message can allocate an
+-- ID and associate it with the key, an off message can retrieve the
+-- ID given the key.
 module Sound.SC3.Lang.Control.Midi where
 
 import qualified Control.Exception as E
@@ -166,7 +166,7 @@ start_midi receiver = do
   s_fd <- openUDP "127.0.0.1" 57110 -- midi-osc
   m_fd <- openUDP "127.0.0.1" 57150 -- midi-osc
   sendMessage m_fd (Message "/receive" [Int 0xffff])
-  let step = liftIO (recvMessage m_fd) >>=
+  let step = liftIO (recvMsg m_fd) >>=
              midi_act (receiver s_fd)
       ex e = print ("start_midi",show (e::E.AsyncException)) >>
              close m_fd >>
