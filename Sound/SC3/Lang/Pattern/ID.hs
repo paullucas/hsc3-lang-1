@@ -1,6 +1,6 @@
 {-# Language FlexibleInstances #-}
 -- | @sclang@ pattern library functions.
--- See <http://slavepianos.org/rd/?t=hsc3-texts> for tutorial.
+-- See <http://rd.slavepianos.org/?t=hsc3-texts> for tutorial.
 module Sound.SC3.Lang.Pattern.ID where
 
 import Control.Applicative hiding ((<*))
@@ -329,7 +329,7 @@ pbind' ty is ss xs =
 -- >                 ,("y",pseq [1,2,3] 1)]) == toP' [200,200,300]
 pbind :: [(E.Key,P E.Value)] -> P E.Event
 pbind =
-    let ty = repeat "s_new"
+    let ty = repeat E.E_s_new
         i = repeat Nothing
         s = repeat Nothing
     in pbind' ty i s
@@ -395,6 +395,21 @@ pconst n p t =
     in stopping (fromList (f 0 (unP p)))
 
 -- | SC3 pattern to derive notes from an index into a scale.
+--
+-- > let {p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2
+-- >     ;q = return [0,2,4,5,7,9,11]
+-- >     ;r = [0,2,4,5,7,5,4,2,0,4,7,12,7,4,0,2,4,5,7,5,4,2,0,4,7,12,7,4]}
+-- > in pdegreeToKey p q (return 12) == toP' r
+--
+-- > let {p = pseq [0,1,2,3,4,3,2,1,0,2,4,7,4,2] 2
+-- >     ;q = pseq (map return [[0,2,4,5,7,9,11],[0,2,3,5,7,8,11]]) 1
+-- >     ;r = [0,2,4,5,7,5,4,2,0,4,7,12,7,4,0,2,3,5,7,5,3,2,0,3,7,12,7,3]}
+-- > in pdegreeToKey p (pstutter 14 q) (return 12) == toP' r
+--
+-- This is the pattern variant of 'P.degree_to_key'.
+--
+-- > let s = [0,2,4,5,7,9,11]
+-- > in map (P.degree_to_key s 12) [0,2,4,7,4,2,0] == [0,4,7,12,7,4,0]
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3 (\i j k -> P.degree_to_key j k i)
 
@@ -549,7 +564,7 @@ pmono i k =
                    let nm = synthdefName d
                    in i : repeat (I.InstrumentName nm sr)
                I.InstrumentName _ _ -> repeat i
-        ty = "s_new" : repeat "n_set"
+        ty = E.E_s_new : repeat E.E_n_set
     in pbind' ty (repeat (Just k)) (map Just i')
 
 -- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.

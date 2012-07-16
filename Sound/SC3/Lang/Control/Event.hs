@@ -16,7 +16,7 @@ type Key = String
 type Value = Double
 
 -- | The /type/ of an 'Event'.
-type Type = String
+data Type = E_s_new | E_n_set | E_rest deriving (Eq,Show)
 
 -- | An 'Event' has a 'Type', possibly an integer identifier, possibly
 -- an 'I.Instrument' and a map of ('Key','Value') pairs.
@@ -29,7 +29,7 @@ data Event = Event {e_type :: Type
 -- | The /default/ empty event.
 defaultEvent :: Event
 defaultEvent =
-    Event {e_type = "unknown"
+    Event {e_type = E_s_new
           ,e_id = Nothing
           ,e_instrument = Nothing
           ,e_map = M.empty}
@@ -182,7 +182,7 @@ from_list t n i l =
 -- > lookup_m "k" (event [("k",1)]) == Just 1
 event :: [(Key,Value)] -> Event
 event l =
-    Event {e_type = "s_new"
+    Event {e_type = E_s_new
           ,e_id = Nothing
           ,e_instrument = Nothing
           ,e_map = M.fromList l}
@@ -255,7 +255,7 @@ is_rest e =
       Nothing -> False
 
 -- | Generate @SC3@ 'O.Bundle' messages describing 'Event'.  Consults the
--- 'instrument_send_release' to in relation to gate command.
+-- 'instrument_send_release' in relation to gate command.
 to_sc3_bundle :: Time -> Int -> Event -> Maybe (O.Bundle,O.Bundle)
 to_sc3_bundle t j e =
     let s = instrument_name e
@@ -273,14 +273,15 @@ to_sc3_bundle t j e =
     in if is_rest e || isNaN f
        then Nothing
        else let m_on = case e_type e of
-                         "s_new" -> [S.s_new s i S.AddToTail 1 pr]
-                         "n_set" -> [S.n_set i pr]
-                         "rest" -> []
-                         _ -> error "to_sc3_bundle:m_on:type"
-                m_off = case (e_type e,sr) of
-                          ("s_new",True) -> [S.n_set i [("gate",0)]]
-                          ("n_set",True) -> [S.n_set i [("gate",0)]]
-                          _ -> []
+                         E_s_new -> [S.s_new s i S.AddToTail 1 pr]
+                         E_n_set -> [S.n_set i pr]
+                         E_rest -> []
+                m_off = if not sr
+                        then []
+                        else case e_type e of
+                               E_s_new -> [S.n_set i [("gate",0)]]
+                               E_n_set -> [S.n_set i [("gate",0)]]
+                               E_rest -> []
             in Just (O.Bundle (O.UTCr t') m_on
                     ,O.Bundle (O.UTCr (t' + rt)) m_off)
 

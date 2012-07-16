@@ -45,7 +45,7 @@ default_delta_f :: (Num a,Fractional a) => Duration a -> a
 default_delta_f d = dur d * stretch d * (60 / tempo d)
 
 -- | The default 'sustain_f' field for 'Duration'.  This is equal to
--- 'default_delta_f' '*' 'legato'.
+-- 'delta' '*' 'legato'.
 --
 -- > default_sustain_f (defaultDuration {legato = 1.2}) == 1.2
 default_sustain_f :: (Num a,Fractional a) => Duration a -> a
