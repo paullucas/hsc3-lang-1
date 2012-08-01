@@ -166,8 +166,8 @@ start_midi receiver = do
   s_fd <- openUDP "127.0.0.1" 57110 -- midi-osc
   m_fd <- openUDP "127.0.0.1" 57150 -- midi-osc
   sendMessage m_fd (Message "/receive" [Int 0xffff])
-  let step = liftIO (recvMsg m_fd) >>=
-             midi_act (receiver s_fd)
+  let step = liftIO (recvMessages m_fd) >>=
+             midi_act (receiver s_fd) . head
       ex e = print ("start_midi",show (e::E.AsyncException)) >>
              close m_fd >>
              close s_fd

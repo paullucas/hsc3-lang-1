@@ -1,8 +1,9 @@
 -- | @SC2@ @OverlapTexture@ related functions.
 module Sound.SC3.Lang.Control.OverlapTexture where
 
+import Control.Monad.IO.Class
 import Data.List
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import Sound.SC3.Lang.Control.Event as E
 import Sound.SC3.Lang.Control.Instrument
@@ -79,19 +80,18 @@ post_process_s nc f =
     in synthdef nm u
 
 -- | Audition 'Event' pattern with specified post-processing function.
-post_process_a :: Transport t =>
-                  t -> P Event -> Int -> (UGen -> UGen) -> IO ()
-post_process_a fd p nc f = do
+post_process_a :: Transport m => P Event -> Int -> (UGen -> UGen) -> m ()
+post_process_a p nc f = do
   let s = post_process_s nc f
-  _ <- async fd (d_recv s)
-  send fd (s_new (synthdefName s) (-1) AddToTail 2 [])
-  play fd p
+  _ <- async (d_recv s)
+  send (s_new (synthdefName s) (-1) AddToTail 2 [])
+  play p
 
 -- | Variant of 'overlapTextureU' with post-processing stage.
 overlapTextureU_pp :: OverlapTexture -> UGen -> Int -> (UGen -> UGen) -> IO ()
 overlapTextureU_pp k u nc f = do
   let p = overlapTextureU' k u
-  withSC3 (\fd -> post_process_a fd p nc f)
+  withSC3 (post_process_a p nc f)
 
 -- | Generate an 'Event' pattern from 'XFadeTexture' control
 -- parameters and a continuous signal.
@@ -111,7 +111,7 @@ xfadeTextureU k = audition . xfadeTextureU' k
 xfadeTextureU_pp :: XFadeTexture -> UGen -> Int -> (UGen -> UGen) -> IO ()
 xfadeTextureU_pp k u nc f = do
   let p = xfadeTextureU' k u
-  withSC3 (\fd -> post_process_a fd p nc f)
+  withSC3 (post_process_a p nc f)
 
 -- | Variant of 'overlapTextureU'' where the continuous signal for
 -- each 'Event' is derived from a state transform function seeded with
@@ -133,40 +133,42 @@ overlapTextureS k u = audition . overlapTextureS' k u
 overlapTextureS_pp :: OverlapTexture -> (st -> (UGen,st)) -> st -> Int -> (UGen -> UGen) -> IO ()
 overlapTextureS_pp k u i_st nc f = do
   let p = overlapTextureS' k u i_st
-  withSC3 (\fd -> post_process_a fd p nc f)
+  withSC3 (post_process_a p nc f)
 
 -- | Run a state transforming function /f/ that also operates with a
 -- delta 'E.Time' indicating the duration to pause before re-running
 -- the function.
-at' :: st -> Double -> ((st,E.Time) -> IO (Maybe (st,E.Time))) -> IO ()
+at' :: MonadIO m => st -> Double -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
 at' st t f = do
   r <- f (st,t)
   case r of
-    Just (st',t') -> do pauseThreadUntil (t + t')
+    Just (st',t') -> do liftIO (pauseThreadUntil (t + t'))
                         at' st' (t + t') f
     Nothing -> return ()
 
 -- | Variant of 'at'' that pauses until initial 'E.Time'.
-at :: st -> E.Time -> ((st,E.Time) -> IO (Maybe (st,E.Time))) -> IO ()
+at :: MonadIO m => st -> E.Time -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
 at st t f = do
-  pauseThreadUntil t
+  liftIO (pauseThreadUntil t)
   _ <- at' st t f
   return ()
 
 -- | Underlying function of 'overlapTextureM' with explicit 'Transport'.
-overlapTextureM' :: Transport t => t -> OverlapTexture -> IO UGen -> IO ()
-overlapTextureM' fd k u = do
-  t <- utcr
+overlapTextureM' :: Transport m => OverlapTexture -> m UGen -> m ()
+overlapTextureM' k u = do
+  t <- liftIO utcr
   let n = "ot_" ++ show t
       (dt,_) = overlapTexture_dt k
       (_,_,_,c) = k
       f (st,_) = do g <- u
                     let g' = with_env (overlapTexture_env k) g
-                    _ <- async fd (d_recv (synthdef n g'))
-                    send fd (s_new n (-1) AddToTail 1 [])
-                    if st == 0 then return Nothing else return (Just (st-1,dt))
+                    _ <- async (d_recv (synthdef n g'))
+                    send (s_new n (-1) AddToTail 1 [])
+                    case st of
+                      0 -> return Nothing
+                      _ -> return (Just (st-1,dt))
   at c t f
 
 -- | Variant of 'overlapTextureU' where the continuous signal is in the 'IO' monad.
-overlapTextureM :: OverlapTexture -> IO UGen -> IO ()
-overlapTextureM k u = withSC3 (\fd -> overlapTextureM' fd k u)
+overlapTextureM :: OverlapTexture -> Connection UDP UGen -> IO ()
+overlapTextureM k u = withSC3 (overlapTextureM' k u)

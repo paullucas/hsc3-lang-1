@@ -29,7 +29,8 @@ Library
                    mtl,
                    split,
                    random,
-                   random-shuffle
+                   random-shuffle,
+                   transformers
   GHC-Options:     -Wall -fwarn-tabs
   Exposed-modules: Sound.SC3.Lang.Collection
                    Sound.SC3.Lang.Collection.Extension

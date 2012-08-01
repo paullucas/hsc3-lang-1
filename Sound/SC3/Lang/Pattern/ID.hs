@@ -5,13 +5,14 @@ module Sound.SC3.Lang.Pattern.ID where
 
 import Control.Applicative hiding ((<*))
 import Control.Monad
+import Control.Monad.IO.Class
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.Split as S
 import Data.Maybe
 import Data.Monoid
 import Data.Traversable
-import Sound.OpenSoundControl
+import Sound.OSC
 import Sound.SC3
 import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Control.Event as E
@@ -1071,49 +1072,49 @@ ppar l = ptpar (zip (repeat 0) l)
 -- * Pattern audition
 
 -- | Send 'E.Event' to @scsynth@ at 'Transport'.
-e_send :: Transport t => t -> E.Time -> Int -> E.Event -> IO ()
-e_send fd t j e =
+e_send :: Transport m => E.Time -> Int -> E.Event -> m ()
+e_send t j e =
     case E.to_sc3_bundle t j e of
       Just (p,q) -> do case E.instrument_def e of
-                         Just d -> async fd (d_recv d) >> return ()
+                         Just d -> async (d_recv d) >> return ()
                          Nothing -> return ()
-                       sendBundle fd p
-                       sendBundle fd q
+                       sendBundle p
+                       sendBundle q
       Nothing -> return ()
 
 -- | Function to audition a sequence of 'E.Event's using the @scsynth@
 -- instance at 'Transport' starting at indicated 'E.Time'.
-e_tplay :: (Transport t) => t -> E.Time -> [Int] -> [E.Event] -> IO ()
-e_tplay fd t j e =
+e_tplay :: (Transport m) => E.Time -> [Int] -> [E.Event] -> m ()
+e_tplay t j e =
     case (j,e) of
       (_,[]) -> return ()
       ([],_) -> error "e_tplay: no-id"
       (i:j',d:e') -> do let t' = t + E.fwd d
-                        e_send fd t i d
-                        pauseThreadUntil t'
-                        e_tplay fd t' j' e'
+                        e_send t i d
+                        liftIO (pauseThreadUntil t')
+                        e_tplay t' j' e'
 
 -- | Variant of 'e_tplay' with current clock time from 'utcr' as start
 -- time.  This function is used to implement the pattern instances of
 -- 'Audible'.
-e_play :: (Transport t) => t -> [Int] -> [E.Event] -> IO ()
-e_play fd lj le = do
-  st <- utcr
-  e_tplay fd st lj le
+e_play :: (Transport m) => [Int] -> [E.Event] -> m ()
+e_play lj le = do
+  st <- liftIO utcr
+  e_tplay st lj le
 
 instance Audible (P E.Event) where
-    play fd = e_play fd [1000..] . unP
+    play = e_play [1000..] . unP
 
 instance Audible (Synthdef,P E.Event) where
-    play fd (s,p) = do
+    play (s,p) = do
       let i_d = I.InstrumentDef s True
           i_nm = I.InstrumentName (synthdefName s) True
           i = pcons i_d (pn (return i_nm) inf)
-      _ <- async fd (d_recv s)
-      e_play fd [1000..] (unP (pinstr i p))
+      _ <- async (d_recv s)
+      e_play [1000..] (unP (pinstr i p))
 
 instance Audible (String,P E.Event) where
-    play fd (s,p) =
+    play (s,p) =
         let i = I.InstrumentName s True
-        in e_play fd [1000..] (unP (pinstr (return i) p))
+        in e_play [1000..] (unP (pinstr (return i) p))
 
