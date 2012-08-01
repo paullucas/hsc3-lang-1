@@ -1090,7 +1090,7 @@ e_tplay t j e =
       ([],_) -> error "e_tplay: no-id"
       (i:j',d:e') -> do let t' = t + E.fwd d
                         e_send t i d
-                        liftIO (pauseThreadUntil t')
+                        pauseThreadUntil t'
                         e_tplay t' j' e'
 
 -- | Variant of 'e_tplay' with current clock time from 'utcr' as start
@@ -1098,7 +1098,7 @@ e_tplay t j e =
 -- 'Audible'.
 e_play :: (Transport m) => [Int] -> [E.Event] -> m ()
 e_play lj le = do
-  st <- liftIO utcr
+  st <- utcr
   e_tplay st lj le
 
 instance Audible (P E.Event) where

@@ -141,21 +141,21 @@ at' :: Transport m => st -> Double -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> 
 at' st t f = do
   r <- f (st,t)
   case r of
-    Just (st',t') -> do liftIO (pauseThreadUntil (t + t'))
+    Just (st',t') -> do pauseThreadUntil (t + t')
                         at' st' (t + t') f
     Nothing -> return ()
 
 -- | Variant of 'at'' that pauses until initial 'E.Time'.
 at :: Transport m => st -> E.Time -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
 at st t f = do
-  liftIO (pauseThreadUntil t)
+  pauseThreadUntil t
   _ <- at' st t f
   return ()
 
 -- | Underlying function of 'overlapTextureM' with explicit 'Transport'.
 overlapTextureM' :: Transport m => OverlapTexture -> m UGen -> m ()
 overlapTextureM' k u = do
-  t <- liftIO utcr
+  t <- utcr
   let n = "ot_" ++ show t
       (dt,_) = overlapTexture_dt k
       (_,_,_,c) = k
