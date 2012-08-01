@@ -5,7 +5,6 @@ module Sound.SC3.Lang.Pattern.ID where
 
 import Control.Applicative hiding ((<*))
 import Control.Monad
-import Control.Monad.IO.Class
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.Split as S

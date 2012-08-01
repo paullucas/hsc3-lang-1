@@ -1,7 +1,6 @@
 -- | @SC2@ @OverlapTexture@ related functions.
 module Sound.SC3.Lang.Control.OverlapTexture where
 
-import Control.Monad.IO.Class
 import Data.List
 import Sound.OSC
 import Sound.SC3
@@ -138,7 +137,7 @@ overlapTextureS_pp k u i_st nc f = do
 -- | Run a state transforming function /f/ that also operates with a
 -- delta 'E.Time' indicating the duration to pause before re-running
 -- the function.
-at' :: MonadIO m => st -> Double -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
+at' :: Transport m => st -> Double -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
 at' st t f = do
   r <- f (st,t)
   case r of
@@ -147,7 +146,7 @@ at' st t f = do
     Nothing -> return ()
 
 -- | Variant of 'at'' that pauses until initial 'E.Time'.
-at :: MonadIO m => st -> E.Time -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
+at :: Transport m => st -> E.Time -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
 at st t f = do
   liftIO (pauseThreadUntil t)
   _ <- at' st t f
