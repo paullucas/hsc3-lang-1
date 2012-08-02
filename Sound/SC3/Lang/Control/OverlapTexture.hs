@@ -26,6 +26,8 @@ with_env :: (Double,Double) -> UGen -> UGen
 with_env (a,s) g = with_env' g (constant a) (constant s)
 
 -- | Control parameters for 'overlapTextureU' and related functions.
+-- Components are: 1. attack time, 2. sustain time, 3. number of
+-- overlaping (simultaneous) nodes and 4. number of nodes altogether.
 type OverlapTexture = (Double,Double,Double,Int)
 
 -- | Extract envelope parameters for 'with_env' from 'OverlapTexture'.
@@ -33,10 +35,14 @@ overlapTexture_env :: OverlapTexture -> (Double,Double)
 overlapTexture_env (a,s,_,_) = (a,s)
 
 -- | Extract /duration/ and /legato/ paramaters from 'OverlapTexture'.
+--
+-- > overlapTexture_dt (1,3,5,undefined) == (1,5)
 overlapTexture_dt :: OverlapTexture -> (Double,Double)
 overlapTexture_dt (a,s,o,_) = ((a + s + a) / o,o)
 
 -- | Control parameters for 'xfadeTextureU' and related functions.
+-- Components are: 1. attack time, 2. sustain time, 3. number of nodes
+-- instatiated altogether.
 type XFadeTexture = (Double,Double,Int)
 
 -- | Extract envelope parameters for 'with_env' from 'XFadeTexture'.
@@ -66,6 +72,13 @@ overlapTextureU' k g =
     in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
 
 -- | Audition pattern given by 'overlapTextureU''.
+--
+-- > import Sound.SC3.ID
+-- > import Sound.SC3.Lang.Control.OverlapTexture
+-- >
+-- > let {o = sinOsc AR (rand 'α' 440 880) 0
+-- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
+-- > in overlapTextureU (1,3,6,maxBound) u
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
 overlapTextureU k = audition . overlapTextureU' k
 
@@ -103,6 +116,10 @@ xfadeTextureU' k g =
     in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
 
 -- | Audition pattern given by 'xfadeTextureU''.
+--
+-- > let {o = sinOsc AR (rand 'α' 440 880) 0
+-- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
+-- > in xfadeTextureU (1,1,6) u
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
 xfadeTextureU k = audition . xfadeTextureU' k
 
@@ -168,6 +185,7 @@ overlapTextureM' k u = do
                       _ -> return (Just (st-1,dt))
   at c t f
 
--- | Variant of 'overlapTextureU' where the continuous signal is in the 'IO' monad.
+-- | Variant of 'overlapTextureU' where the continuous signal is in
+-- the 'IO' monad.
 overlapTextureM :: OverlapTexture -> Connection UDP UGen -> IO ()
 overlapTextureM k u = withSC3 (overlapTextureM' k u)
