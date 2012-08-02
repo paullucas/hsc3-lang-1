@@ -1,4 +1,9 @@
 -- | @SC2@ @OverlapTexture@ related functions.
+--
+-- Generate sequences of overlapping instances of a 'UGen' graph by
+-- adding an 'Envelope' and calculating inter-onset times.  There are
+-- variants for different graph constructors, and to allow for a
+-- post-processing stage.
 module Sound.SC3.Lang.Control.OverlapTexture where
 
 import Data.List
@@ -99,8 +104,11 @@ post_process_a p nc f = do
   send (s_new (synthdefName s) (-1) AddToTail 2 [])
   play p
 
+-- | Post processing function.
+type PPF = (UGen -> UGen)
+
 -- | Variant of 'overlapTextureU' with post-processing stage.
-overlapTextureU_pp :: OverlapTexture -> UGen -> Int -> (UGen -> UGen) -> IO ()
+overlapTextureU_pp :: OverlapTexture -> UGen -> Int -> PPF -> IO ()
 overlapTextureU_pp k u nc f = do
   let p = overlapTextureU' k u
   withSC3 (post_process_a p nc f)
@@ -124,15 +132,18 @@ xfadeTextureU :: XFadeTexture -> UGen -> IO ()
 xfadeTextureU k = audition . xfadeTextureU' k
 
 -- | Variant of 'xfadeTextureU' with post-processing stage.
-xfadeTextureU_pp :: XFadeTexture -> UGen -> Int -> (UGen -> UGen) -> IO ()
+xfadeTextureU_pp :: XFadeTexture -> UGen -> Int -> PPF -> IO ()
 xfadeTextureU_pp k u nc f = do
   let p = xfadeTextureU' k u
   withSC3 (post_process_a p nc f)
 
+-- | UGen generating state transform function.
+type STF st = (st -> (UGen,st))
+
 -- | Variant of 'overlapTextureU'' where the continuous signal for
 -- each 'Event' is derived from a state transform function seeded with
 -- given initial state.
-overlapTextureS' :: OverlapTexture -> (st -> (UGen,st)) -> st -> P Event
+overlapTextureS' :: OverlapTexture -> STF st -> st -> P Event
 overlapTextureS' k u i_st =
     let (d,l) = overlapTexture_dt k
         (_,_,_,c) = k
@@ -142,19 +153,22 @@ overlapTextureS' k u i_st =
     in pinstr (fromList s) (pbind [("dur",prepeat d),("legato",prepeat l)])
 
 -- | Audition pattern given by 'overlapTextureS''.
-overlapTextureS :: OverlapTexture -> (st -> (UGen,st)) -> st -> IO ()
+overlapTextureS :: OverlapTexture -> STF st -> st -> IO ()
 overlapTextureS k u = audition . overlapTextureS' k u
 
 -- | Variant of 'overlapTextureS' with post-processing stage.
-overlapTextureS_pp :: OverlapTexture -> (st -> (UGen,st)) -> st -> Int -> (UGen -> UGen) -> IO ()
+overlapTextureS_pp :: OverlapTexture -> STF st -> st -> Int -> PPF  -> IO ()
 overlapTextureS_pp k u i_st nc f = do
   let p = overlapTextureS' k u i_st
   withSC3 (post_process_a p nc f)
 
+-- | Monadic state transform function with delta-time.
+type STF_T st m = ((st,E.Time) -> m (Maybe (st,E.Time)))
+
 -- | Run a state transforming function /f/ that also operates with a
 -- delta 'E.Time' indicating the duration to pause before re-running
 -- the function.
-at' :: Transport m => st -> Double -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
+at' :: Transport m => st -> Double -> STF_T st m -> m ()
 at' st t f = do
   r <- f (st,t)
   case r of
@@ -163,7 +177,7 @@ at' st t f = do
     Nothing -> return ()
 
 -- | Variant of 'at'' that pauses until initial 'E.Time'.
-at :: Transport m => st -> E.Time -> ((st,E.Time) -> m (Maybe (st,E.Time))) -> m ()
+at :: Transport m => st -> E.Time -> STF_T st m -> m ()
 at st t f = do
   pauseThreadUntil t
   _ <- at' st t f
