@@ -11,7 +11,7 @@ import "mtl" Control.Monad.State
 import Data.Bits
 import qualified Data.ByteString.Lazy as B {- bytestring -}
 import qualified Data.Map as M {- containers -}
-import Sound.OpenSoundControl {- hosc -}
+import Sound.OSC.FD {- hosc -}
 
 -- | <http://www.midi.org/techspecs/midimessages.php>
 data Midi_Message a = Chanel_Aftertouch a a
