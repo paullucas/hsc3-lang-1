@@ -1,8 +1,9 @@
 -- | @SC2@ @OverlapTexture@ related functions.
 --
--- Generate sequences of overlapping instances of a 'UGen' graph by
--- adding an 'Envelope' and calculating inter-onset times.  There are
--- variants for different graph constructors, and to allow for a
+-- Generate sequences of overlapping instances of a 'UGen' graph or
+-- family of graphs.  The 'OverlapTexture' functions add an 'Envelope'
+-- and calculate inter-onset times and durations.  There are variants
+-- for different graph constructors, and to allow for a
 -- post-processing stage.
 module Sound.SC3.Lang.Control.OverlapTexture where
 
@@ -39,7 +40,7 @@ data OverlapTexture_ =
     OverlapTexture {sustain_time :: Double
                    ,transition_time :: Double
                    ,overlaps :: Double
-                   ,max_nodes :: Int}
+                   ,max_repeats :: Int}
 
 -- | Extract envelope parameters (sustain and transition times) for
 -- 'with_env' from 'OverlapTexture'.
