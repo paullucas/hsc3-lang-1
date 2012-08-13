@@ -23,13 +23,13 @@ mk_env s t =
     in envGen KR 1 1 0 1 RemoveSynth p
 
 -- | Apply 'mk_env' envelope to input signal and write to output bus @0@.
-with_env' :: UGen -> UGen -> UGen -> UGen
-with_env' g a = out 0 . (*) g . mk_env a
+with_env_u :: UGen -> UGen -> UGen -> UGen
+with_env_u g a = out 0 . (*) g . mk_env a
 
--- | Variant of 'with_env'' where envelope parameters are lifted from
+-- | Variant of 'with_env_u' where envelope parameters are lifted from
 -- 'Double' to 'UGen'.
 with_env :: (Double,Double) -> UGen -> UGen
-with_env (s,t) g = with_env' g (constant s) (constant t)
+with_env (s,t) g = with_env_u g (constant s) (constant t)
 
 -- | Control parameters for 'overlapTextureU' and related functions.
 -- Components are: 1. sustain time, 2. transition time, 3. number of
@@ -83,15 +83,15 @@ gen_synth k g =
 
 -- | Generate an 'Event' pattern from 'OverlapTexture' control
 -- parameters and a continuous signal.
-overlapTextureU' :: OverlapTexture -> UGen -> P Event
-overlapTextureU' k g =
+overlapTextureP :: OverlapTexture -> UGen -> P Event
+overlapTextureP k g =
     let s = gen_synth (overlapTexture_env k) g
         (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
         i = return (InstrumentDef s False)
     in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
 
--- | Audition pattern given by 'overlapTextureU''.
+-- | Audition pattern given by 'overlapTextureP'.
 --
 -- > import Sound.SC3.ID
 -- > import Sound.SC3.Lang.Control.OverlapTexture
@@ -100,7 +100,7 @@ overlapTextureU' k g =
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in overlapTextureU (3,1,6,9) u
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
-overlapTextureU k = audition . overlapTextureU' k
+overlapTextureU k = audition . overlapTextureP k
 
 -- | Generate 'Synthdef' from a signal processing function over the
 -- indicated number of channels.
@@ -125,41 +125,41 @@ type PPF = (UGen -> UGen)
 -- | Variant of 'overlapTextureU' with post-processing stage.
 overlapTextureU_pp :: OverlapTexture -> UGen -> Int -> PPF -> IO ()
 overlapTextureU_pp k u nc f = do
-  let p = overlapTextureU' k u
+  let p = overlapTextureP k u
   withSC3 (post_process_a p nc f)
 
 -- | Generate an 'Event' pattern from 'XFadeTexture' control
 -- parameters and a continuous signal.
-xfadeTextureU' :: XFadeTexture -> UGen -> P Event
-xfadeTextureU' k g =
+xfadeTextureP :: XFadeTexture -> UGen -> P Event
+xfadeTextureP k g =
     let s = gen_synth (xfadeTexture_env k) g
         (l,d) = xfadeTexture_dt k
         (_,_,c) = k
         i = return (InstrumentDef s False)
     in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
 
--- | Audition pattern given by 'xfadeTextureU''.
+-- | Audition pattern given by 'xfadeTextureP'.
 --
 -- > let {o = sinOsc AR (rand 'α' 440 880) 0
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in xfadeTextureU (1,3,6) u
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
-xfadeTextureU k = audition . xfadeTextureU' k
+xfadeTextureU k = audition . xfadeTextureP k
 
 -- | Variant of 'xfadeTextureU' with post-processing stage.
 xfadeTextureU_pp :: XFadeTexture -> UGen -> Int -> PPF -> IO ()
 xfadeTextureU_pp k u nc f = do
-  let p = xfadeTextureU' k u
+  let p = xfadeTextureP k u
   withSC3 (post_process_a p nc f)
 
 -- | UGen generating state transform function.
 type STF st = (st -> (UGen,st))
 
--- | Variant of 'overlapTextureU'' where the continuous signal for
+-- | Variant of 'overlapTextureP' where the continuous signal for
 -- each 'Event' is derived from a state transform function seeded with
 -- given initial state.
-overlapTextureS' :: OverlapTexture -> STF st -> st -> P Event
-overlapTextureS' k u i_st =
+overlapTextureP_st :: OverlapTexture -> STF st -> st -> P Event
+overlapTextureP_st k u i_st =
     let (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
         g = take c (unfoldr (Just . u) i_st)
@@ -167,54 +167,50 @@ overlapTextureS' k u i_st =
         s = map (i . gen_synth (overlapTexture_env k)) g
     in pinstr (fromList s) (pbind [("dur",prepeat d),("legato",prepeat l)])
 
--- | Audition pattern given by 'overlapTextureS''.
+-- | Audition pattern given by 'overlapTextureP_st'.
 overlapTextureS :: OverlapTexture -> STF st -> st -> IO ()
-overlapTextureS k u = audition . overlapTextureS' k u
+overlapTextureS k u = audition . overlapTextureP_st k u
 
 -- | Variant of 'overlapTextureS' with post-processing stage.
 overlapTextureS_pp :: OverlapTexture -> STF st -> st -> Int -> PPF  -> IO ()
 overlapTextureS_pp k u i_st nc f = do
-  let p = overlapTextureS' k u i_st
+  let p = overlapTextureP_st k u i_st
   withSC3 (post_process_a p nc f)
 
--- | Monadic state transform function with delta-time.
-type STF_T st m = ((st,E.Time) -> m (Maybe (st,E.Time)))
+-- | Monadic state transform function.
+type MSTF st m = (st -> m (Maybe st))
 
--- | Run a state transforming function /f/ that also operates with a
--- delta 'E.Time' indicating the duration to pause before re-running
+-- | Run a monadic state transforming function /f/ that operates with
+-- a delta 'E.Time' indicating the duration to pause before re-running
 -- the function.
-at' :: Transport m => st -> Double -> STF_T st m -> m ()
-at' st t f = do
-  r <- f (st,t)
-  case r of
-    Just (st',t') -> do pauseThreadUntil (t + t')
-                        at' st' (t + t') f
-    Nothing -> return ()
-
--- | Variant of 'at'' that pauses until initial 'E.Time'.
-at :: Transport m => st -> E.Time -> STF_T st m -> m ()
-at st t f = do
-  pauseThreadUntil t
-  _ <- at' st t f
-  return ()
+dt_rescheduler :: Transport m => MSTF (st,E.Time) m -> (st,E.Time) -> m ()
+dt_rescheduler f =
+    let rec (st,t) = do
+          pauseThreadUntil t
+          r <- f (st,t)
+          case r of
+            Just (st',dt) -> rec (st',t + dt)
+            Nothing -> return ()
+    in rec
 
 -- | Underlying function of 'overlapTextureM' with explicit 'Transport'.
-overlapTextureM' :: Transport m => OverlapTexture -> m UGen -> m ()
-overlapTextureM' k u = do
-  t <- utcr
-  let n = "ot_" ++ show t
+overlapTextureR :: (Transport m) => OverlapTexture -> IO UGen -> MSTF (Int,E.Time) m
+overlapTextureR k uf =
+  let nm = "ot_" ++ show k
       (_,dt) = overlapTexture_dt k
-      (_,_,_,c) = k
-      f (st,_) = do g <- u
-                    let g' = with_env (overlapTexture_env k) g
-                    _ <- async (d_recv (synthdef n g'))
-                    send (s_new n (-1) AddToTail 1 [])
-                    case st of
-                      0 -> return Nothing
-                      _ -> return (Just (st-1,dt))
-  at c t f
+  in \(st,_) -> do
+        u <- liftIO uf
+        let g = with_env (overlapTexture_env k) u
+        _ <- async (d_recv (synthdef nm g))
+        send (s_new nm (-1) AddToTail 1 [])
+        case st of
+          0 -> return Nothing
+          _ -> return (Just (st-1,dt))
 
 -- | Variant of 'overlapTextureU' where the continuous signal is in
 -- the 'IO' monad.
-overlapTextureM :: OverlapTexture -> Connection UDP UGen -> IO ()
-overlapTextureM k u = withSC3 (overlapTextureM' k u)
+overlapTextureM :: OverlapTexture -> IO UGen -> IO ()
+overlapTextureM k u = do
+  t <- utcr
+  let (_,_,_,c) = k
+  withSC3 (dt_rescheduler (overlapTextureR k u) (c,t))
