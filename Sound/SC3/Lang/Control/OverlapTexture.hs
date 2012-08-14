@@ -8,9 +8,9 @@
 module Sound.SC3.Lang.Control.OverlapTexture where
 
 import Data.List
-import Sound.OSC
-import Sound.SC3
-import Sound.SC3.Lang.Control.Event as E
+import Sound.OSC {- hosc -}
+import Sound.SC3 {- hsc3 -}
+import Sound.SC3.Lang.Control.Event as E {- hsc3-lang -}
 import Sound.SC3.Lang.Control.Instrument
 import Sound.SC3.Lang.Pattern.ID
 
@@ -153,12 +153,12 @@ xfadeTextureU_pp k u nc f = do
   withSC3 (post_process_a p nc f)
 
 -- | UGen generating state transform function.
-type STF st = (st -> (UGen,st))
+type USTF st = (st -> (UGen,st))
 
 -- | Variant of 'overlapTextureP' where the continuous signal for
 -- each 'Event' is derived from a state transform function seeded with
 -- given initial state.
-overlapTextureP_st :: OverlapTexture -> STF st -> st -> P Event
+overlapTextureP_st :: OverlapTexture -> USTF st -> st -> P Event
 overlapTextureP_st k u i_st =
     let (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
@@ -168,11 +168,11 @@ overlapTextureP_st k u i_st =
     in pinstr (fromList s) (pbind [("dur",prepeat d),("legato",prepeat l)])
 
 -- | Audition pattern given by 'overlapTextureP_st'.
-overlapTextureS :: OverlapTexture -> STF st -> st -> IO ()
+overlapTextureS :: OverlapTexture -> USTF st -> st -> IO ()
 overlapTextureS k u = audition . overlapTextureP_st k u
 
 -- | Variant of 'overlapTextureS' with post-processing stage.
-overlapTextureS_pp :: OverlapTexture -> STF st -> st -> Int -> PPF  -> IO ()
+overlapTextureS_pp :: OverlapTexture -> USTF st -> st -> Int -> PPF  -> IO ()
 overlapTextureS_pp k u i_st nc f = do
   let p = overlapTextureP_st k u i_st
   withSC3 (post_process_a p nc f)
@@ -183,8 +183,8 @@ type MSTF st m = (st -> m (Maybe st))
 -- | Run a monadic state transforming function /f/ that operates with
 -- a delta 'E.Time' indicating the duration to pause before re-running
 -- the function.
-dt_rescheduler :: Transport m => MSTF (st,E.Time) m -> (st,E.Time) -> m ()
-dt_rescheduler f =
+dt_rescheduler_m :: MonadIO m => MSTF (st,E.Time) m -> (st,E.Time) -> m ()
+dt_rescheduler_m f =
     let rec (st,t) = do
           pauseThreadUntil t
           r <- f (st,t)
@@ -194,7 +194,7 @@ dt_rescheduler f =
     in rec
 
 -- | Underlying function of 'overlapTextureM' with explicit 'Transport'.
-overlapTextureR :: (Transport m) => OverlapTexture -> IO UGen -> MSTF (Int,E.Time) m
+overlapTextureR :: Transport m => OverlapTexture -> IO UGen -> MSTF (Int,E.Time) m
 overlapTextureR k uf =
   let nm = "ot_" ++ show k
       (_,dt) = overlapTexture_dt k
@@ -213,4 +213,4 @@ overlapTextureM :: OverlapTexture -> IO UGen -> IO ()
 overlapTextureM k u = do
   t <- utcr
   let (_,_,_,c) = k
-  withSC3 (dt_rescheduler (overlapTextureR k u) (c,t))
+  withSC3 (dt_rescheduler_m (overlapTextureR k u) (c,t))
