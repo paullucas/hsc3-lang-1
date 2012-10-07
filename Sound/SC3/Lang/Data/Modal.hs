@@ -1,7 +1,16 @@
 -- | <http://www.csounds.com/manual/html/MiscModalFreq.html>
 module Sound.SC3.Lang.Data.Modal where
 
-modal_frequency_ratios :: [(String,[Double])]
+-- | Table of modal frequency ratios for specified sound sources.
+--
+-- > import Sound.SC3
+--
+-- > let {f = 221
+-- >     ;Just r = lookup "Tibetan bowl (180mm)" modal_frequency_ratios
+-- >     ;u n = replicate (length r) n
+-- >     ;k = klankSpec (map (* f) r) (u 1) (u 16)}
+-- > in audition (out 0 (klank (impulse AR 0.125 0 * 0.1) 1 0 1 k))
+modal_frequency_ratios :: Fractional n => [(String,[n])]
 modal_frequency_ratios =
     [("Dahina tabla",[1,2.89,4.95,6.99,8.01,9.02])
     ,("Bayan tabla",[1,2.0,3.01,4.01,4.69,5.63])
@@ -22,7 +31,8 @@ modal_frequency_ratios =
     ,("Spinel sphere (diameter=3.6675mm)",[1,1.026513174725,1.4224916858532,1.4478690202098,1.4661959580455,1.499452545408,1.7891839345101,1.8768994627782,1.9645945254541,1.9786543873113,2.0334612432847,2.1452852391916,2.1561524686621,2.2533435661294,2.2905090816065,2.3331798413917,0,2.4567715528268,2.4925556408289,2.5661806088514,2.6055768738808,2.6692760296751,2.7140956766436,2.7543617293425,2.7710411870043])
     ,("Pot lid",[1,3.2,6.23,6.27,9.92,14.15])]
 
-modal_frequencies :: [(String,[Double])]
+-- | Table of modal frequencies for subset of 'modal_frequency_ratios'.
+modal_frequencies :: Fractional n => [(String,[n])]
 modal_frequencies =
     [("Chalandi plates",[62,107,360,460,863])
     ,("Tibetan bowl (180mm)",[221,614,1145,1804,2577,3456,4419])
