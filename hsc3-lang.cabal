@@ -9,8 +9,8 @@ Copyright:         (c) Rohan Drape, 2007-2012
 Author:            Rohan Drape
 Maintainer:        rd@slavepianos.org
 Stability:         Experimental
-Homepage:          http://slavepianos.org/rd/?t=hsc3-lang
-Tested-With:       GHC == 7.0.4
+Homepage:          http://rd.slavepianos.org/?t=hsc3-lang
+Tested-With:       GHC == 7.6.1
 Build-Type:        Simple
 Cabal-Version:     >= 1.8
 
@@ -57,4 +57,4 @@ Library
 
 Source-Repository  head
   Type:            darcs
-  Location:        http://slavepianos.org/rd/sw/hsc3-lang/
+  Location:        http://rd.slavepianos.org/sw/hsc3-lang/

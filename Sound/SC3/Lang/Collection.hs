@@ -444,7 +444,7 @@ separate f l =
 -- > [1,2,3,4,5,6,7,8].clump(3) == [[1,2,3],[4,5,6],[7,8]]
 -- > clump 3 [1,2,3,4,5,6,7,8] == [[1,2,3],[4,5,6],[7,8]]
 clump :: Int -> [a] -> [[a]]
-clump = splitEvery
+clump = chunksOf
 
 -- | @SequenceableCollection.clumps@ is a synonym for
 -- 'Data.List.Split.splitPlaces'.

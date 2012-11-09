@@ -79,7 +79,7 @@ warpFader d n = if d == W_Map then n * n else sqrt n
 -- infinity and zero.  An input of @0@ gives @-180@.
 --
 -- > map (round . warpDbFader W_Map) [0,0.5,1] == [-180,-12,0]
-warpDbFader :: Floating a => Warp a
+warpDbFader :: (Eq a,Floating a) => Warp a
 warpDbFader d n =
     if d == W_Map
     then if n == 0 then -180 else rmsToDb (n * n)

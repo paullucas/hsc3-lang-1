@@ -53,7 +53,7 @@ data Control_Message a = All_Notes_Off a
 -- defined meanings.
 --
 -- > control_message (0,123,0) == All_Notes_Off 0
-control_message :: Num a => (a,a,a) -> Control_Message a
+control_message :: (Eq a,Num a) => (a,a,a) -> Control_Message a
 control_message (i,j,k) =
     case j of
       0 -> Bank_Select i k
@@ -87,7 +87,7 @@ b_join p q = p .|. shiftL q 7
 -- | Inverse of 'b_join'.
 --
 -- > map b_sep [0,8192,16383] == [(0,0),(0,64),(127,127)]
-b_sep :: Bits t => t -> (t, t)
+b_sep :: (Num t,Bits t) => t -> (t, t)
 b_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
 
 -- | Parse @midi-osc@ @/midi/@ message.

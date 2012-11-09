@@ -19,7 +19,7 @@ bitChar c =
 --
 -- > parseBits "101" == 5
 -- > parseBits "00001111" == 15
-parseBits :: Bits a => String -> a
+parseBits :: (Num a,Bits a) => String -> a
 parseBits x =
     let x' = filter (id . bitChar . snd) (zip [0..] (reverse x))
     in foldr ((.|.) . bit . fst) 0 x'
