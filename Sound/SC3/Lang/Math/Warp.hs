@@ -12,11 +12,11 @@ data W_Direction = W_Map | W_Unmap
 type Warp t = W_Direction -> t -> t
 
 -- | Forward warp.
-w_map :: Warp t -> (t -> t)
+w_map :: Warp t -> t -> t
 w_map w = w W_Map
 
 -- | Reverse warp.
-w_unmap :: Warp t -> (t -> t)
+w_unmap :: Warp t -> t -> t
 w_unmap w = w W_Unmap
 
 -- | A linear real value map.
@@ -44,7 +44,7 @@ warpExponential l r d n =
     let z = r / l
     in if d == W_Map
        then (z ** n) * l
-       else (log (n / l)) / (log z)
+       else logBase z (n / l)
 
 -- | Cosine warp
 --
@@ -56,8 +56,8 @@ warpCosine :: (Floating a) => a -> a -> Warp a
 warpCosine l r d n =
     let w = warpLinear 0 (r - l) d
     in if d == W_Map
-       then w (0.5 - ((cos (pi * n)) / 2))
-       else (acos (1.0 - ((w n) * 2))) / pi
+       then w (0.5 - (cos (pi * n) / 2))
+       else acos (1.0 - (w n * 2)) / pi
 
 -- | Sine warp
 --
@@ -98,4 +98,4 @@ warpCurve k l r d n =
        then warpLinear l r d n
        else if d == W_Map
             then b - ((e ** n) * a)
-            else (log ((b - n) / a)) / k
+            else log ((b - n) / a) / k

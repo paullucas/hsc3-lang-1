@@ -171,7 +171,6 @@ start_midi receiver = do
       ex e = print ("start_midi",show (e::E.AsyncException)) >>
              close m_fd >>
              close s_fd
-      runs = runStateT (forever step) (k_init 1000) >>
-             return ()
+      runs = void (runStateT (forever step) (k_init 1000))
   E.catch runs ex
   return ()

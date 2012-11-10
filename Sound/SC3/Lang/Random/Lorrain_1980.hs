@@ -19,7 +19,7 @@ cauchy' :: Floating a => Bool -> a -> a -> a
 cauchy' iopt tau u =
     let u' = if iopt then u / 2 else u
         u'' = pi * u'
-    in tau * (sin u'' / cos u'')
+    in tau * tan u'' -- tan u'' == sin u'' / cos u''
 
 -- | 4.3.6
 hyperbolic_cosine :: Floating a => a -> a

@@ -64,7 +64,7 @@ log10 = logBase 10
 
 -- > map rmsToDb [1,0.75,0.5,0.25,0]
 rmsToDb :: Floating a => a -> a
-rmsToDb rms = (log10 rms) * 20
+rmsToDb rms = log10 rms * 20
 
 -- > map dbToRms [0,-3,-6,-9,-12]
 dbToRms :: Floating a => a -> a
@@ -72,7 +72,7 @@ dbToRms db  = 10 ** (db  * 0.05)
 
 -- > map powToDb [1,0.75,0.5,0.25,0]
 powToDb :: Floating a => a -> a
-powToDb pow = 10 * (log10 pow)
+powToDb pow = 10 * log10 pow
 
 -- > map dbToPow [0,-3,-6,-9,-12]
 dbToPow :: Floating a => a -> a

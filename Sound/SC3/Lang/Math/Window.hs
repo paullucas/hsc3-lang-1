@@ -47,7 +47,7 @@ hamming i = 0.54 - 0.46 * cos (2 * pi * i)
 kaiser :: Double -> Window Double
 kaiser beta i =
     let beta' = bessel0 beta
-    in bessel0 (beta * sqrt (1 - (((2 * i - 1) ** 2)))) / beta'
+    in bessel0 (beta * sqrt (1 - ((2 * i - 1) ** 2))) / beta'
 
 -- | 'M.sinc' window.
 lanczos :: Window Double

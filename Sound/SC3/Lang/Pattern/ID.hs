@@ -111,7 +111,7 @@ nan = return (sqrt (-1))
 -- | Join a set of 'M' values, if any are 'Stop' then 'Stop' else
 -- 'Continue'.
 stP_join :: [M] -> M
-stP_join m = if L.any (== Stop) m then Stop else Continue
+stP_join m = if Stop `elem` m then Stop else Continue
 
 -- | Extension of a set of patterns.  If any patterns are stopping,
 -- the longest such pattern, else the longest of the continuing
@@ -122,9 +122,7 @@ stP_join m = if L.any (== Stop) m then Stop else Continue
 pextension :: [P a] -> [()]
 pextension x =
     let x' = filter ((== Stop) . stP) x
-    in if null x'
-       then C.extension (map F.toList x)
-       else C.extension (map F.toList x')
+    in C.extension (map F.toList (if null x' then x else x'))
 
 -- | Extend a set of patterns following 'pextension' rule.
 --
@@ -255,7 +253,7 @@ prepeat = fromList . repeat
 -- > (pure (*) <*> toP [1,2] <*> toP [5]) == toP [5,10]
 pzipWith :: (a -> b -> c) -> P a -> P b -> P c
 pzipWith f p q =
-    let u = fmap (const ())
+    let u = void
         x = pextension [u p,u q]
         c = cycle . unP
         l = zipWith3 (\_ i j -> f i j) x (c p) (c q)
@@ -264,7 +262,7 @@ pzipWith f p q =
 -- | Pattern variant of 'zipWith3'.
 pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
 pzipWith3 f p q r =
-    let u = fmap (const ())
+    let u = void
         x = pextension [u p,u q,u r]
         c = cycle . unP
         z = L.zipWith4 (\_ i j k -> f i j k) x (c p) (c q) (c r)
@@ -273,7 +271,7 @@ pzipWith3 f p q r =
 -- | Pattern variant of 'zipWith4'.
 pzipWith4 :: (a -> b -> c -> d -> e) -> P a -> P b -> P c -> P d -> P e
 pzipWith4 f p q r s =
-    let u = fmap (const ())
+    let u = void
         x = pextension [u p,u q,u r,u s]
         c = cycle . unP
         z = L.zipWith5 (\_ i j k l -> f i j k l) x (c p) (c q) (c r) (c s)
@@ -1075,7 +1073,7 @@ e_send :: Transport m => E.Time -> Int -> E.Event -> m ()
 e_send t j e =
     case E.to_sc3_bundle t j e of
       Just (p,q) -> do case E.instrument_def e of
-                         Just d -> async (d_recv d) >> return ()
+                         Just d -> void (async (d_recv d))
                          Nothing -> return ()
                        sendBundle p
                        sendBundle q
