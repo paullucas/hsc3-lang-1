@@ -211,6 +211,6 @@ overlapTextureR k uf =
 -- the 'IO' monad.
 overlapTextureM :: OverlapTexture -> IO UGen -> IO ()
 overlapTextureM k u = do
-  t <- utcr
+  t <- time
   let (_,_,_,c) = k
   withSC3 (dt_rescheduler_m (overlapTextureR k u) (c,t))

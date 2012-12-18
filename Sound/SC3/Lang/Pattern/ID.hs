@@ -1071,13 +1071,14 @@ ppar l = ptpar (zip (repeat 0) l)
 -- | Send 'E.Event' to @scsynth@ at 'Transport'.
 e_send :: Transport m => E.Time -> Int -> E.Event -> m ()
 e_send t j e =
-    case E.to_sc3_bundle t j e of
-      Just (p,q) -> do case E.instrument_def e of
-                         Just d -> void (async (d_recv d))
-                         Nothing -> return ()
-                       sendBundle p
-                       sendBundle q
-      Nothing -> return ()
+    let voidM a = a >> return ()
+    in case E.to_sc3_bundle t j e of
+        Just (p,q) -> do case E.instrument_def e of
+                           Just d -> voidM (async (d_recv d))
+                           Nothing -> return ()
+                         sendBundle p
+                         sendBundle q
+        Nothing -> return ()
 
 -- | Function to audition a sequence of 'E.Event's using the @scsynth@
 -- instance at 'Transport' starting at indicated 'E.Time'.
@@ -1091,12 +1092,12 @@ e_tplay t j e =
                         pauseThreadUntil t'
                         e_tplay t' j' e'
 
--- | Variant of 'e_tplay' with current clock time from 'utcr' as start
+-- | Variant of 'e_tplay' with current clock time from 'time' as start
 -- time.  This function is used to implement the pattern instances of
 -- 'Audible'.
 e_play :: (Transport m) => [Int] -> [E.Event] -> m ()
 e_play lj le = do
-  st <- utcr
+  st <- time
   e_tplay st lj le
 
 instance Audible (P E.Event) where

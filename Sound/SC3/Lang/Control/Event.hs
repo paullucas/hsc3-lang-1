@@ -224,8 +224,8 @@ f_merge p q =
             then (t0,e0) : f_merge r0 q
             else (t1,e1) : f_merge p r1
 
--- | Times are real valued @UTC@.
-type Time = Double
+-- | Times are /hosc/ (NTP) times.
+type Time = O.Time
 
 -- | Merge two time-stamped 'Event' sequences.  Note that this uses
 -- 'fwd' to calculate start times.
@@ -282,8 +282,8 @@ to_sc3_bundle t j e =
                                E_s_new -> [S.n_set i [("gate",0)]]
                                E_n_set -> [S.n_set i [("gate",0)]]
                                E_rest -> []
-            in Just (O.Bundle (O.UTCr t') m_on
-                    ,O.Bundle (O.UTCr (t' + rt)) m_off)
+            in Just (O.Bundle t' m_on
+                    ,O.Bundle (t' + rt) m_off)
 
 {-
 -- | The frequency of the 'pitch' of /e/.
