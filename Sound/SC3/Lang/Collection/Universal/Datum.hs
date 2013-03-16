@@ -51,9 +51,10 @@
 -- > System.Random.randomRIO (Int 0,Int 9):: IO Datum
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
+import Data.Maybe {- base -}
 import Data.Ratio {- base -}
 import GHC.Exts (IsString(..)) {- base -}
-import Sound.OSC (Datum(..),datum_real,datum_real_err) {- hosc -}
+import Sound.OSC {- hosc -}
 import System.Random {- random -}
 
 -- * Cast, Coerce, Promote
@@ -106,7 +107,7 @@ liftD2 fi ff fd d1 d2 =
       (Int n1,Int n2) -> Int (fi n1 n2)
       (Float n1,Float n2) -> Float (ff n1 n2)
       (Double n1,Double n2) -> Double (fd n1 n2)
-      _ -> case (datum_real d1,datum_real d2) of
+      _ -> case (datum_floating d1,datum_floating d2) of
              (Just n1,Just n2) -> Double (fd n1 n2)
              _ -> error "liftD2: non numerical"
 
@@ -136,7 +137,7 @@ atD fi ff fd d =
 --
 -- > atD' floatRadix (Int 5) == 2
 atD' :: (Double -> a) -> Datum -> a
-atD' f = atD (error "atD'") (error "atD'") f . datum_promote
+atD' f = f . d_double . datum_promote
 
 type BinAt n a = (n -> n -> a)
 
@@ -207,14 +208,17 @@ instance Real Datum where
           Double n -> toRational n
           _ -> error "datum,real: partial"
 
+datum_floating_err :: Floating n => Datum -> n
+datum_floating_err = fromJust . datum_floating
+
 instance RealFrac Datum where
   properFraction d =
-      let (i,j) = properFraction (datum_real_err d)
+      let (i,j) = properFraction (d_double d)
       in (i,Double j)
-  truncate = truncate . datum_real_err
-  round = round . datum_real_err
-  ceiling = ceiling . datum_real_err
-  floor = floor . datum_real_err
+  truncate = atD' truncate
+  round = atD' round
+  ceiling = atD' ceiling
+  floor = atD' floor
 
 instance RealFloat Datum where
     floatRadix = atD' floatRadix
@@ -233,7 +237,7 @@ instance RealFloat Datum where
     atan2 = liftD2' atan2
 
 instance Ord Datum where
-    compare p q = case (datum_real p,datum_real q) of
+    compare p q = case (datum_double p,datum_double q) of
                     (Just i,Just j) -> compare i j
                     _ -> error "datum,ord: partial"
 
