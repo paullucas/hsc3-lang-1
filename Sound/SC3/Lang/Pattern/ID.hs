@@ -942,16 +942,22 @@ ptrigger p q =
 
 -- * Event Patterns
 
+-- | Synonymn for an event pattern.
+type P_Event a = P (E.Event a)
+
+-- | Synonym for 'pbind' input type.
+type P_Bind a = [(E.Key,P a)]
+
 -- | Add a value to an existing key, or set the key if it doesn't exist.
 --
 -- > > Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
 -- > padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
-padd :: Num a => E.Key -> P a -> P (E.Event a) -> P (E.Event a)
+padd :: Num a => E.Key -> P a -> P_Event a -> P_Event a
 padd k = pzipWith (\i j -> E.edit_v k 0 (+ i) j)
 
 -- | A primitive form of the SC3 'pbind' pattern, with explicit type
 -- and identifier inputs.
-pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> [(E.Key,P a)] -> P (E.Event a)
+pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> P_Bind a -> P_Event a
 pbind' ty is ss xs =
     let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
         p = fromList
@@ -965,7 +971,7 @@ pbind' ty is ss xs =
 --
 -- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
 -- >                 ,("y",pseq [1,2,3] 1)]) == toP' [200,200,300]
-pbind :: [(E.Key,P a)] -> P (E.Event a)
+pbind :: P_Bind a -> P_Event a
 pbind =
     let ty = repeat E.E_s_new
         i = repeat Nothing
@@ -973,7 +979,7 @@ pbind =
     in pbind' ty i s
 
 -- | Edit 'a' at 'E.Key' in each element of an '(E.Event a)' pattern.
-pedit :: E.Key -> (a -> a) -> P (E.Event a) -> P (E.Event a)
+pedit :: E.Key -> (a -> a) -> P_Event a -> P_Event a
 pedit k f = fmap (E.edit k f)
 
 -- | Pattern to assign 'I.Instrument's to '(E.Event a)'s.  An
@@ -983,24 +989,24 @@ pedit k f = fmap (E.edit k f)
 -- general the instrument pattern ought to have a 'Synthdef' for the
 -- first occurence of the instrument, and a 'String' for subsequent
 -- occurences.
-pinstr :: P I.Instrument -> P (E.Event a) -> P (E.Event a)
+pinstr :: P I.Instrument -> P_Event a -> P_Event a
 pinstr = pzipWith (\i e -> e {E.e_instrument = Just i})
 
 -- | Variant of 'pinstr' which lifts the 'String' pattern to an
 -- 'I.Instrument' pattern.
-pinstr_s :: P (String,Bool) -> P (E.Event a) -> P (E.Event a)
+pinstr_s :: P (String,Bool) -> P_Event a -> P_Event a
 pinstr_s p = pinstr (fmap (uncurry I.InstrumentName) p)
 
 -- | Variant of 'pinstr' which lifts the 'Synthdef' pattern to an
 -- 'I.Instrument' pattern.
-pinstr_d :: P (Synthdef,Bool) -> P (E.Event a) -> P (E.Event a)
+pinstr_d :: P (Synthdef,Bool) -> P_Event a -> P_Event a
 pinstr_d p = pinstr (fmap (uncurry I.InstrumentDef) p)
 
 -- | Pattern to extract 'a's at 'E.Key' from an '(E.Event a)'
 -- pattern.
 --
 -- > pkey_m "freq" (pbind [("freq",440)]) == toP' [Just 440]
-pkey_m :: E.Key -> P (E.Event a) -> P (Maybe a)
+pkey_m :: E.Key -> P_Event a -> P (Maybe a)
 pkey_m k = fmap (E.lookup_m k)
 
 -- | SC3 pattern to read 'a' of 'E.Key' at '(E.Event a)' pattern.
@@ -1009,12 +1015,12 @@ pkey_m k = fmap (E.lookup_m k)
 --
 -- > pkey "freq" (pbind [("freq",440)]) == toP' [440]
 -- > pkey "amp" (pbind [("amp",toP [0,1])]) == toP' [0,1]
-pkey :: E.Key -> P (E.Event a) -> P a
+pkey :: E.Key -> P_Event a -> P a
 pkey k = fmap (fromJust . E.lookup_m k)
 
 -- | SC3 pattern that is a variant of 'pbind' for controlling
 -- monophonic (persistent) synthesiser nodes.
-pmono :: I.Instrument -> Int -> [(E.Key,P a)] -> P (E.Event a)
+pmono :: I.Instrument -> Int -> P_Bind a -> P_Event a
 pmono i k =
     let i' = case i of
                I.InstrumentDef d sr ->
@@ -1025,39 +1031,39 @@ pmono i k =
     in pbind' ty (repeat (Just k)) (map Just i')
 
 -- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.
-pmono_d :: Synthdef -> Int -> [(E.Key,P a)] -> P (E.Event a)
+pmono_d :: Synthdef -> Int -> P_Bind a -> P_Event a
 pmono_d = pmono . flip I.InstrumentDef False
 
 -- | Variant of 'pmono' that lifts 'String' to 'I.Instrument'.
-pmono_s :: String -> Int -> [(E.Key,P a)] -> P (E.Event a)
+pmono_s :: String -> Int -> P_Bind a -> P_Event a
 pmono_s = pmono . flip I.InstrumentName False
 
 -- | Idiom to scale 'a' at 'E.Key' in an '(E.Event a)' pattern.
-pmul :: Num a => E.Key -> P a -> P (E.Event a) -> P (E.Event a)
+pmul :: Num a => E.Key -> P a -> P_Event a -> P_Event a
 pmul k = pzipWith (\i j -> E.edit_v k 1 (* i) j)
 
 -- | Variant that does not insert key.
-pmul' :: Num a => E.Key -> P a -> P (E.Event a) -> P (E.Event a)
+pmul' :: Num a => E.Key -> P a -> P_Event a -> P_Event a
 pmul' k = pzipWith (\i j -> E.edit k (* i) j)
 
 -- | SC3 pattern to do time stretching.  It is equal to 'pmul' at
 -- \"stretch\".
-pstretch :: Num a => P a -> P (E.Event a) -> P (E.Event a)
+pstretch :: Num a => P a -> P_Event a -> P_Event a
 pstretch = pmul "stretch"
 
 -- * Parallel patterns
 
 -- | Merge two '(E.Event a)' patterns with indicated start 'E.Time's.
-ptmerge :: (Fractional a,Real a) => (E.Time,P (E.Event a)) -> (E.Time,P (E.Event a)) -> P (E.Event a)
+ptmerge :: (Fractional a,Real a) => (E.Time,P_Event a) -> (E.Time,P_Event a) -> P_Event a
 ptmerge (pt,p) (qt,q) =
     fromList (E.merge (pt,F.toList p) (qt,F.toList q))
 
 -- | Variant of 'ptmerge' with zero start times.
-pmerge :: (Fractional a,Real a) => P (E.Event a) -> P (E.Event a) -> P (E.Event a)
+pmerge :: (Fractional a,Real a) => P_Event a -> P_Event a -> P_Event a
 pmerge p q = ptmerge (0,p) (0,q)
 
 -- | Merge a set of '(E.Event a)' patterns each with indicated start 'E.Time'.
-ptpar :: (Fractional a,Real a) => [(E.Time,P (E.Event a))] -> P (E.Event a)
+ptpar :: (Fractional a,Real a) => [(E.Time,P_Event a)] -> P_Event a
 ptpar l =
     case l of
       [] -> pempty
@@ -1065,18 +1071,15 @@ ptpar l =
       (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
 
 -- | Variant of 'ptpar' with zero start times.
-ppar :: (Fractional a,Real a) => [P (E.Event a)] -> P (E.Event a)
+ppar :: (Fractional a,Real a) => [P_Event a] -> P_Event a
 ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern auditioning
 
--- | An 'Audible' event pattern.
-type P_Event = P (E.Event Double)
-
-instance (E.Value a) => Audible (P (E.Event a)) where
+instance (E.Value a) => Audible (P_Event a) where
     play = E.e_play [1000..] . unP
 
-instance (E.Value a) => Audible (Synthdef,P (E.Event a)) where
+instance (E.Value a) => Audible (Synthdef,P_Event a) where
     play (s,p) = do
       let i_d = I.InstrumentDef s True
           i_nm = I.InstrumentName (synthdefName s) True
@@ -1084,7 +1087,7 @@ instance (E.Value a) => Audible (Synthdef,P (E.Event a)) where
       _ <- async (d_recv s)
       E.e_play [1000..] (unP (pinstr i p))
 
-instance (E.Value a) => Audible (String,P (E.Event a)) where
+instance (E.Value a) => Audible (String,P_Event a) where
     play (s,p) =
         let i = I.InstrumentName s True
         in E.e_play [1000..] (unP (pinstr (return i) p))

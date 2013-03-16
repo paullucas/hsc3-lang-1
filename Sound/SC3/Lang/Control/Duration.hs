@@ -15,12 +15,26 @@ data Duration a =
              ,fwd' :: Maybe a -- ^ Possible non-sequential delta time field
              }
 
+-- | The default 'delta_f' field for 'delta'.  Equal to 'dur' '*'
+-- 'stretch' '*' (@60@ '/' 'tempo').
+--
+-- > default_delta_f (defaultDuration {legato = 1.2}) == 1.0
+default_delta_f :: (Num a,Fractional a) => Duration a -> a
+default_delta_f d = dur d * stretch d * (60 / tempo d)
+
 -- | Run 'delta_f' for 'Duration'.  This is the interval from the
 -- start of the current event to the start of the next event.
 --
 -- > delta (defaultDuration {dur = 2,stretch = 2}) == 4
 delta :: (Num a,Fractional a) => Duration a -> a
 delta d = fromMaybe default_delta_f (delta_f d) d
+
+-- | The default 'sustain_f' for 'sustain'.  This is equal to 'delta'
+-- '*' 'legato'.
+--
+-- > default_sustain_f (defaultDuration {legato = 1.2}) == 1.2
+default_sustain_f :: (Num a,Fractional a) => Duration a -> a
+default_sustain_f d = delta d * legato d
 
 -- | Run 'sustain_f' for 'Duration'.  This is the /sounding/ duration
 -- of the event.
@@ -38,20 +52,6 @@ fwd d =
     case fwd' d of
       Nothing -> delta d
       Just n -> n * stretch d
-
--- | The default 'delta_f' field for 'Duration'.  Equal to 'dur' '*'
--- 'stretch' '*' (@60@ '/' 'tempo').
---
--- > default_delta_f (defaultDuration {legato = 1.2}) == 1.0
-default_delta_f :: (Num a,Fractional a) => Duration a -> a
-default_delta_f d = dur d * stretch d * (60 / tempo d)
-
--- | The default 'sustain_f' field for 'Duration'.  This is equal to
--- 'delta' '*' 'legato'.
---
--- > default_sustain_f (defaultDuration {legato = 1.2}) == 1.2
-default_sustain_f :: (Num a,Fractional a) => Duration a -> a
-default_sustain_f d = delta d * legato d
 
 -- | Default 'Duration' value, equal to one second.
 --
