@@ -91,6 +91,12 @@ instance (Fractional a) => Fractional (P a) where
     recip = fmap recip
     fromRational = return . fromRational
 
+instance (Ord a) => Ord (P a) where
+    (>) = error ("~> OrdE.>*")
+    (>=) = error ("~> OrdE.>=*")
+    (<) = error ("~> OrdE.<*")
+    (<=) = error ("~> OrdE.<=*")
+
 instance (OrdE a) => OrdE (P a) where
     (>*) = pzipWith (>*)
     (>=*) = pzipWith (>=*)

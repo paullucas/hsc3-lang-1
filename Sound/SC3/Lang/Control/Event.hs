@@ -16,6 +16,79 @@ type Key = String
 -- | The /type/ of an 'Event'.
 data Type = E_s_new | E_n_set | E_rest deriving (Eq,Show)
 
+-- * Fields
+
+data Field t = F_Atom Key t
+             | F_List Key [t]
+             | F_String Key String
+             | F_Instrument Key I.Instrument
+             | F_Param Key Float
+
+etype :: Type -> Field t
+etype = F_String "type" . show
+
+instr :: I.Instrument -> Field t
+instr = F_Instrument "instr"
+
+-- * Amplitude fields
+
+amp :: t -> Field t
+amp = F_Atom "amp"
+
+db :: t -> Field t
+db = F_Atom "db"
+
+-- * Duration fields
+
+delta :: t -> Field t
+delta = F_Atom "delta"
+
+dur :: t -> Field t
+dur = F_Atom "dur"
+
+legato :: t -> Field t
+legato = F_Atom "legato"
+
+fwd' :: t -> Field t
+fwd' = F_Atom "fwd'"
+
+stretch :: t -> Field t
+stretch = F_Atom "stretch"
+
+sustain :: t -> Field t
+sustain = F_Atom "sustain"
+
+tempo :: t -> Field t
+tempo = F_Atom "tempo"
+
+-- * Pitch fields
+
+ctranspose :: t -> Field t
+ctranspose = F_Atom "ctranspose"
+
+degree :: t -> Field t
+degree = F_Atom "degree"
+
+freq :: t -> Field t
+freq = F_Atom "freq"
+
+midinote :: t -> Field t
+midinote = F_Atom "midinote"
+
+mtranspose :: t -> Field t
+mtranspose = F_Atom "mtranspose"
+
+note :: t -> Field t
+note = F_Atom "note"
+
+octave :: t -> Field t
+octave = F_Atom "octave"
+
+scale :: [t] -> Field t
+scale = F_List "scale"
+
+-- * Pitch fields
+
 -- | An 'Event' has a 'Type', possibly an integer identifier, possibly
 -- an 'I.Instrument' and a 'M.Map' of ('Key','Value') pairs.
 data Event a = Event {e_type :: Type
@@ -77,8 +150,8 @@ insert :: Key -> a -> Event a -> Event a
 insert k v e = e {e_map = M.insert k v (e_map e)}
 
 -- | Lookup /db/ field of 'Event', the default value is @-20db@.
-db :: Num a => Event a -> a
-db = lookup_v (-20) "db"
+e_db :: Num a => Event a -> a
+e_db = lookup_v (-20) "db"
 
 -- | Function to convert from decibels to linear amplitude.
 dbAmp' :: Floating a => a -> a
@@ -87,8 +160,8 @@ dbAmp' a = 10 ** (a * 0.05)
 -- | The linear amplitude of the amplitude model at /e/.
 --
 -- > amp (event [("db",-20)]) == 0.1
-amp :: Floating a => Event a -> a
-amp e = lookup_v (dbAmp' (db e)) "amp" e
+e_amp :: Floating a => Event a -> a
+e_amp e = lookup_v (dbAmp' (e_db e)) "amp" e
 
 -- | The /fwd/ value of the duration model at /e/.
 --
@@ -254,7 +327,7 @@ to_sc3_bundle t j e =
              : ("note",P.note p)
              : ("delta",D.delta d)
              : ("sustain",rt)
-             : ("amp",amp e)
+             : ("amp",e_amp e)
              : parameters e
         pr' = map (\(k,v) -> (k,realToFrac v)) pr
         i = fromMaybe j (e_id e)
