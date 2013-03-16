@@ -594,7 +594,7 @@ t2_window n x =
 -- > t2_adjacent [1..6] == [(1,2),(3,4),(5,6)]
 -- > t2_adjacent [1..5] == [(1,2),(3,4)]
 t2_adjacent :: [t] -> [(t,t)]
-t2_adjacent = t2_window 2
+t2_adjacent = t2_window (2::Int)
 
 -- | List of 2-tuples of overlapping elements.
 --

@@ -9,8 +9,8 @@ data Duration a =
              ,dur :: a -- ^ Duration (in pulses)
              ,stretch :: a -- ^ Stretch multiplier
              ,legato :: a -- ^ Legato multipler
-             ,sustain_f :: Duration a -> a -- ^ Sustain time calculation
-             ,delta_f :: Duration a -> a -- ^ Delta time calculation
+             ,sustain_f :: Maybe (Duration a -> a) -- ^ Sustain time calculation
+             ,delta_f :: Maybe (Duration a -> a) -- ^ Delta time calculation
              ,lag :: a -- ^ Lag value
              ,fwd' :: Maybe a -- ^ Possible non-sequential delta time field
              }
@@ -19,21 +19,21 @@ data Duration a =
 -- start of the current event to the start of the next event.
 --
 -- > delta (defaultDuration {dur = 2,stretch = 2}) == 4
-delta :: Duration a -> a
-delta d = delta_f d d
+delta :: (Num a,Fractional a) => Duration a -> a
+delta d = fromMaybe default_delta_f (delta_f d) d
 
 -- | Run 'sustain_f' for 'Duration'.  This is the /sounding/ duration
 -- of the event.
 --
 -- > sustain defaultDuration == 0.8
-sustain :: Duration a -> a
-sustain d = sustain_f d d
+sustain :: (Num a,Fractional a) => Duration a -> a
+sustain d = fromMaybe default_sustain_f (sustain_f d) d
 
 -- | If 'fwd'' field is set at 'Duration' extract value and multiply
 -- by 'stretch', else calculate 'delta'.
 --
 -- > fwd (defaultDuration {fwd' = Just 0}) == 0
-fwd :: Num a => Duration a -> a
+fwd :: (Num a,Fractional a) => Duration a -> a
 fwd d =
     case fwd' d of
       Nothing -> delta d
@@ -62,26 +62,49 @@ defaultDuration =
              ,dur = 1
              ,stretch = 1
              ,legato = 0.8
-             ,sustain_f = default_sustain_f
-             ,delta_f = default_delta_f
+             ,sustain_f = Nothing
+             ,delta_f = Nothing
              ,lag = 0.1
              ,fwd' = Nothing}
+
+-- * Association list
+
+-- | Names for 'Duration' field functions.
+duration_accessors :: [(String,Duration a -> Maybe a)]
+duration_accessors =
+    [("tempo",Just . tempo)
+    ,("dur",Just . dur)
+    ,("stretch",Just . stretch)
+    ,("legato",Just . legato)
+    ,("lag",Just . lag)
+    ,("fwd'",fwd')]
+
+-- | Generate association list of non-default fields at 'Duration'.
+--
+-- > let d = (defaultDuration {dur = 2.0,stretch = 3.0})
+-- > in duration_to_alist d == [("dur",2.0),("stretch",3.0)]
+duration_to_alist :: (Eq a,Fractional a) => Duration a -> [(String,a)]
+duration_to_alist d =
+    let f (nm,q) = let k = q d
+                   in if k == q defaultDuration
+                      then Nothing
+                      else Just (nm,fromMaybe (error "duration_to_alist") k)
+    in mapMaybe f duration_accessors
 
 -- | Construct a 'Duration' value from an association list.  The keys are
 -- the names of the model parameters.
 --
--- > delta (alist_to_duration [("dur",0.5),("stretch",2)]) == 1
+-- > delta (alist_to_duration [("dur",0.5),("stretch",2),("fwd'",3)]) == 1
+-- > fwd (alist_to_duration [("fwd'",3)]) == 3
 alist_to_duration :: (Num a,Fractional a) => [(String,a)] -> Duration a
 alist_to_duration e =
     let get_r v k = fromMaybe v (lookup k e)
-        get_m v k = maybe v const (lookup k e)
         get_o k = lookup k e
     in Duration {tempo = get_r 60 "tempo"
                 ,dur = get_r 1 "dur"
                 ,stretch = get_r 1 "stretch"
                 ,legato = get_r 0.8 "legato"
-                ,sustain_f = get_m default_sustain_f "sustain"
-                ,delta_f = get_m default_delta_f "delta"
+                ,sustain_f = Nothing
+                ,delta_f = Nothing
                 ,lag = get_r 0.1 "lag"
                 ,fwd' = get_o "fwd'"}
-

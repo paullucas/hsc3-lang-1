@@ -13,11 +13,6 @@ import qualified Sound.SC3.Lang.Control.Pitch as P
 -- | The type of the /key/ at an 'Event'.
 type Key = String
 
-{-
--- | The type of the /value/ at an 'Event'.
-type Value = Double
--}
-
 -- | The /type/ of an 'Event'.
 data Type = E_s_new | E_n_set | E_rest deriving (Eq,Show)
 
@@ -26,8 +21,9 @@ data Type = E_s_new | E_n_set | E_rest deriving (Eq,Show)
 data Event a = Event {e_type :: Type
                      ,e_id :: Maybe Int
                      ,e_instrument :: Maybe I.Instrument
+                     ,e_dur :: Maybe (D.Duration a)
+                     ,e_pitch :: Maybe (P.Pitch a)
                      ,e_map :: M.Map Key a}
-               deriving (Eq,Show)
 
 -- | The /default/ empty event.
 defaultEvent :: Event a
@@ -35,6 +31,8 @@ defaultEvent =
     Event {e_type = E_s_new
           ,e_id = Nothing
           ,e_instrument = Nothing
+          ,e_dur = Nothing
+          ,e_pitch = Nothing
           ,e_map = M.empty}
 
 -- | Lookup /k/ in /e/.
@@ -61,7 +59,9 @@ lookup_t v f k = maybe v f . lookup_m k
 --
 -- > P.midinote (pitch defaultEvent) == 60
 pitch :: (RealFrac a,Floating a) => Event a -> P.Pitch a
-pitch = P.alist_to_pitch . M.toList . e_map
+pitch e =
+    let f = P.alist_to_pitch . (\l -> (l,[])) . M.toList . e_map
+    in fromMaybe (f e) (e_pitch e)
 
 -- | Lookup /duration/ model parameters at /e/ and construct a
 -- 'D.Duration' value.
@@ -150,6 +150,8 @@ from_list t n i l =
     Event {e_type = t
           ,e_id = n
           ,e_instrument = i
+          ,e_dur = Nothing
+          ,e_pitch = Nothing
           ,e_map = M.fromList l}
 
 -- | Construct an 'Event' from a list of (/key/,/value/) pairs.
@@ -160,6 +162,8 @@ event l =
     Event {e_type = E_s_new
           ,e_id = Nothing
           ,e_instrument = Nothing
+          ,e_dur = Nothing
+          ,e_pitch = Nothing
           ,e_map = M.fromList l}
 
 -- | Extract 'I.Instrument' name from 'Event', or @default@.
