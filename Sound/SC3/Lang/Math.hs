@@ -62,18 +62,26 @@ linexp l r l' r' n =
 log10 :: Floating a => a -> a
 log10 = logBase 10
 
--- > map rmsToDb [1,0.75,0.5,0.25,0]
+-- | RMS to decibel.
+--
+-- > map (round . rmsToDb) [1,0.7,0.5,0.35,0.25] == [0,-3,-6,-9,-12]
 rmsToDb :: Floating a => a -> a
 rmsToDb rms = log10 rms * 20
 
--- > map dbToRms [0,-3,-6,-9,-12]
+-- | Decibel to RMS.
+--
+-- > map (round . (* 100) . dbToRms) [0,-3,-6,-9,-12] == [100,71,50,35,25]
 dbToRms :: Floating a => a -> a
-dbToRms db  = 10 ** (db  * 0.05)
+dbToRms db  = 10 ** (db * 0.05)
 
--- > map powToDb [1,0.75,0.5,0.25,0]
+-- | Power to decibel.
+--
+-- > map (round . powToDb) [1,0.5,0.25,0.13,6e-2] == [0,-3,-6,-9,-12]
 powToDb :: Floating a => a -> a
 powToDb pow = 10 * log10 pow
 
--- > map dbToPow [0,-3,-6,-9,-12]
+-- | Decibel to power.
+--
+-- > map (round . (* 100) . dbToPow) [0,-3,-6,-9,-12] == [100,50,25,13,6]
 dbToPow :: Floating a => a -> a
 dbToPow db  = 10 ** (db * 0.1)

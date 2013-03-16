@@ -1,9 +1,10 @@
 -- | 'getStdRandom' based @sclang@ random number functions.
 module Sound.SC3.Lang.Random.IO where
 
-import Control.Monad.IO.Class
-import Sound.SC3.Lang.Random.Gen as R
+import Control.Monad.IO.Class {- transformers -}
 import System.Random {- random -}
+
+import Sound.SC3.Lang.Random.Gen as R
 
 randomM :: (Random a, MonadIO m) => (a, a) -> m a
 randomM = liftIO . randomRIO

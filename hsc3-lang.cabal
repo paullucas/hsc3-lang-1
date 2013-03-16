@@ -5,7 +5,7 @@ Description:       Haskell library defining operations from the
                    SuperCollider language class library
 License:           GPL
 Category:          Sound
-Copyright:         (c) Rohan Drape, 2007-2012
+Copyright:         (c) Rohan Drape, 2007-2013
 Author:            Rohan Drape
 Maintainer:        rd@slavepianos.org
 Stability:         Experimental
@@ -26,7 +26,7 @@ Library
                    hosc == 0.14.*,
                    hsc3 == 0.14.*,
                    MonadRandom,
-                   mtl,
+                   transformers,
                    split,
                    random,
                    random-shuffle,

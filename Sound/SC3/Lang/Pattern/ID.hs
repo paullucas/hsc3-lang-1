@@ -3,16 +3,17 @@
 -- See <http://rd.slavepianos.org/?t=hsc3-texts> for tutorial.
 module Sound.SC3.Lang.Pattern.ID where
 
-import Control.Applicative hiding ((<*))
-import Control.Monad
-import qualified Data.Foldable as F
-import qualified Data.List as L
-import qualified Data.List.Split as S
-import Data.Maybe
-import Data.Monoid
-import Data.Traversable
-import Sound.OSC
-import Sound.SC3
+import Control.Applicative hiding ((<*)) {- base -}
+import Control.Monad {- base -}
+import qualified Data.Foldable as F {- base -}
+import qualified Data.List as L {- base -}
+import qualified Data.List.Split as S {- split -}
+import Data.Maybe {- base -}
+import Data.Monoid {- base -}
+import Data.Traversable {- base -}
+import Sound.SC3 {- hsc3 -}
+import System.Random {- random -}
+
 import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Control.Event as E
 import qualified Sound.SC3.Lang.Control.Instrument as I
@@ -20,7 +21,6 @@ import qualified Sound.SC3.Lang.Control.Pitch as P
 import qualified Sound.SC3.Lang.Math as M
 import Sound.SC3.Lang.Pattern.List
 import qualified Sound.SC3.Lang.Random.Gen as R
-import System.Random
 
 -- * P type and instances
 
@@ -302,36 +302,6 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 
 -- * SC3 patterns
 
--- | Add a value to an existing key, or set the key if it doesn't exist.
---
--- > Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
--- > padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
-padd :: E.Key -> P E.Value -> P E.Event -> P E.Event
-padd k = pzipWith (\i j -> E.edit_v k 0 (+ i) j)
-
--- | A primitive form of the SC3 'pbind' pattern, with explicit type
--- and identifier inputs.
-pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> [(E.Key,P E.Value)] -> P E.Event
-pbind' ty is ss xs =
-    let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
-        p = fromList
-    in pure E.from_list <*> p ty <*> p is <*> p ss <*> xs'
-
--- | SC3 pattern to assign keys to a set of value patterns making an
--- 'E.Event' pattern. A finite binding stops the 'E.Event' pattern.
---
--- > Pbind(\x,Pseq([1,2,3]),
--- >       \y,Prand([100,300,200],inf)).asStream.nextN(3,())
---
--- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
--- >                 ,("y",pseq [1,2,3] 1)]) == toP' [200,200,300]
-pbind :: [(E.Key,P E.Value)] -> P E.Event
-pbind =
-    let ty = repeat E.E_s_new
-        i = repeat Nothing
-        s = repeat Nothing
-    in pbind' ty i s
-
 -- | A variant of 'pbrown' where the l, r and s inputs are patterns.
 --
 -- > pbrown' 'α' 1 700 (pseq [1,20] inf) 4 == toP' [415,419,420,428]
@@ -347,8 +317,8 @@ pbrown e l r s n = ptake n (fromList (brown e l r s))
 -- | SC3 sample and hold pattern.  For true values in the control
 -- pattern, step the value pattern, else hold the previous value.
 --
--- > Pclutch(Pser([1,2,3,4,5],8),
--- >         Pseq([1,0,1,0,0,0,1,1],inf)).asStream.all
+-- > > Pclutch(Pser([1,2,3,4,5],8),
+-- > >         Pseq([1,0,1,0,0,0,1,1],inf)).asStream.all
 --
 -- > let {c = pbool (pseq [1,0,1,0,0,1,1] 1)
 -- >     ;r = toP' [1,1,2,2,2,3,4,5,5,1,1,1,2,3]}
@@ -367,10 +337,10 @@ pclutch p q =
 
 -- | SC3 name for 'fmap', ie. patterns are functors.
 --
--- > Pcollect({arg i;i * 3},Pseq(#[1,2,3],inf)).asStream.nextN(9)
+-- > > Pcollect({arg i;i * 3},Pseq(#[1,2,3],inf)).asStream.nextN(9)
 -- > pcollect (* 3) (toP [1,2,3]) == toP [3,6,9]
 --
--- > Pseq(#[1,2,3],3).collect({arg i;i * 3}).asStream.nextN(9)
+-- > > Pseq(#[1,2,3],3).collect({arg i;i * 3}).asStream.nextN(9)
 -- > fmap (* 3) (toP [1,2,3]) == toP [3,6,9]
 pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
@@ -380,7 +350,7 @@ pcollect = fmap
 -- that point, the difference between the specified sum and the
 -- accumulated sum concludes the pattern.
 --
--- > Pconst(10,Prand([1,2,0.5,0.1],inf),0.001).asStream.nextN(15,())
+-- > > Pconst(10,Prand([1,2,0.5,0.1],inf),0.001).asStream.nextN(15,())
 --
 -- > let p = pconst 10 (prand 'α' [1,2,0.5,0.1] inf) 0.001
 -- > in (p,Data.Foldable.sum p)
@@ -422,9 +392,9 @@ pdiff p = p - ptail p
 -- stutter times.  A stutter of @0@ will skip the duration value, a
 -- stutter of @1@ yields the duration value unaffected.
 --
--- > s = Pseq(#[1,1,1,1,1,2,2,2,2,2,0,1,3,4,0],inf);
--- > d = Pseq(#[0.5,1,2,0.25,0.25],inf);
--- > PdurStutter(s,d).asStream.nextN(24)
+-- > > s = Pseq(#[1,1,1,1,1,2,2,2,2,2,0,1,3,4,0],inf);
+-- > > d = Pseq(#[0.5,1,2,0.25,0.25],inf);
+-- > > PdurStutter(s,d).asStream.nextN(24)
 --
 -- > let {s = pseq [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0] inf
 -- >     ;d = pseq [0.5,1,2,0.25,0.25] inf}
@@ -432,14 +402,10 @@ pdiff p = p - ptail p
 pdurStutter :: Fractional a => P Int -> P a -> P a
 pdurStutter = liftP2 durStutter
 
--- | Edit 'E.Value' at 'E.Key' in each element of an 'E.Event' pattern.
-pedit :: E.Key -> (E.Value -> E.Value) -> P E.Event -> P E.Event
-pedit k f = fmap (E.edit k f)
-
 -- | An SC3 pattern of random values that follow a exponential
 -- distribution.
 --
--- > Pexprand(0.0001,1,10).asStream.all
+-- > > Pexprand(0.0001,1,10).asStream.all
 -- > pexprand 'α' 0.0001 1 10
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
 pexprand e l r n = fmap (M.exprandrng l r) (pwhite e 0 1 n)
@@ -447,7 +413,7 @@ pexprand e l r n = fmap (M.exprandrng l r) (pwhite e 0 1 n)
 -- | SC3 pattern to take the first n elements of the pattern.  See
 -- also 'ptake'.
 --
--- > Pfinval(5,Pseq(#[1,2,3],inf)).asStream.nextN(5)
+-- > > Pfinval(5,Pseq(#[1,2,3],inf)).asStream.nextN(5)
 -- > pfinval 5 (pseq [1,2,3] inf) == toP' [1,2,3,1,2]
 pfinval :: Int -> P a -> P a
 pfinval = ptake
@@ -479,7 +445,7 @@ pfuncn e = pfuncn' (mkStdGen (fromEnum e))
 
 -- | SC3 geometric series pattern.
 --
--- > Pgeom(3,6,5).asStream.nextN(5)
+-- > > Pgeom(3,6,5).asStream.nextN(5)
 -- > pgeom 3 6 5 == toP' [3,18,108,648,3888]
 -- > pgeom 1 2 10 == toP' [1,2,4,8,16,32,64,128,256,512]
 --
@@ -491,10 +457,10 @@ pgeom i s n = P (C.geom n i s) Stop
 
 -- | SC3 pattern-based conditional expression.
 --
--- > var a = Pfunc({0.3.coin});
--- > var b = Pwhite(0,9,in);
--- > var c = Pwhite(10,19,inf);
--- > Pif(a,b,c).asStream.nextN(9)
+-- > > var a = Pfunc({0.3.coin});
+-- > > var b = Pwhite(0,9,in);
+-- > > var c = Pwhite(10,19,inf);
+-- > > Pif(a,b,c).asStream.nextN(9)
 --
 -- > let {a = fmap (< 0.3) (pwhite 'α' 0.0 1.0 inf)
 -- >     ;b = pwhite 'β' 0 9 inf
@@ -503,48 +469,12 @@ pgeom i s n = P (C.geom n i s) Stop
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
--- | Pattern to assign 'I.Instrument's to 'E.Event's.  An
--- 'I.Instrument' is either a 'Synthdef' or a 'String'.  In the
--- 'Synthdef' case the instrument is asynchronously sent to the server
--- before processing the event, which has timing implications.  In
--- general the instrument pattern ought to have a 'Synthdef' for the
--- first occurence of the instrument, and a 'String' for subsequent
--- occurences.
-pinstr :: P I.Instrument -> P E.Event -> P E.Event
-pinstr = pzipWith (\i e -> e {E.e_instrument = Just i})
-
--- | Variant of 'pinstr' which lifts the 'String' pattern to an
--- 'I.Instrument' pattern.
-pinstr_s :: P (String,Bool) -> P E.Event -> P E.Event
-pinstr_s p = pinstr (fmap (uncurry I.InstrumentName) p)
-
--- | Variant of 'pinstr' which lifts the 'Synthdef' pattern to an
--- 'I.Instrument' pattern.
-pinstr_d :: P (Synthdef,Bool) -> P E.Event -> P E.Event
-pinstr_d p = pinstr (fmap (uncurry I.InstrumentDef) p)
-
--- | Pattern to extract 'E.Value's at 'E.Key' from an 'E.Event'
--- pattern.
---
--- > pkey_m "freq" (pbind [("freq",440)]) == toP' [Just 440]
-pkey_m :: E.Key -> P E.Event -> P (Maybe E.Value)
-pkey_m k = fmap (E.lookup_m k)
-
--- | SC3 pattern to read 'E.Value' of 'E.Key' at 'E.Event' pattern.
--- Note however that in haskell is usually more appropriate to name
--- the pattern using /let/.
---
--- > pkey "freq" (pbind [("freq",440)]) == toP' [440]
--- > pkey "amp" (pbind [("amp",toP [0,1])]) == toP' [0,1]
-pkey :: E.Key -> P E.Event -> P E.Value
-pkey k = fmap (fromJust . E.lookup_m k)
-
 -- | SC3 interlaced embedding of subarrays.
 --
--- > Place([0,[1,2],[3,4,5]],3).asStream.all
+-- > > Place([0,[1,2],[3,4,5]],3).asStream.all
 -- > place [[0],[1,2],[3,4,5]] 3 == toP' [0,1,3,0,2,4,0,1,5]
 --
--- > Place(#[1,[2,5],[3,6]],2).asStream.nextN(6)
+-- > > Place(#[1,[2,5],[3,6]],2).asStream.nextN(6)
 -- > place [[1],[2,5],[3,6]] 2 == toP' [1,2,3,1,5,6]
 -- > place [[1],[2,5],[3,6..]] 4 == toP' [1,2,3,1,5,6,1,2,9,1,5,12]
 place :: [[a]] -> Int -> P a
@@ -552,34 +482,6 @@ place a n =
     let i = length a
         f = if n == inf then id else take (n * i)
     in stoppingN n (fromList (f (L.concat (C.flop a))))
-
--- | SC3 pattern that is a variant of 'pbind' for controlling
--- monophonic (persistent) synthesiser nodes.
-pmono :: I.Instrument -> Int -> [(E.Key,P E.Value)] -> P E.Event
-pmono i k =
-    let i' = case i of
-               I.InstrumentDef d sr ->
-                   let nm = synthdefName d
-                   in i : repeat (I.InstrumentName nm sr)
-               I.InstrumentName _ _ -> repeat i
-        ty = E.E_s_new : repeat E.E_n_set
-    in pbind' ty (repeat (Just k)) (map Just i')
-
--- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.
-pmono_d :: Synthdef -> Int -> [(E.Key,P E.Value)] -> P E.Event
-pmono_d = pmono . flip I.InstrumentDef False
-
--- | Variant of 'pmono' that lifts 'String' to 'I.Instrument'.
-pmono_s :: String -> Int -> [(E.Key,P E.Value)] -> P E.Event
-pmono_s = pmono . flip I.InstrumentName False
-
--- | Idiom to scale 'E.Value' at 'E.Key' in an 'E.Event' pattern.
-pmul :: E.Key -> P E.Value -> P E.Event -> P E.Event
-pmul k = pzipWith (\i j -> E.edit_v k 1 (* i) j)
-
--- | Variant that does not insert key.
-pmul' :: E.Key -> P E.Value -> P E.Event -> P E.Event
-pmul' k = pzipWith (\i j -> E.edit k (* i) j)
 
 -- | SC3 pattern to lace input patterns.  Note that the current
 -- implementation stops late, it cycles the second series one place.
@@ -625,7 +527,7 @@ prand' e a n = P (rand' e a n) (stp n)
 -- | SC3 pattern to make n random selections from a list of patterns,
 -- the resulting pattern is flattened (joined).
 --
--- > Prand([1,Pseq([10,20,30]),2,3,4,5],6).asStream.all
+-- > > Prand([1,Pseq([10,20,30]),2,3,4,5],6).asStream.all
 -- > prand 'α' [1,toP [10,20],2,3,4,5] 4 == toP' [5,2,10,20,2]
 prand :: Enum e => e -> [P a] -> Int -> P a
 prand e a = pjoin' . prand' e a
@@ -636,10 +538,10 @@ prand e a = pjoin' . prand' e a
 -- > preject (== 1) (pseq [1,2,3] 2) == toP' [2,3,2,3]
 -- > pfilter (not . (== 1)) (pseq [1,2,3] 2) == toP' [2,3,2,3]
 --
--- > Pwhite(0,255,20).reject({|x| x.odd}).asStream.all
+-- > > Pwhite(0,255,20).reject({|x| x.odd}).asStream.all
 -- > preject odd (pwhite 'α' 0 255 10) == toP [32,158,62,216,240,20]
 --
--- > Pwhite(0,255,20).select({|x| x.odd}).asStream.all
+-- > > Pwhite(0,255,20).select({|x| x.odd}).asStream.all
 -- > pselect odd (pwhite 'α' 0 255 10) == toP [241,187,119,127]
 preject :: (a -> Bool) -> P a -> P a
 preject f = liftP (filter (not . f))
@@ -653,14 +555,14 @@ prorate' p =
 
 -- | SC3 sub-dividing pattern.
 --
--- > Prorate(Pseq([0.35,0.5,0.8]),1).asStream.nextN(6)
+-- > > Prorate(Pseq([0.35,0.5,0.8]),1).asStream.nextN(6)
 -- > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) 1
 --
--- > Prorate(Pseq([0.35,0.5,0.8]),Prand([20,1],inf)).asStream.nextN(6)
+-- > > Prorate(Pseq([0.35,0.5,0.8]),Prand([20,1],inf)).asStream.nextN(6)
 -- > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) (prand 'α' [20,1] 3)
 --
--- > var l = [[1,2],[5,7],[4,8,9]]).collect(_.normalizeSum);
--- > Prorate(Pseq(l,1).asStream.nextN(8)
+-- > > var l = [[1,2],[5,7],[4,8,9]]).collect(_.normalizeSum);
+-- > > Prorate(Pseq(l,1).asStream.nextN(8)
 --
 -- > let l = map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]]
 -- > in prorate (toP l) 1
@@ -705,18 +607,18 @@ pseqr f n = pconcat (L.concatMap f [1 .. n])
 -- case, at each iteration a new computation is run.  This idiom does
 -- not directly translate to the declarative haskell pattern library.
 --
--- > Pseq([1,Prand([2,3],1)],5).asStream.all
+-- > > Pseq([1,Prand([2,3],1)],5).asStream.all
 -- > pseq [1,prand 'α' [2,3] 1] 5
 --
 -- Although the intended pattern can usually be expressed using an
 -- alternate construction:
 --
--- > Pseq([1,Prand([2,3],1)],5).asStream.all
+-- > > Pseq([1,Prand([2,3],1)],5).asStream.all
 -- > ppatlace [1,prand 'α' [2,3] inf] 5 == toP' [1,3,1,2,1,3,1,2,1,2]
 --
 -- the 'pseqn' variant handles many common cases.
 --
--- > Pseq([Pn(8,2),Pwhite(9,16,1)],5).asStream.all
+-- > > Pseq([Pn(8,2),Pwhite(9,16,1)],5).asStream.all
 -- > pseqn [2,1] [8,pwhite 'α' 9 16 inf] 5
 pseqn :: [Int] -> [P a] -> Int -> P a
 pseqn n q =
@@ -752,7 +654,7 @@ pseries i s n = P (C.series n i s) (stp n)
 
 -- | SC3 pattern to return @n@ repetitions of a shuffled sequence.
 --
--- > Pshuf([1,2,3,4],2).asStream.all
+-- > > Pshuf([1,2,3,4],2).asStream.all
 -- > pshuf 'α' [1,2,3,4] 2 == toP' [2,4,3,1,2,4,3,1]
 pshuf :: Enum e => e -> [a] -> Int -> P a
 pshuf e a =
@@ -762,7 +664,7 @@ pshuf e a =
 
 -- | SC3 pattern to slide over a list of values.
 --
--- > Pslide([1,2,3,4],inf,3,1,0).asStream.all
+-- > > Pslide([1,2,3,4],inf,3,1,0).asStream.all
 -- > pslide [1,2,3,4] 4 3 1 0 True == toP' [1,2,3,2,3,4,3,4,1,4,1,2]
 -- > pslide [1,2,3,4,5] 3 3 (-1) 0 True == toP' [1,2,3,5,1,2,4,5,1]
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
@@ -779,11 +681,6 @@ psplitPlaces' = liftP2 S.splitPlaces
 -- | A variant of 'psplitPlaces'' that joins the output pattern.
 psplitPlaces :: P Int -> P a -> P (P a)
 psplitPlaces n = fmap fromList . psplitPlaces' n
-
--- | SC3 pattern to do time stretching.  It is equal to 'pmul' at
--- \"stretch\".
-pstretch :: P E.Value -> P E.Event -> P E.Event
-pstretch = pmul "stretch"
 
 -- | SC3 pattern to repeat each element of a pattern _n_ times.
 --
@@ -812,10 +709,10 @@ pswitch l = liftP (switch (map unP l))
 -- selected from each pattern.  This is in comparison to 'pswitch',
 -- which embeds the pattern in its entirety.
 --
--- > Pswitch1([Pseq([1,2,3],inf),
--- >          Pseq([65,76],inf),
--- >          8],
--- >         Pseq([2,2,0,1],6)).asStream.all
+-- > > Pswitch1([Pseq([1,2,3],inf),
+-- > >          Pseq([65,76],inf),
+-- > >          8],
+-- > >         Pseq([2,2,0,1],6)).asStream.all
 --
 -- > pswitch1 [pseq [1,2,3] inf,pseq [65,76] inf,8] (pseq [2,2,0,1] 6)
 pswitch1 :: [P a] -> P Int -> P a
@@ -824,9 +721,9 @@ pswitch1 l = liftP (switch1 (map unP l))
 -- | SC3 pattern to combine a list of streams to a stream of lists.
 -- See also `pflop`.
 --
--- > Ptuple([Pseries(7,-1,8),
--- >        Pseq([9,7,7,7,4,4,2,2],1),
--- >        Pseq([4,4,4,2,2,0,0,-3],1)],1).asStream.nextN(8)
+-- > > Ptuple([Pseries(7,-1,8),
+-- > >        Pseq([9,7,7,7,4,4,2,2],1),
+-- > >        Pseq([4,4,4,2,2,0,0,-3],1)],1).asStream.nextN(8)
 --
 -- > ptuple [pseries 7 (-1) 8
 -- >        ,pseq [9,7,7,7,4,4,2,2] 1
@@ -871,7 +768,7 @@ pwrand e a w n = P (wrand e (map unP a) w n) Continue
 -- | SC3 pattern to constrain the range of output values by wrapping.
 -- See also 'pfold'.
 --
--- > Pn(Pwrap(Pgeom(200,1.07,26),200,1000.0),inf).asStream.nextN(26)
+-- > > Pn(Pwrap(Pgeom(200,1.07,26),200,1000.0),inf).asStream.nextN(26)
 -- > pwrap (pgeom 200 1.07 26) 200 1000
 pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
 pwrap xs l r = fmap (genericWrap l r) xs
@@ -929,7 +826,7 @@ pcycle = continuing . liftP cycle
 
 -- | Pattern variant of `drop`.
 --
--- > Pseries(1,1,20).drop(5).asStream.nextN(15)
+-- > > Pseries(1,1,20).drop(5).asStream.nextN(15)
 --
 -- > pdrop 5 (pseries 1 1 10) == toP' [6,7,8,9,10]
 -- > pdrop 1 pempty == pempty
@@ -1043,19 +940,124 @@ ptrigger p q =
         f i x = preplicate i Nothing `pappend` return (Just x)
     in pjoin (pzipWith f r q)
 
+-- * Event Patterns
+
+-- | Add a value to an existing key, or set the key if it doesn't exist.
+--
+-- > > Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
+-- > padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
+padd :: Num a => E.Key -> P a -> P (E.Event a) -> P (E.Event a)
+padd k = pzipWith (\i j -> E.edit_v k 0 (+ i) j)
+
+-- | A primitive form of the SC3 'pbind' pattern, with explicit type
+-- and identifier inputs.
+pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> [(E.Key,P a)] -> P (E.Event a)
+pbind' ty is ss xs =
+    let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
+        p = fromList
+    in pure E.from_list <*> p ty <*> p is <*> p ss <*> xs'
+
+-- | SC3 pattern to assign keys to a set of value patterns making an
+-- '(E.Event a)' pattern. A finite binding stops the '(E.Event a)' pattern.
+--
+-- > > Pbind(\x,Pseq([1,2,3]),
+-- > >       \y,Prand([100,300,200],inf)).asStream.nextN(3,())
+--
+-- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
+-- >                 ,("y",pseq [1,2,3] 1)]) == toP' [200,200,300]
+pbind :: [(E.Key,P a)] -> P (E.Event a)
+pbind =
+    let ty = repeat E.E_s_new
+        i = repeat Nothing
+        s = repeat Nothing
+    in pbind' ty i s
+
+-- | Edit 'a' at 'E.Key' in each element of an '(E.Event a)' pattern.
+pedit :: E.Key -> (a -> a) -> P (E.Event a) -> P (E.Event a)
+pedit k f = fmap (E.edit k f)
+
+-- | Pattern to assign 'I.Instrument's to '(E.Event a)'s.  An
+-- 'I.Instrument' is either a 'Synthdef' or a 'String'.  In the
+-- 'Synthdef' case the instrument is asynchronously sent to the server
+-- before processing the event, which has timing implications.  In
+-- general the instrument pattern ought to have a 'Synthdef' for the
+-- first occurence of the instrument, and a 'String' for subsequent
+-- occurences.
+pinstr :: P I.Instrument -> P (E.Event a) -> P (E.Event a)
+pinstr = pzipWith (\i e -> e {E.e_instrument = Just i})
+
+-- | Variant of 'pinstr' which lifts the 'String' pattern to an
+-- 'I.Instrument' pattern.
+pinstr_s :: P (String,Bool) -> P (E.Event a) -> P (E.Event a)
+pinstr_s p = pinstr (fmap (uncurry I.InstrumentName) p)
+
+-- | Variant of 'pinstr' which lifts the 'Synthdef' pattern to an
+-- 'I.Instrument' pattern.
+pinstr_d :: P (Synthdef,Bool) -> P (E.Event a) -> P (E.Event a)
+pinstr_d p = pinstr (fmap (uncurry I.InstrumentDef) p)
+
+-- | Pattern to extract 'a's at 'E.Key' from an '(E.Event a)'
+-- pattern.
+--
+-- > pkey_m "freq" (pbind [("freq",440)]) == toP' [Just 440]
+pkey_m :: E.Key -> P (E.Event a) -> P (Maybe a)
+pkey_m k = fmap (E.lookup_m k)
+
+-- | SC3 pattern to read 'a' of 'E.Key' at '(E.Event a)' pattern.
+-- Note however that in haskell is usually more appropriate to name
+-- the pattern using /let/.
+--
+-- > pkey "freq" (pbind [("freq",440)]) == toP' [440]
+-- > pkey "amp" (pbind [("amp",toP [0,1])]) == toP' [0,1]
+pkey :: E.Key -> P (E.Event a) -> P a
+pkey k = fmap (fromJust . E.lookup_m k)
+
+-- | SC3 pattern that is a variant of 'pbind' for controlling
+-- monophonic (persistent) synthesiser nodes.
+pmono :: I.Instrument -> Int -> [(E.Key,P a)] -> P (E.Event a)
+pmono i k =
+    let i' = case i of
+               I.InstrumentDef d sr ->
+                   let nm = synthdefName d
+                   in i : repeat (I.InstrumentName nm sr)
+               I.InstrumentName _ _ -> repeat i
+        ty = E.E_s_new : repeat E.E_n_set
+    in pbind' ty (repeat (Just k)) (map Just i')
+
+-- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.
+pmono_d :: Synthdef -> Int -> [(E.Key,P a)] -> P (E.Event a)
+pmono_d = pmono . flip I.InstrumentDef False
+
+-- | Variant of 'pmono' that lifts 'String' to 'I.Instrument'.
+pmono_s :: String -> Int -> [(E.Key,P a)] -> P (E.Event a)
+pmono_s = pmono . flip I.InstrumentName False
+
+-- | Idiom to scale 'a' at 'E.Key' in an '(E.Event a)' pattern.
+pmul :: Num a => E.Key -> P a -> P (E.Event a) -> P (E.Event a)
+pmul k = pzipWith (\i j -> E.edit_v k 1 (* i) j)
+
+-- | Variant that does not insert key.
+pmul' :: Num a => E.Key -> P a -> P (E.Event a) -> P (E.Event a)
+pmul' k = pzipWith (\i j -> E.edit k (* i) j)
+
+-- | SC3 pattern to do time stretching.  It is equal to 'pmul' at
+-- \"stretch\".
+pstretch :: Num a => P a -> P (E.Event a) -> P (E.Event a)
+pstretch = pmul "stretch"
+
 -- * Parallel patterns
 
--- | Merge two 'E.Event' patterns with indicated start 'E.Time's.
-ptmerge :: (E.Time,P E.Event) -> (E.Time,P E.Event) -> P E.Event
+-- | Merge two '(E.Event a)' patterns with indicated start 'E.Time's.
+ptmerge :: (Fractional a,Real a) => (E.Time,P (E.Event a)) -> (E.Time,P (E.Event a)) -> P (E.Event a)
 ptmerge (pt,p) (qt,q) =
     fromList (E.merge (pt,F.toList p) (qt,F.toList q))
 
 -- | Variant of 'ptmerge' with zero start times.
-pmerge :: P E.Event -> P E.Event -> P E.Event
+pmerge :: (Fractional a,Real a) => P (E.Event a) -> P (E.Event a) -> P (E.Event a)
 pmerge p q = ptmerge (0,p) (0,q)
 
--- | Merge a set of 'E.Event' patterns each with indicated start 'E.Time'.
-ptpar :: [(E.Time,P E.Event)] -> P E.Event
+-- | Merge a set of '(E.Event a)' patterns each with indicated start 'E.Time'.
+ptpar :: (Fractional a,Real a) => [(E.Time,P (E.Event a))] -> P (E.Event a)
 ptpar l =
     case l of
       [] -> pempty
@@ -1063,56 +1065,24 @@ ptpar l =
       (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
 
 -- | Variant of 'ptpar' with zero start times.
-ppar :: [P E.Event] -> P E.Event
+ppar :: (Fractional a,Real a) => [P (E.Event a)] -> P (E.Event a)
 ppar l = ptpar (zip (repeat 0) l)
 
--- * Pattern audition
+-- * Pattern auditioning
 
--- | Send 'E.Event' to @scsynth@ at 'Transport'.
-e_send :: Transport m => E.Time -> Int -> E.Event -> m ()
-e_send t j e =
-    let voidM a = a >> return ()
-    in case E.to_sc3_bundle t j e of
-        Just (p,q) -> do case E.instrument_def e of
-                           Just d -> voidM (async (d_recv d))
-                           Nothing -> return ()
-                         sendBundle p
-                         sendBundle q
-        Nothing -> return ()
+instance (E.Value a) => Audible (P (E.Event a)) where
+    play = E.e_play [1000..] . unP
 
--- | Function to audition a sequence of 'E.Event's using the @scsynth@
--- instance at 'Transport' starting at indicated 'E.Time'.
-e_tplay :: (Transport m) => E.Time -> [Int] -> [E.Event] -> m ()
-e_tplay t j e =
-    case (j,e) of
-      (_,[]) -> return ()
-      ([],_) -> error "e_tplay: no-id"
-      (i:j',d:e') -> do let t' = t + E.fwd d
-                        e_send t i d
-                        pauseThreadUntil t'
-                        e_tplay t' j' e'
-
--- | Variant of 'e_tplay' with current clock time from 'time' as start
--- time.  This function is used to implement the pattern instances of
--- 'Audible'.
-e_play :: (Transport m) => [Int] -> [E.Event] -> m ()
-e_play lj le = do
-  st <- time
-  e_tplay st lj le
-
-instance Audible (P E.Event) where
-    play = e_play [1000..] . unP
-
-instance Audible (Synthdef,P E.Event) where
+instance (E.Value a) => Audible (Synthdef,P (E.Event a)) where
     play (s,p) = do
       let i_d = I.InstrumentDef s True
           i_nm = I.InstrumentName (synthdefName s) True
           i = pcons i_d (pn (return i_nm) inf)
       _ <- async (d_recv s)
-      e_play [1000..] (unP (pinstr i p))
+      E.e_play [1000..] (unP (pinstr i p))
 
-instance Audible (String,P E.Event) where
+instance (E.Value a) => Audible (String,P (E.Event a)) where
     play (s,p) =
         let i = I.InstrumentName s True
-        in e_play [1000..] (unP (pinstr (return i) p))
+        in E.e_play [1000..] (unP (pinstr (return i) p))
 

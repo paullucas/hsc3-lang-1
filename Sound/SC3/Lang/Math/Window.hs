@@ -2,7 +2,7 @@
 module Sound.SC3.Lang.Math.Window where
 
 import qualified Numeric.GSL.Special.Bessel as M {- hmatrix-special -}
-import qualified Numeric.GSL.Special.Trig as M
+import qualified Numeric.GSL.Special.Trig as M {- hmatrix-special -}
 
 -- * Type and conversion
 
@@ -69,42 +69,43 @@ triangular i = 2 * (0.5 - abs (i - 0.5))
 
 -- | 'window_table' . 'gaussian'.
 --
--- > plot [gaussian_table 1024 0.25,gaussian_table 1024 0.5]
+-- > import Sound.SC3.Plot
+-- > plotTable [gaussian_table 1024 0.25,gaussian_table 1024 0.5]
 gaussian_table :: (Integral n, Floating b, Enum b) => n -> b -> [b]
 gaussian_table n = window_table n . gaussian
 
 -- | 'window_table' . 'hamming'.
 --
--- plot [hann 128,hamming 128]
+-- plotTable [hann_table 128,hamming_table 128]
 hamming_table :: Int -> [Double]
 hamming_table n = window_table n hamming
 
 -- | 'window_table' . 'hann'.
 --
--- plot [hann_table 128]
+-- plotTable [hann_table 128]
 hann_table :: Int -> [Double]
 hann_table n = window_table n hann
 
 -- | 'window_table' . 'kaiser'.
 --
--- plot [kaiser_table 128 1,kaiser_table 128 2,kaiser_table 128 8]
+-- let k = kaiser_table 128 in plotTable [k 1,k 2,k 8]
 kaiser_table :: Int -> Double -> [Double]
 kaiser_table n = window_table n . kaiser
 
 -- | 'window_table' . 'lanczos'.
 --
--- plot [lanczos (2^9)]
+-- plotTable [lanczos_table (2^9)]
 lanczos_table :: Integral n => n -> [Double]
 lanczos_table n = window_table n lanczos
 
 -- | 'window_table' . 'sine'.
 --
--- plot [sine 128]
+-- plotTable [sine_table 128]
 sine_table :: (Integral n, Floating b, Enum b) => n -> [b]
 sine_table n = window_table n sine
 
 -- | 'window_table' . 'triangular'.
 --
--- plot [triangular (2^9)]
+-- plotTable [triangular_table (2^9)]
 triangular_table :: (Integral n, Fractional b, Enum b) => n -> [b]
 triangular_table n = window_table n triangular

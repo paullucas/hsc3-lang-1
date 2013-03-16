@@ -1,6 +1,8 @@
 -- | The @SC3@ duration model.
 module Sound.SC3.Lang.Control.Duration where
 
+import Data.Maybe {- base -}
+
 -- | The @SC3@ 'Duration' model.
 data Duration a =
     Duration {tempo :: a -- ^ Tempo (in pulses per minute)
@@ -64,3 +66,22 @@ defaultDuration =
              ,delta_f = default_delta_f
              ,lag = 0.1
              ,fwd' = Nothing}
+
+-- | Construct a 'Duration' value from an association list.  The keys are
+-- the names of the model parameters.
+--
+-- > delta (alist_to_duration [("dur",0.5),("stretch",2)]) == 1
+alist_to_duration :: (Num a,Fractional a) => [(String,a)] -> Duration a
+alist_to_duration e =
+    let get_r v k = fromMaybe v (lookup k e)
+        get_m v k = maybe v const (lookup k e)
+        get_o k = lookup k e
+    in Duration {tempo = get_r 60 "tempo"
+                ,dur = get_r 1 "dur"
+                ,stretch = get_r 1 "stretch"
+                ,legato = get_r 0.8 "legato"
+                ,sustain_f = get_m default_sustain_f "sustain"
+                ,delta_f = get_m default_delta_f "delta"
+                ,lag = get_r 0.1 "lag"
+                ,fwd' = get_o "fwd'"}
+

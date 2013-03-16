@@ -1,13 +1,14 @@
 -- | List variants of @SC3@ pattern functions.
 module Sound.SC3.Lang.Pattern.List where
 
-import qualified Data.Map as M
-import Data.Maybe
-import Data.List
-import qualified Sound.SC3 as S
+import qualified Data.Map as M {- containers -}
+import Data.Maybe {- base -}
+import Data.List {- base -}
+import qualified Sound.SC3 as S {- hsc3 -}
+import System.Random {- random -}
+
 import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Random.Gen as R
-import System.Random
 
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =

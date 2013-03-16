@@ -1,11 +1,12 @@
 -- | 'RandomGen' based @sclang@ random number functions.
 module Sound.SC3.Lang.Random.Gen where
 
-import Data.Maybe
-import qualified Sound.SC3.Lang.Collection as C
-import qualified Sound.SC3.Lang.Math as M
+import Data.Maybe {- base  -}
 import System.Random {- random -}
 import System.Random.Shuffle {- random-shuffle -}
+
+import qualified Sound.SC3.Lang.Collection as C
+import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'randomR' in (0,/n/).
 rand :: (RandomGen g,Random n,Num n) => n -> g -> (n,g)

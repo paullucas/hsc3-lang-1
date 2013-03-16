@@ -21,8 +21,8 @@ w_unmap w = w W_Unmap
 
 -- | A linear real value map.
 --
--- > w = LinearWarp(ControlSpec(1,2))
--- > [0,0.5,1].collect{|n| w.map(n)} == [1,1.5,2]
+-- > > w = LinearWarp(ControlSpec(1,2))
+-- > > [0,0.5,1].collect{|n| w.map(n)} == [1,1.5,2]
 --
 -- > map (w_map (warpLinear 1 2)) [0,1/2,1] == [1,3/2,2]
 -- > map (warpLinear (-1) 1 W_Map) [0,1/2,1] == [-1,0,1]
@@ -35,8 +35,8 @@ warpLinear l r d n =
 
 -- | The left and right must both be non zero and have the same sign.
 --
--- > w = ExponentialWarp(ControlSpec(1,2))
--- > [0,0.5,1].collect{|n| w.map(n)} == [1,pow(2,0.5),2]
+-- > > w = ExponentialWarp(ControlSpec(1,2))
+-- > > [0,0.5,1].collect{|n| w.map(n)} == [1,pow(2,0.5),2]
 --
 -- > map (warpExponential 1 2 W_Map) [0,0.5,1] == [1,2 ** 0.5,2]
 warpExponential :: (Floating a) => a -> a -> Warp a
@@ -48,8 +48,8 @@ warpExponential l r d n =
 
 -- | Cosine warp
 --
--- > w = CosineWarp(ControlSpec(1,2))
--- > [0,0.25,0.5,0.75,1].collect{|n| w.map(n)}
+-- > > w = CosineWarp(ControlSpec(1,2))
+-- > > [0,0.25,0.5,0.75,1].collect{|n| w.map(n)}
 --
 -- > map (warpCosine 1 2 W_Map) [0,0.25,0.5,0.75,1]
 warpCosine :: (Floating a) => a -> a -> Warp a

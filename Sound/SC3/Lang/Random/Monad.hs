@@ -1,8 +1,9 @@
 -- | 'Rand' monad based @sclang@ random number functions.
 module Sound.SC3.Lang.Random.Monad where
 
-import Control.Monad
+import Control.Monad {- base -}
 import Control.Monad.Random {- MonadRandom -}
+
 import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'getRandomR' in (0,/n/).

@@ -1,17 +1,33 @@
-{-# LANGUAGE PackageImports #-}
 -- | For a single input controller, key events always arrive in
--- sequence (ie. on->off), ie. for any key on message can allocate an
--- ID and associate it with the key, an off message can retrieve the
--- ID given the key.
+-- sequence (ie. on->off), ie. for any key on message we can allocate
+-- an ID and associate it with the key, an off message can retrieve
+-- the ID given the key.
 module Sound.SC3.Lang.Control.Midi where
 
-import qualified Control.Exception as E
-import Control.Monad
-import "mtl" Control.Monad.State
-import Data.Bits
+import qualified Control.Exception as E {- base -}
+import Control.Monad {- base -}
+import Control.Monad.IO.Class {- transformers -}
+import Control.Monad.Trans.State {- transformers -}
+import Data.Bits {- base -}
 import qualified Data.ByteString.Lazy as B {- bytestring -}
 import qualified Data.Map as M {- containers -}
 import Sound.OSC.FD {- hosc -}
+
+-- * Bits
+
+-- | Join two 7-bit values into a 14-bit value.
+--
+-- > map (uncurry b_join) [(0,0),(0,64),(127,127)] == [0,8192,16383]
+b_join :: Bits a => a -> a -> a
+b_join p q = p .|. shiftL q 7
+
+-- | Inverse of 'b_join'.
+--
+-- > map b_sep [0,8192,16383] == [(0,0),(0,64),(127,127)]
+b_sep :: (Num t,Bits t) => t -> (t, t)
+b_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
+
+-- * Types
 
 -- | <http://www.midi.org/techspecs/midimessages.php>
 data Midi_Message a = Chanel_Aftertouch a a
@@ -78,17 +94,7 @@ control_message (i,j,k) =
       127 -> Poly_Mode_On i
       _ -> Undefined
 
--- | Join two 7-bit values into a 14-bit value.
---
--- > map (uncurry b_join) [(0,0),(0,64),(127,127)] == [0,8192,16383]
-b_join :: Bits a => a -> a -> a
-b_join p q = p .|. shiftL q 7
-
--- | Inverse of 'b_join'.
---
--- > map b_sep [0,8192,16383] == [(0,0),(0,64),(127,127)]
-b_sep :: (Num t,Bits t) => t -> (t, t)
-b_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
+-- * OSC
 
 -- | Parse @midi-osc@ @/midi/@ message.
 parse_b :: Integral n => Message -> [n]
@@ -118,6 +124,8 @@ parse_m m =
       [0xe,i,j,k] -> Pitch_Bend i (b_join j k)
       x -> Unknown x
 
+-- * SC3
+
 -- | @SC3@ node identifiers are integers.
 type Node_Id = Int
 
@@ -143,6 +151,8 @@ k_get :: (Int,Int) -> KT Node_Id
 k_get n = do
   (K m _) <- get
   return (m M.! n)
+
+-- * IO
 
 -- | The 'Midi_Receiver' is passed a 'Midi_Message' and a 'Node_Id'.
 -- For 'Note_On' and 'Note_Off' messages the 'Node_Id' is positive,

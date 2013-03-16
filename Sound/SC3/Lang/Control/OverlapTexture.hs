@@ -7,12 +7,13 @@
 -- post-processing stage.
 module Sound.SC3.Lang.Control.OverlapTexture where
 
-import Data.List
+import Data.List {- base -}
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
-import Sound.SC3.Lang.Control.Event as E {- hsc3-lang -}
-import Sound.SC3.Lang.Control.Instrument
-import Sound.SC3.Lang.Pattern.ID
+
+import qualified Sound.SC3.Lang.Control.Event as E
+import qualified Sound.SC3.Lang.Control.Instrument as I
+import qualified Sound.SC3.Lang.Pattern.ID as P
 
 -- | Make an 'envGen' 'UGen' with 'envLinen'' structure with given
 -- /sustain/ and /transition/ times.
@@ -81,15 +82,16 @@ gen_synth k g =
       g' = with_env k g
   in synthdef n g'
 
--- | Generate an 'Event' pattern from 'OverlapTexture' control
+-- | Generate an 'E.Event' pattern from 'OverlapTexture' control
 -- parameters and a continuous signal.
-overlapTextureP :: OverlapTexture -> UGen -> P Event
+overlapTextureP :: OverlapTexture -> UGen -> P.P (E.Event Double)
 overlapTextureP k g =
     let s = gen_synth (overlapTexture_env k) g
         (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
-        i = return (InstrumentDef s False)
-    in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
+        i = return (I.InstrumentDef s False)
+    in P.pinstr i (P.pbind [("dur",P.pn (return d) c)
+                           ,("legato", return l)])
 
 -- | Audition pattern given by 'overlapTextureP'.
 --
@@ -111,8 +113,8 @@ post_process_s nc f =
         nm = show (hashUGen u)
     in synthdef nm u
 
--- | Audition 'Event' pattern with specified post-processing function.
-post_process_a :: Transport m => P Event -> Int -> (UGen -> UGen) -> m ()
+-- | Audition 'E.Event' pattern with specified post-processing function.
+post_process_a :: (Transport m) => P.P (E.Event Double) -> Int -> (UGen -> UGen) -> m ()
 post_process_a p nc f = do
   let s = post_process_s nc f
   _ <- async (d_recv s)
@@ -128,15 +130,16 @@ overlapTextureU_pp k u nc f = do
   let p = overlapTextureP k u
   withSC3 (post_process_a p nc f)
 
--- | Generate an 'Event' pattern from 'XFadeTexture' control
+-- | Generate an 'E.Event' pattern from 'XFadeTexture' control
 -- parameters and a continuous signal.
-xfadeTextureP :: XFadeTexture -> UGen -> P Event
+xfadeTextureP :: XFadeTexture -> UGen -> P.P (E.Event Double)
 xfadeTextureP k g =
     let s = gen_synth (xfadeTexture_env k) g
         (l,d) = xfadeTexture_dt k
         (_,_,c) = k
-        i = return (InstrumentDef s False)
-    in pinstr i (pbind [("dur",pn (return d) c),("legato", return l)])
+        i = return (I.InstrumentDef s False)
+    in P.pinstr i (P.pbind [("dur",P.pn (return d) c)
+                           ,("legato", return l)])
 
 -- | Audition pattern given by 'xfadeTextureP'.
 --
@@ -156,16 +159,17 @@ xfadeTextureU_pp k u nc f = do
 type USTF st = (st -> (UGen,st))
 
 -- | Variant of 'overlapTextureP' where the continuous signal for
--- each 'Event' is derived from a state transform function seeded with
+-- each 'E.Event' is derived from a state transform function seeded with
 -- given initial state.
-overlapTextureP_st :: OverlapTexture -> USTF st -> st -> P Event
+overlapTextureP_st :: OverlapTexture -> USTF st -> st -> P.P (E.Event Double)
 overlapTextureP_st k u i_st =
     let (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
         g = take c (unfoldr (Just . u) i_st)
-        i = flip InstrumentDef False
+        i = flip I.InstrumentDef False
         s = map (i . gen_synth (overlapTexture_env k)) g
-    in pinstr (fromList s) (pbind [("dur",prepeat d),("legato",prepeat l)])
+    in P.pinstr (P.fromList s) (P.pbind [("dur",P.prepeat d)
+                                        ,("legato",P.prepeat l)])
 
 -- | Audition pattern given by 'overlapTextureP_st'.
 overlapTextureS :: OverlapTexture -> USTF st -> st -> IO ()
@@ -194,7 +198,8 @@ dt_rescheduler_m f =
     in rec
 
 -- | Underlying function of 'overlapTextureM' with explicit 'Transport'.
-overlapTextureR :: Transport m => OverlapTexture -> IO UGen -> MSTF (Int,E.Time) m
+overlapTextureR :: Transport m =>
+                   OverlapTexture -> IO UGen -> MSTF (Int,E.Time) m
 overlapTextureR k uf =
   let nm = "ot_" ++ show k
       (_,dt) = overlapTexture_dt k

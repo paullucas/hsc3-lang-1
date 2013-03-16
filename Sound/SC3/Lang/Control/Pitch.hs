@@ -1,6 +1,8 @@
 -- | @SC3@ pitch model implementation.
 module Sound.SC3.Lang.Control.Pitch where
 
+import Data.Maybe {- base -}
+
 -- | The supercollider language pitch model is organised as a tree
 -- with three separate layers, and is designed to allow separate
 -- processes to manipulate aspects of the model independently.
@@ -14,7 +16,7 @@ module Sound.SC3.Lang.Control.Pitch where
 -- a scale interpreted relative to an equally tempered octave divided
 -- into the indicated number of steps.
 --
--- The midinote is derived from the note by adding the inidicated
+-- The midinote is derived from the note by adding the indicated
 -- root, octave and gamut transpositions.
 --
 -- The frequency is derived by a chromatic transposition of the
@@ -42,19 +44,19 @@ module Sound.SC3.Lang.Control.Pitch where
 -- >     ;q = zipWith edit_mtranspose p [0,2,4,3,5]
 -- >     ;r = zipWith edit_octave q [0,-1,0,1,0]}
 -- > in (map midinote q,map midinote r)
-data Pitch a = Pitch { mtranspose :: a
-                     , gtranspose :: a
-                     , ctranspose :: a
-                     , octave :: a
-                     , root :: a
-                     , scale :: [a]
-                     , degree :: a
-                     , stepsPerOctave :: a
-                     , detune :: a
-                     , harmonic :: a
-                     , freq_f :: Pitch a -> a
-                     , midinote_f :: Pitch a -> a
-                     , note_f :: Pitch a -> a }
+data Pitch a = Pitch {mtranspose :: a
+                     ,gtranspose :: a
+                     ,ctranspose :: a
+                     ,octave :: a
+                     ,root :: a
+                     ,scale :: [a]
+                     ,degree :: a
+                     ,stepsPerOctave :: a
+                     ,detune :: a
+                     ,harmonic :: a
+                     ,freq_f :: Pitch a -> a
+                     ,midinote_f :: Pitch a -> a
+                     ,note_f :: Pitch a -> a }
 
 -- | Midi note number to cycles per second.
 --
@@ -68,21 +70,21 @@ midi_cps a = 440.0 * (2.0 ** ((a - 69.0) * (1.0 / 12.0)))
 -- > degree defaultPitch == 0
 -- > scale defaultPitch == [0,2,4,5,7,9,11]
 -- > stepsPerOctave defaultPitch == 12
-defaultPitch :: (Floating a, RealFrac a) => Pitch a
+defaultPitch :: (Floating a,RealFrac a) => Pitch a
 defaultPitch =
-    Pitch { mtranspose = 0
-          , gtranspose = 0
-          , ctranspose = 0
-          , octave = 5
-          , root = 0
-          , degree = 0
-          , scale = [0,2,4,5,7,9,11]
-          , stepsPerOctave = 12
-          , detune = 0
-          , harmonic = 1
-          , freq_f = default_freq_f
-          , midinote_f = default_midinote_f
-          , note_f = default_note_f
+    Pitch {mtranspose = 0
+          ,gtranspose = 0
+          ,ctranspose = 0
+          ,octave = 5
+          ,root = 0
+          ,degree = 0
+          ,scale = [0,2,4,5,7,9,11]
+          ,stepsPerOctave = 12
+          ,detune = 0
+          ,harmonic = 1
+          ,freq_f = default_freq_f
+          ,midinote_f = default_midinote_f
+          ,note_f = default_note_f
           }
 
 -- | The 'freq_f' function for 'defaultPitch'.
@@ -134,3 +136,25 @@ freq e = freq_f e e
 -- > detunedFreq (defaultPitch {degree = 5}) == 440
 detunedFreq :: (Num a) => Pitch a -> a
 detunedFreq e = freq e + detune e
+
+-- | Construct a 'Pitch' value from an association list.  The keys are
+-- the names of the model parameters.
+--
+-- > freq (alist_to_pitch [("degree",5),("octave",4)]) == 220
+alist_to_pitch :: (RealFrac a,Floating a) => [(String,a)] -> Pitch a
+alist_to_pitch e =
+    let get_r v k = fromMaybe v (lookup k e)
+        get_m v k = maybe v const (lookup k e)
+    in Pitch {mtranspose = get_r 0 "mtranspose"
+             ,gtranspose = get_r 0 "gtranspose"
+             ,ctranspose = get_r 0 "ctranspose"
+             ,octave = get_r 5 "octave"
+             ,root = get_r 0 "root"
+             ,degree = get_r 0 "degree"
+             ,scale = [0,2,4,5,7,9,11]
+             ,stepsPerOctave = get_r 12 "stepsPerOctave"
+             ,detune = get_r 0 "detune"
+             ,harmonic = get_r 1 "harmonic"
+             ,freq_f = get_m default_freq_f "freq"
+             ,midinote_f = get_m default_midinote_f "midinote"
+             ,note_f = get_m default_note_f "note"}
