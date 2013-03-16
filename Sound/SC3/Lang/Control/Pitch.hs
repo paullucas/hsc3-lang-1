@@ -160,6 +160,10 @@ type Pitch_AList t = ([(String,t)],[(String,[t])])
 -- | Generate 'Pitch_AList' of non-default fields at 'Pitch'.
 --
 -- > pitch_to_alist (defaultPitch {degree = 3.0}) == ([("degree",3.0)],[])
+--
+-- Does not pick up constants, 'midinote_f' etc. ought to be 'Either'.
+--
+-- > pitch_to_alist (defaultPitch {midinote_f = Just (const 96)}) == ([],[])
 pitch_to_alist :: (Eq a,Num a) => Pitch a -> Pitch_AList a
 pitch_to_alist p =
     let f (nm,q) = let k = q p
@@ -173,9 +177,15 @@ pitch_to_alist p =
 -- > let {a = ([("octave",4),("degree",5)],[])
 -- >     ;p = alist_to_pitch a}
 -- > in (pitch_to_alist p == a,freq p) == (True,220)
+--
+-- Functions can be set to constant values.
+--
+-- > let p = alist_to_pitch ([("midinote",96)],[])
+-- > in (pitch_to_alist p,midinote p) == (([],[]),96.0)
 alist_to_pitch :: Num a => Pitch_AList a -> Pitch a
 alist_to_pitch (p,q) =
     let get_r k nm = fromMaybe k (lookup nm p)
+        get_f nm = fmap const (lookup nm p)
     in Pitch {mtranspose = get_r 0 "mtranspose"
              ,gtranspose = get_r 0 "gtranspose"
              ,ctranspose = get_r 0 "ctranspose"
@@ -186,9 +196,9 @@ alist_to_pitch (p,q) =
              ,stepsPerOctave = get_r 12 "stepsPerOctave"
              ,detune = get_r 0 "detune"
              ,harmonic = get_r 1 "harmonic"
-             ,freq_f = Nothing
-             ,midinote_f = Nothing
-             ,note_f = Nothing}
+             ,freq_f = get_f "freq"
+             ,midinote_f = get_f "midinote"
+             ,note_f = get_f "note"}
 
 {-
 instance (Num a,Eq a,Show a) => Show (Pitch a) where

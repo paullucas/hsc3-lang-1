@@ -1070,6 +1070,9 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern auditioning
 
+-- | An 'Audible' event pattern.
+type P_Event = P (E.Event Double)
+
 instance (E.Value a) => Audible (P (E.Event a)) where
     play = E.e_play [1000..] . unP
 

@@ -97,14 +97,15 @@ duration_to_alist d =
 -- > delta (alist_to_duration [("dur",0.5),("stretch",2),("fwd'",3)]) == 1
 -- > fwd (alist_to_duration [("fwd'",3)]) == 3
 alist_to_duration :: (Num a,Fractional a) => [(String,a)] -> Duration a
-alist_to_duration e =
-    let get_r v k = fromMaybe v (lookup k e)
-        get_o k = lookup k e
+alist_to_duration d =
+    let get_r v nm = fromMaybe v (lookup nm d)
+        get_f nm = fmap const (lookup nm d)
+        get_o nm = lookup nm d
     in Duration {tempo = get_r 60 "tempo"
                 ,dur = get_r 1 "dur"
                 ,stretch = get_r 1 "stretch"
                 ,legato = get_r 0.8 "legato"
-                ,sustain_f = Nothing
-                ,delta_f = Nothing
+                ,sustain_f = get_f "sustain"
+                ,delta_f = get_f "delta"
                 ,lag = get_r 0.1 "lag"
                 ,fwd' = get_o "fwd'"}
