@@ -314,7 +314,7 @@ instance Value Double
 
 -- | Generate @SC3@ 'O.Bundle' messages describing 'Event'.  Consults the
 -- 'instrument_send_release' in relation to gate command.
-to_sc3_bundle :: Value a => Time -> Int -> Event a -> Maybe (O.Bundle,O.Bundle)
+to_sc3_bundle :: Value a => Time -> Int -> Event a-> Maybe (O.Bundle,O.Bundle)
 to_sc3_bundle t j e =
     let s = instrument_name e
         sr = instrument_send_release e
@@ -329,7 +329,7 @@ to_sc3_bundle t j e =
              : ("sustain",rt)
              : ("amp",e_amp e)
              : parameters e
-        pr' = map (\(k,v) -> (k,v)) pr
+        pr' = map (\(k,v) -> (k,realToFrac v)) pr
         i = fromMaybe j (e_id e)
         t' = t + realToFrac (latency e)
     in if is_rest e || isNaN f
@@ -341,8 +341,8 @@ to_sc3_bundle t j e =
                 m_off = if not sr
                         then []
                         else case e_type e of
-                               E_s_new -> [S.n_set i [("gate",0::Double)]]
-                               E_n_set -> [S.n_set i [("gate",0::Double)]]
+                               E_s_new -> [S.n_set i [("gate",0)]]
+                               E_n_set -> [S.n_set i [("gate",0)]]
                                E_rest -> []
             in Just (O.Bundle t' m_on
                     ,O.Bundle (t' + realToFrac rt) m_off)
