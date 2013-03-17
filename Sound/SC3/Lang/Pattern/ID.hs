@@ -11,6 +11,7 @@ import qualified Data.List.Split as S {- split -}
 import Data.Maybe {- base -}
 import Data.Monoid {- base -}
 import Data.Traversable {- base -}
+import Sound.OSC {- hsc3 -}
 import Sound.SC3 {- hsc3 -}
 import System.Random {- random -}
 
@@ -471,7 +472,7 @@ pgeom i s n = P (C.geom n i s) Stop
 -- > let {a = fmap (< 0.3) (pwhite 'α' 0.0 1.0 inf)
 -- >     ;b = pwhite 'β' 0 9 inf
 -- >     ;c = pwhite 'γ' 10 19 inf}
--- > in ptake 9 (pif a b c) == toP' [11,3,6,11,11,15,17,4,7]
+-- > in ptake 9 (pif a b c) == toP' [11,3,18,11,11,15,17,17,16]
 pif :: P Bool -> P a -> P a -> P a
 pif = liftP3 ifExtending
 
@@ -761,14 +762,14 @@ pwhitei e l r = fmap roundf . pwhite e l r
 -- for each item is determined by a list of weights which should sum
 -- to 1.0.
 --
--- > let w = C.normalizeSum [1,3,5]
--- > in pwrand 'α' [1,2,3] w 6 == toP [3,1,2,3,3,3]
+-- > let w = C.normalizeSum [12,6,3]
+-- > in pwrand 'α' [1,2,3] w 6 == toP [2,1,2,3,3,2]
 --
 -- Pwrand.new([1,2,Pseq([3,4],1)],[1,3,5].normalizeSum,6).asStream.nextN(6)
 --
 -- > let w = C.normalizeSum [1,3,5]
--- > in pwrand 'α' [1,2,pseq [3,4] 1] w 6 == toP [3,4,1,2,3,4]
-pwrand :: Enum e => e -> [P a] -> [Double] -> Int -> P a
+-- > in pwrand 'α' [1,2,pseq [3,4] 1] w 6 == toP [3,4,1,3,4,3]
+pwrand :: (Enum e) => e -> [P a] -> [Double] -> Int -> P a
 pwrand e a w n = P (wrand e (map unP a) w n) Continue
 
 -- | SC3 pattern to constrain the range of output values by wrapping.
@@ -949,127 +950,120 @@ ptrigger p q =
 -- * Event Patterns
 
 -- | Synonymn for an event pattern.
-type P_Event a = P (E.Event a)
+type P_Event = P E.Event
 
 -- | Synonym for 'pbind' input type.
-type P_Bind a = [(E.Key,P a)]
+type P_Bind = [(E.Key,P E.Field)]
 
 -- | Add a value to an existing key, or set the key if it doesn't exist.
 --
 -- > > Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
 -- > padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
-padd :: Num a => E.Key -> P a -> P_Event a -> P_Event a
-padd k = pzipWith (\i j -> E.edit_v k 0 (+ i) j)
+padd :: E.Key -> P E.Field -> P_Event -> P_Event
+padd k = pzipWith (\i j -> E.e_edit k 0 (+ i) j)
 
--- | A primitive form of the SC3 'pbind' pattern, with explicit type
--- and identifier inputs.
-pbind' :: [E.Type] -> [Maybe Int] -> [Maybe I.Instrument] -> P_Bind a -> P_Event a
-pbind' ty is ss xs =
-    let xs' =  pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
-        p = fromList
-    in pure E.from_list <*> p ty <*> p is <*> p ss <*> xs'
+punion :: P_Event -> P_Event -> P_Event
+punion = pzipWith E.e_union
 
 -- | SC3 pattern to assign keys to a set of value patterns making an
--- '(E.Event a)' pattern. A finite binding stops the '(E.Event a)' pattern.
+-- 'E.Event' pattern. A finite binding stops the 'E.Event' pattern.
 --
 -- > > Pbind(\x,Pseq([1,2,3]),
 -- > >       \y,Prand([100,300,200],inf)).asStream.nextN(3,())
 --
 -- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
 -- >                 ,("y",pseq [1,2,3] 1)]) == toP' [200,200,300]
-pbind :: P_Bind a -> P_Event a
-pbind =
-    let ty = repeat E.E_s_new
-        i = repeat Nothing
-        s = repeat Nothing
-    in pbind' ty i s
+pbind :: P_Bind -> P_Event
+pbind xs =
+    let xs' = pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
+    in pure E.e_from_list <*> xs'
 
--- | Edit 'a' at 'E.Key' in each element of an '(E.Event a)' pattern.
-pedit :: E.Key -> (a -> a) -> P_Event a -> P_Event a
-pedit k f = fmap (E.edit k f)
+-- | Edit 'a' at 'E.Key' in each element of an 'E.Event' pattern.
+pedit :: E.Key -> (E.Field -> E.Field) -> P_Event -> P_Event
+pedit k f = fmap (E.e_edit' k f)
 
--- | Pattern to assign 'I.Instrument's to '(E.Event a)'s.  An
+-- | Pattern to assign 'I.Instrument's to 'E.Event's.  An
 -- 'I.Instrument' is either a 'Synthdef' or a 'String'.  In the
 -- 'Synthdef' case the instrument is asynchronously sent to the server
 -- before processing the event, which has timing implications.  In
 -- general the instrument pattern ought to have a 'Synthdef' for the
 -- first occurence of the instrument, and a 'String' for subsequent
 -- occurences.
-pinstr :: P I.Instrument -> P_Event a -> P_Event a
-pinstr = pzipWith (\i e -> e {E.e_instrument = Just i})
+pinstr :: P I.Instrument -> P_Event -> P_Event
+pinstr = pzipWith (\i e -> E.e_insert "instr" (E.F_Instr i) e)
 
 -- | Variant of 'pinstr' which lifts the 'String' pattern to an
 -- 'I.Instrument' pattern.
-pinstr_s :: P (String,Bool) -> P_Event a -> P_Event a
+pinstr_s :: P (String,Bool) -> P_Event -> P_Event
 pinstr_s p = pinstr (fmap (uncurry I.InstrumentName) p)
 
 -- | Variant of 'pinstr' which lifts the 'Synthdef' pattern to an
 -- 'I.Instrument' pattern.
-pinstr_d :: P (Synthdef,Bool) -> P_Event a -> P_Event a
+pinstr_d :: P (Synthdef,Bool) -> P_Event -> P_Event
 pinstr_d p = pinstr (fmap (uncurry I.InstrumentDef) p)
 
--- | Pattern to extract 'a's at 'E.Key' from an '(E.Event a)'
+-- | Pattern to extract 'a's at 'E.Key' from an 'E.Event'
 -- pattern.
 --
 -- > pkey_m "freq" (pbind [("freq",440)]) == toP' [Just 440]
-pkey_m :: E.Key -> P_Event a -> P (Maybe a)
-pkey_m k = fmap (E.lookup_m k)
+pkey_m :: E.Key -> P_Event -> P (Maybe E.Field)
+pkey_m k = fmap (E.e_get k)
 
--- | SC3 pattern to read 'a' of 'E.Key' at '(E.Event a)' pattern.
+-- | SC3 pattern to read 'a' of 'E.Key' at 'E.Event' pattern.
 -- Note however that in haskell is usually more appropriate to name
 -- the pattern using /let/.
 --
 -- > pkey "freq" (pbind [("freq",440)]) == toP' [440]
 -- > pkey "amp" (pbind [("amp",toP [0,1])]) == toP' [0,1]
-pkey :: E.Key -> P_Event a -> P a
-pkey k = fmap (fromJust . E.lookup_m k)
+pkey :: E.Key -> P_Event -> P E.Field
+pkey k = fmap (fromJust . E.e_get k)
 
 -- | SC3 pattern that is a variant of 'pbind' for controlling
 -- monophonic (persistent) synthesiser nodes.
-pmono :: I.Instrument -> Int -> P_Bind a -> P_Event a
-pmono i k =
+pmono :: I.Instrument -> Int -> P_Bind -> P_Event
+pmono i k b =
     let i' = case i of
                I.InstrumentDef d sr ->
                    let nm = synthdefName d
-                   in i : repeat (I.InstrumentName nm sr)
-               I.InstrumentName _ _ -> repeat i
-        ty = E.E_s_new : repeat E.E_n_set
-    in pbind' ty (repeat (Just k)) (map Just i')
+                   in E.F_Instr i `pcons` prepeat (E.F_Instr (I.InstrumentName nm sr))
+               I.InstrumentName _ _ -> prepeat (E.F_Instr i)
+        ty = E.F_String "s_new" `pcons` prepeat (E.F_String "n_set")
+    in pbind (("type",ty) : ("id",prepeat (E.F_Double (fromIntegral k))) : ("instr",i') : b)
 
 -- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.
-pmono_d :: Synthdef -> Int -> P_Bind a -> P_Event a
+pmono_d :: Synthdef -> Int -> P_Bind -> P_Event
 pmono_d = pmono . flip I.InstrumentDef False
 
 -- | Variant of 'pmono' that lifts 'String' to 'I.Instrument'.
-pmono_s :: String -> Int -> P_Bind a -> P_Event a
+pmono_s :: String -> Int -> P_Bind -> P_Event
 pmono_s = pmono . flip I.InstrumentName False
 
--- | Idiom to scale 'a' at 'E.Key' in an '(E.Event a)' pattern.
-pmul :: Num a => E.Key -> P a -> P_Event a -> P_Event a
-pmul k = pzipWith (\i j -> E.edit_v k 1 (* i) j)
+-- | Idiom to scale 'a' at 'E.Key' in an 'E.Event' pattern.
+pmul :: E.Key -> P E.Field -> P_Event -> P_Event
+pmul k = pzipWith (\i j -> E.e_edit k 1 (* i) j)
 
 -- | Variant that does not insert key.
-pmul' :: Num a => E.Key -> P a -> P_Event a -> P_Event a
-pmul' k = pzipWith (\i j -> E.edit k (* i) j)
+pmul' :: E.Key -> P E.Field -> P_Event -> P_Event
+pmul' k = pzipWith (\i j -> E.e_edit' k (* i) j)
 
 -- | SC3 pattern to do time stretching.  It is equal to 'pmul' at
 -- \"stretch\".
-pstretch :: Num a => P a -> P_Event a -> P_Event a
+pstretch :: P E.Field -> P_Event -> P_Event
 pstretch = pmul "stretch"
 
 -- * Parallel patterns
 
--- | Merge two '(E.Event a)' patterns with indicated start 'E.Time's.
-ptmerge :: (Fractional a,Real a) => (E.Time,P_Event a) -> (E.Time,P_Event a) -> P_Event a
+-- | Merge two 'E.Event' patterns with indicated start 'Time's.
+ptmerge :: (Time,P_Event) -> (Time,P_Event) -> P_Event
 ptmerge (pt,p) (qt,q) =
-    fromList (E.merge (pt,F.toList p) (qt,F.toList q))
+    fromList (E.e_merge (pt,F.toList p) (qt,F.toList q))
 
 -- | Variant of 'ptmerge' with zero start times.
-pmerge :: (Fractional a,Real a) => P_Event a -> P_Event a -> P_Event a
+pmerge :: (Fractional a,Real a) => P_Event -> P_Event -> P_Event
 pmerge p q = ptmerge (0,p) (0,q)
 
--- | Merge a set of '(E.Event a)' patterns each with indicated start 'E.Time'.
-ptpar :: (Fractional a,Real a) => [(E.Time,P_Event a)] -> P_Event a
+-- | Merge a set of 'E.Event' patterns each with indicated start 'Time'.
+ptpar :: [(Time,P_Event)] -> P_Event
 ptpar l =
     case l of
       [] -> pempty
@@ -1077,15 +1071,15 @@ ptpar l =
       (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
 
 -- | Variant of 'ptpar' with zero start times.
-ppar :: (Fractional a,Real a) => [P_Event a] -> P_Event a
+ppar :: [P_Event] -> P_Event
 ppar l = ptpar (zip (repeat 0) l)
 
 -- * Pattern auditioning
 
-instance (E.Value a) => Audible (P_Event a) where
+instance Audible P_Event where
     play = E.e_play [1000..] . unP
 
-instance (E.Value a) => Audible (Synthdef,P_Event a) where
+instance Audible (Synthdef,P_Event) where
     play (s,p) = do
       let i_d = I.InstrumentDef s True
           i_nm = I.InstrumentName (synthdefName s) True
@@ -1093,7 +1087,7 @@ instance (E.Value a) => Audible (Synthdef,P_Event a) where
       _ <- async (d_recv s)
       E.e_play [1000..] (unP (pinstr i p))
 
-instance (E.Value a) => Audible (String,P_Event a) where
+instance Audible (String,P_Event) where
     play (s,p) =
         let i = I.InstrumentName s True
         in E.e_play [1000..] (unP (pinstr (return i) p))

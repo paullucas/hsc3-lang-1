@@ -67,6 +67,23 @@ defaultDuration =
              ,lag = 0.1
              ,fwd' = Nothing}
 
+-- * Optional
+
+type T8 n = (n,n,n,n,n,n,n,n)
+
+type OptDuration a = T8 (Maybe a)
+
+optDuration :: (Num a,Fractional a) => OptDuration a -> Duration a
+optDuration (t,d,s,l,s',d',l',f) =
+    Duration {tempo = fromMaybe 60 t
+             ,dur = fromMaybe 1 d
+             ,stretch = fromMaybe 1 s
+             ,legato = fromMaybe 0.8 l
+             ,sustain_f = fmap const s'
+             ,delta_f = fmap const d'
+             ,lag = fromMaybe 0.1 l'
+             ,fwd' = f}
+
 -- * Association list
 
 -- | Names for 'Duration' field functions.

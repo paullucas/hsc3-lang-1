@@ -27,7 +27,10 @@
 --
 -- 'Datum' are 'Real'
 --
--- > toRational (Double 1.5) == 3/2
+-- > toRational (Double 1.5) == (3/2 :: Rational)
+-- > (realToFrac (1.5 :: Double) :: Datum) == Double 1.5
+-- > (realToFrac (Double 1.5) :: Datum) == Double 1.5
+-- > (realToFrac (Double 1.5) :: Double) == 1.5
 --
 -- 'Datum' are 'RealFrac'
 --

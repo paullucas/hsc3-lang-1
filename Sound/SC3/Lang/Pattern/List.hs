@@ -108,13 +108,13 @@ white' e l r =
 white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
 white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
-wrand' :: (Enum e) =>e -> [[a]] -> [Double] -> [a]
+wrand' :: (Enum e,Fractional n,Ord n,Random n) => e -> [[a]] -> [n] -> [a]
 wrand' e a w =
     let f g = let (r,g') = R.wchoose a w g
               in r ++ f g'
     in f (mkStdGen (fromEnum e))
 
-wrand :: (Enum e) => e -> [[a]] -> [Double] -> Int -> [a]
+wrand :: (Enum e,Fractional n,Ord n,Random n) => e -> [[a]] -> [n] -> Int -> [a]
 wrand e a w n = take n (wrand' e a w)
 
 xrand' :: Enum e => e -> [[a]] -> [a]

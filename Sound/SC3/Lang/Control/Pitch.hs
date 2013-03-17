@@ -138,6 +138,28 @@ freq e = fromMaybe default_freq_f (freq_f e) e
 detunedFreq :: (Num a,Floating a,RealFrac a) => Pitch a -> a
 detunedFreq e = freq e + detune e
 
+-- * Optional
+
+type T616 a b c = (a,a,a,a,a,a,b,c,c,c,c,c,c)
+
+type OptPitch a = T616 (Maybe a) (Maybe [a]) (Maybe a)
+
+optPitch :: Num a => OptPitch a -> Pitch a
+optPitch (mt,gt,ct,o,r,d,s,s',d',h,f,m,n) =
+    Pitch {mtranspose = fromMaybe 0 mt
+          ,gtranspose = fromMaybe 0 gt
+          ,ctranspose = fromMaybe 0 ct
+          ,octave = fromMaybe 5 o
+          ,root = fromMaybe 0 r
+          ,degree = fromMaybe 0 d
+          ,scale = fromMaybe [0,2,4,5,7,9,11] s
+          ,stepsPerOctave = fromMaybe 12 s'
+          ,detune = fromMaybe 0 d'
+          ,harmonic = fromMaybe 1 h
+          ,freq_f = fmap const f
+          ,midinote_f = fmap const m
+          ,note_f = fmap const n}
+
 -- * Association list
 
 -- | Names for 'Pitch' field functions.
