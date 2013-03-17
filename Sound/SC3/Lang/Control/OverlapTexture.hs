@@ -118,7 +118,7 @@ post_process_a :: (Transport m) => P.P (E.Event Double) -> Int -> (UGen -> UGen)
 post_process_a p nc f = do
   let s = post_process_s nc f
   _ <- async (d_recv s)
-  send (s_new (synthdefName s) (-1) AddToTail 2 [])
+  send (s_new0 (synthdefName s) (-1) AddToTail 2)
   play p
 
 -- | Post processing function.
@@ -207,7 +207,7 @@ overlapTextureR k uf =
         u <- liftIO uf
         let g = with_env (overlapTexture_env k) u
         _ <- async (d_recv (synthdef nm g))
-        send (s_new nm (-1) AddToTail 1 [])
+        send (s_new0 nm (-1) AddToTail 1)
         case st of
           0 -> return Nothing
           _ -> return (Just (st-1,dt))
