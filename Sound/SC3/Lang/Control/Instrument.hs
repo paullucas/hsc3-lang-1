@@ -3,17 +3,36 @@ module Sound.SC3.Lang.Control.Instrument where
 
 import Sound.SC3.ID
 
--- | An 'Instrument' is either a 'Synthdef' or the 'String' naming a
+-- | An 'Instr' is either a 'Synthdef' or the 'String' naming a
 -- 'Synthdef'.
-data Instrument = InstrumentDef {instrument_def :: Synthdef
-                                ,send_release :: Bool}
-                | InstrumentName {instrument_name :: String
-                                 ,send_release :: Bool}
-                  deriving (Eq,Show)
+data Instr = Instr_Def {i_def :: Synthdef,i_send_release :: Bool}
+           | Instr_Ref {i_ref :: String,i_send_release :: Bool}
+             deriving (Eq,Show)
+
+-- | All 'Instr' have a name.
+i_name :: Instr -> String
+i_name i =
+    case i of
+      Instr_Def s _ -> synthdefName s
+      Instr_Ref nm _ -> nm
+
+-- | All 'Instr' may have a 'Synthdef'.
+i_synthdef :: Instr -> Maybe Synthdef
+i_synthdef i =
+    case i of
+      Instr_Def s _ -> Just s
+      Instr_Ref _ _ -> Nothing
+
+-- | If 'I_Def' subsequent are 'I_Ref', else all 'I_Ref'.
+i_repeat :: Instr -> [Instr]
+i_repeat i =
+    case i of
+      Instr_Def d sr -> i : repeat (Instr_Ref (synthdefName d) sr)
+      Instr_Ref _ _ -> repeat i
 
 -- | The SC3 /default/ instrument 'Synthdef'.
-defaultInstrument :: Synthdef
-defaultInstrument =
+defaultSynthdef :: Synthdef
+defaultSynthdef =
     let f = control KR "freq" 440
         a = control KR "amp" 0.1
         p = control KR "pan" 0
@@ -24,6 +43,9 @@ defaultInstrument =
         z = lpf (mix (varSaw AR f3 0 0.3 * 0.3)) l * e
     in synthdef "default" (out 0 (pan2 z p a))
 
+defaultInstr :: Instr
+defaultInstr = Instr_Def defaultSynthdef True
+
 {-
-withSC3 (\fd -> async fd (d_recv defaultInstrument))
+withSC3 (\fd -> async fd (d_recv defaultInstr))
 -}

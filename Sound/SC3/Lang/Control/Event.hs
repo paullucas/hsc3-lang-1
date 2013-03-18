@@ -1,7 +1,7 @@
--- | An 'Event' is a ('Key',/value/) map with associated meta data.
+-- | An 'Event' is a ('Key','Field') map.
 module Sound.SC3.Lang.Control.Event where
 
-import qualified Data.Map as M {- containers -}
+import qualified Data.Map as Map {- containers -}
 import Data.Maybe {- base -}
 import GHC.Exts {- base -}
 import Sound.OSC {- hosc -}
@@ -11,32 +11,46 @@ import System.Random {- base -}
 import qualified Sound.SC3.Lang.Control.Duration as D
 import qualified Sound.SC3.Lang.Control.Instrument as I
 import qualified Sound.SC3.Lang.Control.Pitch as P
+import qualified Sound.SC3.Lang.Math as M
 
--- | The type of the /key/ at an 'Event'.
-type Key = String
+-- * Field
 
 data Field = F_Double {f_double :: Double}
            | F_Vector {f_vector :: [Field]}
            | F_String {f_string :: String}
-           | F_Instr {f_instr :: I.Instrument}
+           | F_Instr {f_instr :: I.Instr}
              deriving (Eq,Show)
 
-f_double' :: Field -> Maybe Double
-f_double' f = case f of {F_Double n -> Just n;_ -> Nothing;}
+-- | Maybe variant of 'f_double'.
+f_double_m :: Field -> Maybe Double
+f_double_m f = case f of {F_Double n -> Just n;_ -> Nothing;}
 
-f_double'' :: String -> Field -> Double
-f_double'' err = fromMaybe (error ("f_double': " ++ err)) . f_double'
+-- | Variant of 'f_double' with specified error message.
+f_double_err :: String -> Field -> Double
+f_double_err err = fromMaybe (error ("f_double: " ++ err)) . f_double_m
 
+-- | Run 'round' at 'f_double'.
+f_int_err :: String -> Field -> Int
+f_int_err err = round . fromMaybe (error ("f_int: " ++ err)) . f_double_m
+
+-- | Uniform vector constructor.
+--
+-- > f_array [1,2] == F_Vector [F_Double 1,F_Double 2]
+f_array :: [Double] -> Field
+f_array = F_Vector . map F_Double
+
+-- | Numerical unary operator.
+--
+-- > f_uop negate (F_Double 1) == F_Double (-1)
 f_uop :: (Double -> Double) -> Field -> Field
 f_uop f p =
     case p of
       F_Double n -> F_Double (f n)
       F_Vector v -> F_Vector (map (f_uop f) v)
-      _ -> error "f_uop"
+      _ -> error ("f_uop: " ++ show p)
 
-f_array :: [Double] -> Field
-f_array = F_Vector . map F_Double
-
+-- | Numerical binary operator.
+--
 -- > f_binop (+) (F_Double 1) (F_Double 2) == F_Double 3
 -- > f_binop (*) (f_array [1,2,3]) (f_array [3,4,5]) == f_array [3,8,15]
 -- > f_binop (/) (F_Double 9) (F_Double 3) == F_Double 3
@@ -45,7 +59,22 @@ f_binop f p q =
     case (p,q) of
       (F_Double m,F_Double n) -> F_Double (f m n)
       (F_Vector v,F_Vector w) -> F_Vector (zipWith (f_binop f) v w)
-      _ -> error "f_binop"
+      _ -> error ("f_binop: " ++ show (p,q))
+
+f_atf :: (Double -> a) -> Field -> a
+f_atf f = f . f_double
+
+f_atf2 :: (Double -> Double -> a) -> Field -> Field -> a
+f_atf2 f p q =
+    case (p,q) of
+      (F_Double n1,F_Double n2) -> f n1 n2
+      _ -> error ("f_atf2: " ++ show (p,q))
+
+f_atf3 :: (Double -> Double -> Double -> a) -> Field -> Field -> Field -> a
+f_atf3 f p q r =
+    case (p,q,r) of
+      (F_Double n1,F_Double n2,F_Double n3) -> f n1 n2 n3
+      _ -> error ("f_atf3: " ++ show (p,q,r))
 
 instance IsString Field where
     fromString = F_String
@@ -83,26 +112,11 @@ instance Floating Field where
     acosh = f_uop acosh
     atanh = f_uop atanh
 
-f_atf :: (Double -> a) -> Field -> a
-f_atf f = f . f_double
-
-f_atf2 :: (Double -> Double -> a) -> Field -> Field -> a
-f_atf2 f p q =
-    case (p,q) of
-      (F_Double n1,F_Double n2) -> f n1 n2
-      _ -> error "f_atf2: partial"
-
-f_atf3 :: (Double -> Double -> Double -> a) -> Field -> Field -> Field -> a
-f_atf3 f p q r =
-    case (p,q,r) of
-      (F_Double n1,F_Double n2,F_Double n3) -> f n1 n2 n3
-      _ -> error "f_atf2: partial"
-
 instance Real Field where
     toRational d =
         case d of
           F_Double n -> toRational n
-          _ -> error "Field.toRational: partial"
+          _ -> error ("Field.toRational: " ++ show d)
 
 instance RealFrac Field where
   properFraction d =
@@ -130,9 +144,10 @@ instance RealFloat Field where
     atan2 = f_binop atan2
 
 instance Ord Field where
-    compare p q = case (p,q) of
-                    (F_Double m,F_Double n) -> compare m n
-                    _ -> error "Field.compare: partial"
+    compare p q =
+        case (p,q) of
+          (F_Double m,F_Double n) -> compare m n
+          _ -> error ("Field.compare: " ++ show (p,q))
 
 instance Enum Field where
     fromEnum = f_atf fromEnum
@@ -148,43 +163,112 @@ instance Random Field where
         (F_Double l,F_Double r) ->
             let (n,g') = randomR (l,r) g
             in (F_Double n,g')
-        _ -> error "Field.randomR: partial"
+        _ -> error ("Field.randomR: " ++ show i)
   random g = let (n,g') = randomR (0::Double,1::Double) g
              in (F_Double n,g')
 
+instance EqE Field where
+instance OrdE Field where
 instance UnaryOp Field
 instance BinaryOp Field
 
-type Event = M.Map Key Field
+-- * Key
 
-defaultEvent :: Event
-defaultEvent = M.empty
+-- | The type of the /key/ at an 'Event'.
+type Key = String
 
+-- | List of reserved 'Key's used in pitch, duration and amplitude
+-- models.  These are keys that may be provided explicitly, but if not
+-- will be calculated implicitly.
+--
+-- > ("freq" `elem` k_reserved) == True
+k_reserved :: [Key]
+k_reserved = ["freq","midinote","note"
+             ,"delta","sustain"
+             ,"amp"
+             ,"instr","id","type","latency","rest"]
+
+-- | Is 'Key' /not/ 'k_reserved'.
+k_is_parameter :: (Key,a) -> Bool
+k_is_parameter (k,_) = k `notElem` k_reserved
+
+-- | List of 'Key's used in pitch, duration and amplitude models.
+k_models :: T3 [Key]
+k_models =
+    (["amp","db"]
+    ,["delta","dur","legato","fwd'","stretch","sustain","tempo"]
+    ,["ctranspose","degree","freq","midinote","mtranspose","note","octave"])
+
+-- * Event
+
+-- | An 'Event' is a ('Key','Field') map.
+type Event = Map.Map Key Field
+
+-- | Empty event.
+e_empty :: Event
+e_empty = Map.empty
+
+-- | Insert (/k/,/v/) into /e/.
+--
+-- > e_get "k" (e_insert "k" 1 e_empty) == Just 1
+e_insert :: Key -> Field -> Event -> Event
+e_insert k v = Map.insert k v
+
+-- | Event from association list.
+--
+-- > e_get "k" (e_from_list [("k",1)]) == Just 1
+e_from_list :: [(Key,Field)] -> Event
+e_from_list = Map.fromList
+
+-- | Union of two events (left-biased).
+--
+-- > e_from_list [("a",0)] `e_union` e_from_list [("b",1)]
 e_union :: Event -> Event -> Event
-e_union = M.union
+e_union = Map.union
 
 -- | Lookup /k/ in /e/.
 --
--- > e_get "k" defaultEvent == Nothing
+-- > e_get "k" e_empty == Nothing
 e_get :: Key -> Event -> Maybe Field
-e_get k = M.lookup k
+e_get k = Map.lookup k
 
 e_get_double :: Key -> Event -> Maybe Double
-e_get_double k = fmap (f_double'' k) . e_get k
+e_get_double k = fmap (f_double_err k) . e_get k
+
+e_get_int :: Key -> Event -> Maybe Int
+e_get_int k = fmap (f_int_err k) . e_get k
 
 e_get_array :: Key -> Event -> Maybe [Double]
-e_get_array k = fmap (map (f_double'' k) . f_vector) . e_get k
+e_get_array k = fmap (map (f_double_err k) . f_vector) . e_get k
 
 type Type = String
 
--- > e_type defaultEvent == "s_new"
+-- | 'Event' /type/.
+--
+-- > e_type e_empty == "s_new"
 e_type :: Event -> Type
 e_type = fromMaybe "s_new" . fmap f_string . e_get "type"
 
-e_from_list :: [(Key,Field)] -> Event
-e_from_list = M.fromList
+-- | Match on event types, in sequence: s_new, n_set, rest.
+e_type_match :: Event -> T3 (Event -> t) -> t
+e_type_match e (f,g,h) =
+    case e_type e of
+      "s_new" -> f e
+      "n_set" -> g e
+      "rest" -> h e
+      _ -> error ("Event.type: " ++ show e)
 
--- > D.delta (e_duration defaultEvent) == 1
+-- | 'const' variant of 'e_type_match'.
+e_type_match' :: Event -> T3 t -> t
+e_type_match' e (f,g,h) = e_type_match e (const f,const g,const h)
+
+-- | Generate 'D.Duration' from 'Event'.
+--
+-- > D.delta (e_duration e_empty) == 1
+-- > D.fwd (e_duration (e_from_list [("dur",1),("stretch",2)])) == 2
+--
+-- > let e = e_from_list [("dur",1),("legato",0.5)]
+-- > in D.sustain (e_duration e) == 0.5
 e_duration :: Event -> D.Duration Double
 e_duration e =
     let f k = e_get_double k e
@@ -197,13 +281,11 @@ e_duration e =
                      ,f "lag"
                      ,f "fwd'")
 
--- | The /sustain/ value of the duration model at /e/.
+-- | Generate 'Pitch' from 'Event'.
 --
--- > sustain (e_from_list [("dur",1),("legato",0.5)]) == 0.5
-sustain :: Event -> Double
-sustain = D.sustain . e_duration
-
--- > P.midinote (e_pitch defaultEvent) == 60
+-- > P.midinote (e_pitch e_empty) == 60
+-- > P.detunedFreq (e_pitch (e_from_list [("degree",5)])) == 440
+-- > P.detunedFreq (e_pitch (e_from_list [("midinote",69)])) == 440
 e_pitch :: Event -> P.Pitch Double
 e_pitch e =
     let f k = e_get_double k e
@@ -221,78 +303,40 @@ e_pitch e =
                   ,f "midinote"
                   ,f "note")
 
--- | The frequency of the 'pitch' of /e/.
+-- | 'Event' identifier.
+e_id :: Event -> Maybe Int
+e_id = e_get_int "id"
+
+-- | Lookup /db/ field of 'Event'.
 --
--- > freq (e_from_list [("degree",5)]) == 440
--- > freq (e_from_list [("midinote",69)]) == 440
-freq :: Event -> Double
-freq = P.detunedFreq . e_pitch
-
-e_id :: Event -> Maybe Double
-e_id = e_get_double "id"
-
--- | Insert (/k/,/v/) into /e/.
---
--- > e_get "k" (e_insert "k" 1 defaultEvent) == Just 1
-e_insert :: Key -> Field -> Event -> Event
-e_insert k v = M.insert k v
-
--- | Lookup /db/ field of 'Event', the default value is @-20db@.
+-- > e_db e_empty == (-20)
 e_db :: Event -> Double
 e_db = fromMaybe (-20) . e_get_double "db"
 
--- | Function to convert from decibels to linear amplitude.
-dbAmp' :: Floating a => a -> a
-dbAmp' a = 10 ** (a * 0.05)
-
 -- | The linear amplitude of the amplitude model at /e/.
 --
--- > e_amp (e_from_list [("db",-20)]) == 0.1
+-- > e_amp (e_from_list [("db",-60)]) == 0.001
+-- > e_amp (e_from_list [("amp",0.01)]) == 0.01
+-- > e_amp e_empty == 0.1
 e_amp :: Event -> Double
-e_amp e = fromMaybe (dbAmp' (e_db e)) (e_get_double "amp" e)
+e_amp e = fromMaybe (M.dbToRms (e_db e)) (e_get_double "amp" e)
 
--- | The /fwd/ value of the duration model at /e/.
---
--- > e_fwd (e_from_list [("dur",1),("stretch",2)]) == 2
+-- | 'D.fwd' of 'e_duration'.
 e_fwd :: Event -> Double
 e_fwd = D.fwd . e_duration
 
--- | The /latency/ to compensate for when sending messages based on
--- the event.  Defaults to @0.1@.
-latency :: Event -> Double
-latency = fromMaybe 0.1 . e_get_double "latency"
-
--- | List of 'Key's used in pitch, duration and amplitude models.
+-- | Message /latency/ of event.
 --
--- > ("degree" `elem` model_keys) == True
-model_keys :: [Key]
-model_keys =
-    ["amp","db"
-    ,"delta","dur","legato","fwd'","stretch","sustain","tempo"
-    ,"ctranspose","degree","freq","midinote","mtranspose","note","octave"
-    ,"rest"]
-
--- | List of reserved 'Key's used in pitch, duration and amplitude
--- models.  These are keys that may be provided explicitly, but if not
--- will be calculated implicitly.
---
--- > ("freq" `elem` reserved) == True
-reserved :: [Key]
-reserved = ["freq","midinote","note"
-           ,"delta","sustain"
-           ,"amp"
-           ,"instr","id","type"]
-
--- | Is 'Key' 'reserved'.
-is_parameter :: (Key,a) -> Bool
-is_parameter (k,_) = k `notElem` reserved
+-- > e_latency e_empty == 0.1
+e_latency :: Event -> Double
+e_latency = fromMaybe 0.1 . e_get_double "latency"
 
 -- | Extract non-'reserved' 'Keys' from 'Event'.
-parameters :: Event -> [(Key,Double)]
-parameters =
-    map (\(k,v) -> (k,f_double'' k v)) .
-    filter is_parameter .
-    M.toList
+e_parameters :: Event -> [(Key,Double)]
+e_parameters =
+    map (\(k,v) -> (k,f_double_err k v)) .
+    filter k_is_parameter .
+    Map.toList
 
 -- | 'Value' editor for 'Key' at 'Event', with default value in case
 -- 'Key' is not present.
@@ -309,45 +353,25 @@ e_edit' k f e =
       Just n -> e_insert k (f n) e
       Nothing -> e
 
-e_instr :: Event -> Maybe I.Instrument
+-- | Access 'I.Instr' at 'Event'.
+e_instr :: Event -> Maybe I.Instr
 e_instr = fmap f_instr . e_get "instr"
 
--- | Extract 'I.Instrument' name from 'Event', or @default@.
-e_instr_name :: Event -> String
-e_instr_name e =
-    case e_instr e of
-      Nothing -> "default"
-      Just (I.InstrumentDef s _) -> synthdefName s
-      Just (I.InstrumentName s _) -> s
-
--- | Extract 'I.Instrument' definition from 'Event' if present.
-e_instr_def :: Event -> Maybe Synthdef
-e_instr_def e =
-    case e_instr e of
-      Nothing -> Nothing
-      Just (I.InstrumentDef s _) -> Just s
-      Just (I.InstrumentName _ _) -> Nothing
-
--- | 'I.send_release' of 'I.Instrument' at 'Event'.
-e_instr_send_release :: Event -> Bool
-e_instr_send_release e =
-    case e_instr e of
-      Nothing -> True
-      Just i -> I.send_release i
-
--- | Merge two sorted sequence of (/location/,/value/) pairs.
+-- | Extract 'I.Instr' name from 'Event'.
 --
--- > let m = f_merge (zip [0,2..6] ['a'..]) (zip [0,3,6] ['A'..])
--- > in m == [(0,'a'),(0,'A'),(2,'b'),(3,'B'),(4,'c'),(6,'d'),(6,'C')]
-f_merge :: Ord a => [(a,t)] -> [(a,t)] -> [(a,t)]
-f_merge p q =
-    case (p,q) of
-      ([],_) -> q
-      (_,[]) -> p
-      ((t0,e0):r0,(t1,e1):r1) ->
-            if t0 <= t1
-            then (t0,e0) : f_merge r0 q
-            else (t1,e1) : f_merge p r1
+-- > e_instr_name e_empty == "default"
+e_instr_name :: Event -> String
+e_instr_name = maybe "default" I.i_name . e_instr
+
+-- | Extract 'I.Instr' definition from 'Event' if present.
+e_instr_def :: Event -> Maybe Synthdef
+e_instr_def = (I.i_synthdef =<<) . e_instr
+
+-- | 'send_release' of 'I.Instr' at 'Event'.
+--
+-- > e_instr_send_release e_empty == True
+e_instr_send_release :: Event -> Bool
+e_instr_send_release = maybe True I.i_send_release . e_instr
 
 -- | Merge two time-stamped 'Event' sequences.  Note that this uses
 -- 'fwd' to calculate start times.
@@ -355,7 +379,7 @@ e_merge' :: (Time,[Event]) -> (Time,[Event]) -> [(Time,Event)]
 e_merge' (pt,p) (qt,q) =
     let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
         q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
-    in f_merge (zip p_st p) (zip q_st q)
+    in t_merge (zip p_st p) (zip q_st q)
 
 -- | Insert /fwd/ 'Key's into a time-stamped 'Event' sequence.
 e_add_fwd :: [(Time,Event)] -> [Event]
@@ -379,7 +403,7 @@ is_rest e =
 -- * SC3
 
 -- | Generate @SC3@ 'Bundle' messages describing 'Event'.  Consults the
--- 'instrument_send_release' in relation to gate command.
+-- 'instr_send_release' in relation to gate command.
 to_sc3_bundle :: Time -> Int -> Event-> Maybe (Bundle,Bundle)
 to_sc3_bundle t j e =
     let s = e_instr_name e
@@ -394,23 +418,19 @@ to_sc3_bundle t j e =
              : ("delta",D.delta d)
              : ("sustain",rt)
              : ("amp",e_amp e)
-             : parameters e
-        i = fromMaybe j (fmap floor (e_id e))
-        t' = t + realToFrac (latency e)
+             : e_parameters e
+        i = fromMaybe j (e_id e)
+        t' = t + realToFrac (e_latency e)
     in if is_rest e || isNaN f
        then Nothing
-       else let m_on = case e_type e of
-                         "s_new" -> [s_new s i AddToTail 1 pr]
-                         "n_set" -> [n_set i pr]
-                         "rest" -> []
-                         _ -> error "Event.type"
+       else let m_on = e_type_match' e ([s_new s i AddToTail 1 pr]
+                                       ,[n_set i pr]
+                                       ,[])
                 m_off = if not sr
                         then []
-                        else case e_type e of
-                               "s_new" -> [n_set i [("gate",0)]]
-                               "n_set" -> [n_set i [("gate",0)]]
-                               "rest" -> []
-                               _ -> error "Event.type"
+                        else e_type_match' e ([n_set i [("gate",0)]]
+                                             ,[n_set i [("gate",0)]]
+                                             ,[])
             in Just (Bundle t' m_on
                     ,Bundle (t' + realToFrac rt) m_off)
 
@@ -432,7 +452,7 @@ e_tplay :: Transport m => Time -> [Int] -> [Event] -> m ()
 e_tplay t j e =
     case (j,e) of
       (_,[]) -> return ()
-      ([],_) -> error "e_tplay: no-id"
+      ([],_) -> error ("e_tplay: no-id: " ++ show e)
       (i:j',d:e') -> do let t' = t + e_fwd d
                         e_send t i d
                         pauseThreadUntil t'
@@ -445,3 +465,25 @@ e_play :: Transport m => [Int] -> [Event] -> m ()
 e_play lj le = do
   st <- time
   e_tplay st lj le
+
+-- * Temporal
+
+-- | Left-biased merge of two sorted sequence of temporal values.
+--
+-- > let m = t_merge (zip [0,2,4,6] ['a'..]) (zip [0,3,6] ['A'..])
+-- > in m == [(0,'a'),(0,'A'),(2,'b'),(3,'B'),(4,'c'),(6,'d'),(6,'C')]
+t_merge :: Ord a => [(a,t)] -> [(a,t)] -> [(a,t)]
+t_merge p q =
+    case (p,q) of
+      ([],_) -> q
+      (_,[]) -> p
+      ((t0,e0):r0,(t1,e1):r1) ->
+            if t0 <= t1
+            then (t0,e0) : t_merge r0 q
+            else (t1,e1) : t_merge p r1
+
+-- * Tuple
+
+-- | Three tuple of /n/.
+type T3 n = (n,n,n)
+

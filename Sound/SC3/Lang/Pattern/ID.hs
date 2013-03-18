@@ -982,25 +982,28 @@ pbind xs =
 pedit :: E.Key -> (E.Field -> E.Field) -> P_Event -> P_Event
 pedit k f = fmap (E.e_edit' k f)
 
--- | Pattern to assign 'I.Instrument's to 'E.Event's.  An
--- 'I.Instrument' is either a 'Synthdef' or a 'String'.  In the
--- 'Synthdef' case the instrument is asynchronously sent to the server
--- before processing the event, which has timing implications.  In
--- general the instrument pattern ought to have a 'Synthdef' for the
--- first occurence of the instrument, and a 'String' for subsequent
--- occurences.
-pinstr :: P I.Instrument -> P_Event -> P_Event
-pinstr = pzipWith (\i e -> E.e_insert "instr" (E.F_Instr i) e)
+-- | Pattern from 'I.Instr'.  An 'I.Instr' is either a 'Synthdef' or a
+-- /name/.  In the 'Synthdef' case the instrument is asynchronously
+-- sent to the server before processing the event, which has timing
+-- implications.  The pattern constructed here uses the 'Synthdef' for
+-- the first element, and the subsequently the /name/.
+pinstr' :: I.Instr -> P E.Field
+pinstr' i = fromList (map E.F_Instr (I.i_repeat i))
 
--- | Variant of 'pinstr' which lifts the 'String' pattern to an
--- 'I.Instrument' pattern.
-pinstr_s :: P (String,Bool) -> P_Event -> P_Event
-pinstr_s p = pinstr (fmap (uncurry I.InstrumentName) p)
+pinstr :: String -> P E.Field
+pinstr s = pinstr' (I.Instr_Ref s True)
 
--- | Variant of 'pinstr' which lifts the 'Synthdef' pattern to an
--- 'I.Instrument' pattern.
-pinstr_d :: P (Synthdef,Bool) -> P_Event -> P_Event
-pinstr_d p = pinstr (fmap (uncurry I.InstrumentDef) p)
+psynth :: Synthdef -> P E.Field
+psynth s = pinstr' (I.Instr_Def s True)
+
+p_with_instr' :: I.Instr -> P_Event -> P_Event
+p_with_instr' i = punion (pbind [("instr",pinstr' i)])
+
+p_with_instr :: String -> P_Event -> P_Event
+p_with_instr s = p_with_instr' (I.Instr_Ref s True)
+
+p_with_synth :: Synthdef -> P_Event -> P_Event
+p_with_synth s = p_with_instr' (I.Instr_Def s True)
 
 -- | Pattern to extract 'a's at 'E.Key' from an 'E.Event'
 -- pattern.
@@ -1020,23 +1023,10 @@ pkey k = fmap (fromJust . E.e_get k)
 
 -- | SC3 pattern that is a variant of 'pbind' for controlling
 -- monophonic (persistent) synthesiser nodes.
-pmono :: I.Instrument -> Int -> P_Bind -> P_Event
-pmono i k b =
-    let i' = case i of
-               I.InstrumentDef d sr ->
-                   let nm = synthdefName d
-                   in E.F_Instr i `pcons` prepeat (E.F_Instr (I.InstrumentName nm sr))
-               I.InstrumentName _ _ -> prepeat (E.F_Instr i)
-        ty = E.F_String "s_new" `pcons` prepeat (E.F_String "n_set")
-    in pbind (("type",ty) : ("id",prepeat (E.F_Double (fromIntegral k))) : ("instr",i') : b)
-
--- | Variant of 'pmono' that lifts 'Synthdef' to 'I.Instrument'.
-pmono_d :: Synthdef -> Int -> P_Bind -> P_Event
-pmono_d = pmono . flip I.InstrumentDef False
-
--- | Variant of 'pmono' that lifts 'String' to 'I.Instrument'.
-pmono_s :: String -> Int -> P_Bind -> P_Event
-pmono_s = pmono . flip I.InstrumentName False
+pmono :: P_Bind -> P_Event
+pmono b =
+    let ty = fmap E.F_String ("s_new" `pcons` prepeat "n_set")
+    in pbind (("type",ty) : b)
 
 -- | Idiom to scale 'a' at 'E.Key' in an 'E.Event' pattern.
 pmul :: E.Key -> P E.Field -> P_Event -> P_Event
@@ -1078,17 +1068,3 @@ ppar l = ptpar (zip (repeat 0) l)
 
 instance Audible P_Event where
     play = E.e_play [1000..] . unP
-
-instance Audible (Synthdef,P_Event) where
-    play (s,p) = do
-      let i_d = I.InstrumentDef s True
-          i_nm = I.InstrumentName (synthdefName s) True
-          i = pcons i_d (pn (return i_nm) inf)
-      _ <- async (d_recv s)
-      E.e_play [1000..] (unP (pinstr i p))
-
-instance Audible (String,P_Event) where
-    play (s,p) =
-        let i = I.InstrumentName s True
-        in E.e_play [1000..] (unP (pinstr (return i) p))
-
