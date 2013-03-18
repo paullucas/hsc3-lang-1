@@ -1,6 +1,7 @@
 -- | An 'Event' is a ('Key','Field') map.
 module Sound.SC3.Lang.Control.Event where
 
+import Data.List {- base -}
 import qualified Data.Map as Map {- containers -}
 import Data.Maybe {- base -}
 import GHC.Exts {- base -}
@@ -262,31 +263,32 @@ e_type_match e (f,g,h) =
 e_type_match' :: Event -> T3 t -> t
 e_type_match' e (f,g,h) = e_type_match e (const f,const g,const h)
 
--- | Generate 'D.Duration' from 'Event'.
+-- | Generate 'D.Dur' from 'Event'.
 --
 -- > D.delta (e_duration e_empty) == 1
 -- > D.fwd (e_duration (e_from_list [("dur",1),("stretch",2)])) == 2
 --
 -- > let e = e_from_list [("dur",1),("legato",0.5)]
--- > in D.sustain (e_duration e) == 0.5
-e_duration :: Event -> D.Duration Double
-e_duration e =
+-- > in D.occ (e_duration e) == 0.5
+e_dur :: Event -> D.Dur
+e_dur e =
     let f k = e_get_double k e
-    in D.optDuration (f "tempo"
-                     ,f "dur"
-                     ,f "stretch"
-                     ,f "legato"
-                     ,f "sustain"
-                     ,f "delta"
-                     ,f "lag"
-                     ,f "fwd'")
+    in D.optDur (f "tempo"
+                ,f "dur"
+                ,f "stretch"
+                ,f "legato"
+                ,f "sustain"
+                ,f "delta"
+                ,f "lag"
+                ,f "fwd'")
 
 -- | Generate 'Pitch' from 'Event'.
 --
 -- > P.midinote (e_pitch e_empty) == 60
--- > P.detunedFreq (e_pitch (e_from_list [("degree",5)])) == 440
--- > P.detunedFreq (e_pitch (e_from_list [("midinote",69)])) == 440
-e_pitch :: Event -> P.Pitch Double
+-- > P.freq (e_pitch (e_from_list [("degree",5)])) == 440
+-- > P.midinote (e_pitch (e_from_list [("degree",5),("scale",f_array [0,2,3,5,7,8,10])])) == 68
+-- > P.freq (e_pitch (e_from_list [("midinote",69)])) == 440
+e_pitch :: Event -> P.Pitch
 e_pitch e =
     let f k = e_get_double k e
     in P.optPitch (f "mtranspose"
@@ -321,10 +323,6 @@ e_db = fromMaybe (-20) . e_get_double "db"
 e_amp :: Event -> Double
 e_amp e = fromMaybe (M.dbToRms (e_db e)) (e_get_double "amp" e)
 
--- | 'D.fwd' of 'e_duration'.
-e_fwd :: Event -> Double
-e_fwd = D.fwd . e_duration
-
 -- | Message /latency/ of event.
 --
 -- > e_latency e_empty == 0.1
@@ -353,32 +351,21 @@ e_edit' k f e =
       Just n -> e_insert k (f n) e
       Nothing -> e
 
+-- * Event instrumentals
+
 -- | Access 'I.Instr' at 'Event'.
 e_instr :: Event -> Maybe I.Instr
 e_instr = fmap f_instr . e_get "instr"
 
--- | Extract 'I.Instr' name from 'Event'.
---
--- > e_instr_name e_empty == "default"
-e_instr_name :: Event -> String
-e_instr_name = maybe "default" I.i_name . e_instr
-
--- | Extract 'I.Instr' definition from 'Event' if present.
-e_instr_def :: Event -> Maybe Synthdef
-e_instr_def = (I.i_synthdef =<<) . e_instr
-
--- | 'send_release' of 'I.Instr' at 'Event'.
---
--- > e_instr_send_release e_empty == True
-e_instr_send_release :: Event -> Bool
-e_instr_send_release = maybe True I.i_send_release . e_instr
+-- * Event temporals
 
 -- | Merge two time-stamped 'Event' sequences.  Note that this uses
--- 'fwd' to calculate start times.
+-- 'D.fwd' to calculate start times.
 e_merge' :: (Time,[Event]) -> (Time,[Event]) -> [(Time,Event)]
 e_merge' (pt,p) (qt,q) =
-    let p_st = map (+ pt) (0 : scanl1 (+) (map e_fwd p))
-        q_st = map (+ qt) (0 : scanl1 (+) (map e_fwd q))
+    let fwd = D.fwd . e_dur
+        p_st = map (+ pt) (0 : scanl1 (+) (map fwd p))
+        q_st = map (+ qt) (0 : scanl1 (+) (map fwd q))
     in t_merge (zip p_st p) (zip q_st q)
 
 -- | Insert /fwd/ 'Key's into a time-stamped 'Event' sequence.
@@ -394,8 +381,8 @@ e_merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
 e_merge p q = e_add_fwd (e_merge' p q)
 
 -- | Does 'Event' have a non-zero @rest@ key.
-is_rest :: Event -> Bool
-is_rest e =
+e_is_rest :: Event -> Bool
+e_is_rest e =
     case e_get_double "rest" e of
       Just r -> r > 0
       Nothing -> False
@@ -404,24 +391,23 @@ is_rest e =
 
 -- | Generate @SC3@ 'Bundle' messages describing 'Event'.  Consults the
 -- 'instr_send_release' in relation to gate command.
-to_sc3_bundle :: Time -> Int -> Event-> Maybe (Bundle,Bundle)
-to_sc3_bundle t j e =
-    let s = e_instr_name e
-        sr = e_instr_send_release e
+e_bundle :: Time -> Int -> Event-> Maybe (Bundle,Bundle)
+e_bundle t j e =
+    let s = maybe "default" I.i_name (e_instr e)
+        sr = maybe True I.i_send_release (e_instr e)
         p = e_pitch e
-        d = e_duration e
-        rt = D.sustain d {- rt = release time -}
-        f = P.detunedFreq p
+        d = e_dur e
+        rt = D.occ d {- rt = release time -}
+        f = P.freq p
         pr = ("freq",f)
              : ("midinote",P.midinote p)
-             : ("note",P.note p)
              : ("delta",D.delta d)
              : ("sustain",rt)
              : ("amp",e_amp e)
              : e_parameters e
         i = fromMaybe j (e_id e)
         t' = t + realToFrac (e_latency e)
-    in if is_rest e || isNaN f
+    in if e_is_rest e || isNaN f
        then Nothing
        else let m_on = e_type_match' e ([s_new s i AddToTail 1 pr]
                                        ,[n_set i pr]
@@ -431,20 +417,31 @@ to_sc3_bundle t j e =
                         else e_type_match' e ([n_set i [("gate",0)]]
                                              ,[n_set i [("gate",0)]]
                                              ,[])
-            in Just (Bundle t' m_on
+                m_on' = case I.i_synthdef =<< e_instr e of
+                          Just sy -> d_recv sy : m_on
+                          Nothing -> m_on
+            in Just (Bundle t' m_on'
                     ,Bundle (t' + realToFrac rt) m_off)
+
+e_nrt :: [Event] -> NRT
+e_nrt =
+    let rec r t i l =
+            case l of
+              [] -> reverse r
+              e:l' -> let t' = t + D.fwd (e_dur e)
+                          i' = i + 1
+                      in case e_bundle t i e of
+                            Just (p,q) -> rec ((p,q) : r) t' i' l'
+                            Nothing -> rec r t' i' l'
+        cmb (a,b) = sort (a ++ b) -- a is sorted, so could be: merge a (sort b)
+    in NRT . cmb . unzip . rec [] 0 1000
 
 -- | Send 'Event' to @scsynth@ at 'Transport'.
 e_send :: Transport m => Time -> Int -> Event -> m ()
 e_send t j e =
-    let voidM a = a >> return ()
-    in case to_sc3_bundle t j e of
-        Just (p,q) -> do case e_instr_def e of
-                           Just d -> voidM (async (d_recv d))
-                           Nothing -> return ()
-                         sendBundle p
-                         sendBundle q
-        Nothing -> return ()
+    case e_bundle t j e of
+      Just (p,q) -> sendBundle p >> sendBundle q
+      Nothing -> return ()
 
 -- | Function to audition a sequence of 'Event's using the @scsynth@
 -- instance at 'Transport' starting at indicated 'Time'.
@@ -453,7 +450,7 @@ e_tplay t j e =
     case (j,e) of
       (_,[]) -> return ()
       ([],_) -> error ("e_tplay: no-id: " ++ show e)
-      (i:j',d:e') -> do let t' = t + e_fwd d
+      (i:j',d:e') -> do let t' = t + D.fwd (e_dur d)
                         e_send t i d
                         pauseThreadUntil t'
                         e_tplay t' j' e'
@@ -472,7 +469,7 @@ e_play lj le = do
 --
 -- > let m = t_merge (zip [0,2,4,6] ['a'..]) (zip [0,3,6] ['A'..])
 -- > in m == [(0,'a'),(0,'A'),(2,'b'),(3,'B'),(4,'c'),(6,'d'),(6,'C')]
-t_merge :: Ord a => [(a,t)] -> [(a,t)] -> [(a,t)]
+t_merge :: Ord t => [(t,a)] -> [(t,a)] -> [(t,a)]
 t_merge p q =
     case (p,q) of
       ([],_) -> q

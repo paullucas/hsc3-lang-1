@@ -1068,3 +1068,6 @@ ppar l = ptpar (zip (repeat 0) l)
 
 instance Audible P_Event where
     play = E.e_play [1000..] . unP
+
+pNRT :: P_Event -> NRT
+pNRT = E.e_nrt . unP
