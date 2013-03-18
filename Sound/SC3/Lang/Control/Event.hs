@@ -423,18 +423,23 @@ e_bundle t j e =
             in Just (Bundle t' m_on'
                     ,Bundle (t' + realToFrac rt) m_off)
 
+-- | Transform (productively) a sorted 'Event' list into an 'NRT' score.
+--
+-- > e_nrt (replicate 5 e_empty)
+-- > take 5 (nrt_bundles (e_nrt (repeat e_empty)))
 e_nrt :: [Event] -> NRT
 e_nrt =
-    let rec r t i l =
+    let cmb (o,c) r = span (<= o) (insert o (insert c r))
+        rec r t i l =
             case l of
-              [] -> reverse r
+              [] -> r
               e:l' -> let t' = t + D.fwd (e_dur e)
                           i' = i + 1
                       in case e_bundle t i e of
-                            Just (p,q) -> rec ((p,q) : r) t' i' l'
+                            Just p -> let (c,r') = cmb p r
+                                      in c ++ rec r' t' i' l'
                             Nothing -> rec r t' i' l'
-        cmb (a,b) = sort (a ++ b) -- a is sorted, so could be: merge a (sort b)
-    in NRT . cmb . unzip . rec [] 0 1000
+    in NRT . rec [] 0 1000
 
 -- | Send 'Event' to @scsynth@ at 'Transport'.
 e_send :: Transport m => Time -> Int -> Event -> m ()
