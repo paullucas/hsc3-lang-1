@@ -56,6 +56,26 @@ linexp l r l' r' n =
          then r'
          else ((r'/l') ** ((n-l)/(r-l))) * l'
 
+-- | @SimpleNumber.midicps@ is midi note number to cycles per second.
+--
+-- > map midicps [57,69] == [220,440]
+midicps :: (Floating a) => a -> a
+midicps a = 440.0 * (2.0 ** ((a - 69.0) * (1.0 / 12.0)))
+
+-- | @SimpleNumber.degreeToKey@ translate degree, scale and steps per
+-- octave to key.
+--
+-- > > (0..5).collect{|i| i.degreeToKey([0,1,5,9,11],12)} == [0,1,5,9,11,12]
+-- > map (degreeToKey [0,1,5,9,11] 12) [0..5] == [0,1,5,9,11,12]
+--
+-- > degreeToKey [0,2,4,5,7,9,11] 12 5 == 9
+degreeToKey :: (RealFrac a) => [a] -> a -> a -> a
+degreeToKey s n d =
+    let l = length s
+        d' = round d
+        a = (d - fromIntegral d') * 10.0 * (n / 12.0)
+    in (n * fromIntegral (d' `div` l)) + (s !! (d' `mod` l)) + a
+
 -- * Gain
 
 -- | Synonym for 'logBase' @10@.

@@ -3,18 +3,32 @@ module Sound.SC3.Lang.Control.Duration where
 
 import Data.Maybe {- base -}
 
+-- * Durational
+
+-- | Values that have duration.
+--
+-- @occ@ is the interval from the start through to the end of the
+-- current event, ie. the time span the event /occupies/.
+--
+-- @delta@ is the interval from the start of the current event to the
+-- start of the next /sequential/ event.
+--
+-- @fwd@ is the interval from the start of the current event to the
+-- start of the next /parallel/ event.
 class Durational d where
-    occ :: d -> Double -- ^ Interval from the start to the end of the current event.
-    delta :: d -> Double -- ^ Interval from the start of the current event to the start of the next.
+    occ :: d -> Double
+    delta :: d -> Double
     delta = occ
-    fwd :: d -> Double -- ^ Interval that this event moves the current time point forwards.
+    fwd :: d -> Double
     fwd = occ
+
+-- * Dur
 
 -- | Variant of the @SC3@ 'Duration' model.
 --
 -- > delta (defaultDur {dur = 2,stretch = 2}) == 4
 -- > occ defaultDur == 0.8
--- > fwd (defaultDur {fwd' = Just 0}) == 0
+-- > let d = defaultDur {fwd' = Just 0} in (delta d,fwd d) == (1,0)
 data Dur =
     Dur {tempo :: Double -- ^ Tempo (in pulses per minute)
         ,dur :: Double -- ^ Duration (in pulses)
@@ -46,12 +60,15 @@ defaultDur =
         ,lag = 0.1
         ,fwd' = Nothing}
 
--- * Optional
+-- * OptDur
 
+-- | Eight tuple.
 type T8 n = (n,n,n,n,n,n,n,n)
 
+-- | 'Dur' represented as an eight-tuple of optional values.
 type OptDur = T8 (Maybe Double)
 
+-- | Translate 'OptDur' to 'Dur'.
 optDur :: OptDur -> Dur
 optDur (t,d,s,l,s',d',l',f) =
     Dur {tempo = fromMaybe 60 t

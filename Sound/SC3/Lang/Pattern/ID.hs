@@ -18,7 +18,6 @@ import System.Random {- random -}
 import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Control.Event as E
 import qualified Sound.SC3.Lang.Control.Instrument as I
-import qualified Sound.SC3.Lang.Control.Pitch as P
 import qualified Sound.SC3.Lang.Math as M
 import Sound.SC3.Lang.Pattern.List
 import qualified Sound.SC3.Lang.Random.Gen as R
@@ -386,7 +385,7 @@ pconst n p t =
 -- > let s = [0,2,4,5,7,9,11]
 -- > in map (P.degree_to_key s 12) [0,2,4,7,4,2,0] == [0,4,7,12,7,4,0]
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
-pdegreeToKey = pzipWith3 (\i j k -> P.degree_to_key j k i)
+pdegreeToKey = pzipWith3 (\i j k -> M.degreeToKey j k i)
 
 -- | SC3 pattern to calculate adjacent element difference.
 --
@@ -952,6 +951,9 @@ ptrigger p q =
 -- | Synonymn for an event pattern.
 type P_Event = P E.Event
 
+instance Audible P_Event where
+    play = E.e_play . E.Event_Seq . unP
+
 -- | Synonym for 'pbind' input type.
 type P_Bind = [(E.Key,P E.Field)]
 
@@ -962,6 +964,7 @@ type P_Bind = [(E.Key,P E.Field)]
 padd :: E.Key -> P E.Field -> P_Event -> P_Event
 padd k = pzipWith (\i j -> E.e_edit k 0 (+ i) j)
 
+-- | Left-biased union of event patterns.
 punion :: P_Event -> P_Event -> P_Event
 punion = pzipWith E.e_union
 
@@ -1049,7 +1052,7 @@ ptmerge (pt,p) (qt,q) =
     fromList (E.e_merge (pt,F.toList p) (qt,F.toList q))
 
 -- | Variant of 'ptmerge' with zero start times.
-pmerge :: (Fractional a,Real a) => P_Event -> P_Event -> P_Event
+pmerge :: P_Event -> P_Event -> P_Event
 pmerge p q = ptmerge (0,p) (0,q)
 
 -- | Merge a set of 'E.Event' patterns each with indicated start 'Time'.
@@ -1064,10 +1067,7 @@ ptpar l =
 ppar :: [P_Event] -> P_Event
 ppar l = ptpar (zip (repeat 0) l)
 
--- * Pattern auditioning
-
-instance Audible P_Event where
-    play = E.e_play [1000..] . unP
+-- * NRT
 
 pNRT :: P_Event -> NRT
-pNRT = E.e_nrt . unP
+pNRT = E.e_nrt . E.Event_Seq . unP

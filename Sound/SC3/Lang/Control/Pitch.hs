@@ -2,6 +2,18 @@
 module Sound.SC3.Lang.Control.Pitch where
 
 import Data.Maybe {- base -}
+import Sound.SC3.Lang.Math
+
+-- * Pitched
+
+-- | 'Pitched' values, minimal definition is 'midinote'.
+--
+-- > midinote (defaultPitch {degree = 5}) == 69
+-- > freq (defaultPitch {degree = 5,detune = 10}) == 440 + 10
+class Pitched p where
+    midinote :: p -> Double
+    freq :: p -> Double
+    freq = midicps . midinote
 
 -- * Pitch
 
@@ -86,44 +98,33 @@ defaultPitch =
           ,note' = Nothing
           }
 
-freq_f :: Pitch -> Double
-freq_f e = midi_cps (midinote e + ctranspose e) * harmonic e
-
-midinote_f :: Pitch -> Double
-midinote_f e =
-    let n = note e + gtranspose e + root e
-    in (n / stepsPerOctave e + octave e) * 12
-
-note_f :: Pitch -> Double
-note_f e =
-    let d = degree e + mtranspose e
-    in degree_to_key (scale e) (stepsPerOctave e) d
-
+-- | Calculate /note/ field.
+--
 -- > note (defaultPitch {degree = 5}) == 9
 note :: Pitch -> Double
-note p = fromMaybe (note_f p) (note' p)
-
--- * Pitched
-
--- | 'Pitched' values must define 'midinote'.
---
--- > midinote (defaultPitch {degree = 5}) == 69
--- > freq (defaultPitch {degree = 5,detune = 10}) == 440 + 10
-class Pitched p where
-    midinote :: p -> Double
-    freq :: p -> Double
-    freq = midi_cps . midinote
+note p =
+    let f e = let d = degree e + mtranspose e
+              in degreeToKey (scale e) (stepsPerOctave e) d
+    in fromMaybe (f p) (note' p)
 
 instance Pitched Pitch where
-    midinote p = fromMaybe (midinote_f p) (midinote' p)
-    freq p = fromMaybe (freq_f p) (freq' p) + detune p
+    midinote p =
+        let f e = let n = note e + gtranspose e + root e
+                  in (n / stepsPerOctave e + octave e) * 12
+        in fromMaybe (f p) (midinote' p)
+    freq p =
+        let f e = midicps (midinote e + ctranspose e) * harmonic e
+        in fromMaybe (f p) (freq' p) + detune p
 
 -- * Optional
 
+-- | Tuple in 6-1-6 arrangement.
 type T616 a b c = (a,a,a,a,a,a,b,c,c,c,c,c,c)
 
+-- | 'Pitch' represented as tuple of optional values.
 type OptPitch = T616 (Maybe Double) (Maybe [Double]) (Maybe Double)
 
+-- | Transform 'OptPitch' to 'Pitch'.
 optPitch :: OptPitch -> Pitch
 optPitch (mt,gt,ct,o,r,d,s,s',d',h,f,m,n) =
     Pitch {mtranspose = fromMaybe 0 mt
@@ -139,22 +140,3 @@ optPitch (mt,gt,ct,o,r,d,s,s',d',h,f,m,n) =
           ,freq' = f
           ,midinote' = m
           ,note' = n}
-
--- * Math
-
--- | Midi note number to cycles per second.
---
--- > midi_cps 69 == 440
-midi_cps :: (Floating a) => a -> a
-midi_cps a = 440.0 * (2.0 ** ((a - 69.0) * (1.0 / 12.0)))
-
--- | Translate degree, scale and steps per octave to key.
---
--- > degree_to_key [0,2,4,5,7,9,11] 12 5 == 9
-degree_to_key :: (RealFrac a) => [a] -> a -> a -> a
-degree_to_key s n d =
-    let l = length s
-        d' = round d
-        a = (d - fromIntegral d') * 10.0 * (n / 12.0)
-    in (n * fromIntegral (d' `div` l)) + (s !! (d' `mod` l)) + a
-

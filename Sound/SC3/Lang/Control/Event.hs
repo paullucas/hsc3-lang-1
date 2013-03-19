@@ -16,6 +16,7 @@ import qualified Sound.SC3.Lang.Math as M
 
 -- * Field
 
+-- | Event field.
 data Field = F_Double {f_double :: Double}
            | F_Vector {f_vector :: [Field]}
            | F_String {f_string :: String}
@@ -30,6 +31,10 @@ f_double_m f = case f of {F_Double n -> Just n;_ -> Nothing;}
 f_double_err :: String -> Field -> Double
 f_double_err err = fromMaybe (error ("f_double: " ++ err)) . f_double_m
 
+-- | Run '>' @0@ at 'f_double'.
+f_bool_err :: String -> Field -> Bool
+f_bool_err err = (> 0) . fromMaybe (error ("f_bool: " ++ err)) . f_double_m
+
 -- | Run 'round' at 'f_double'.
 f_int_err :: String -> Field -> Int
 f_int_err err = round . fromMaybe (error ("f_int: " ++ err)) . f_double_m
@@ -39,6 +44,14 @@ f_int_err err = round . fromMaybe (error ("f_int: " ++ err)) . f_double_m
 -- > f_array [1,2] == F_Vector [F_Double 1,F_Double 2]
 f_array :: [Double] -> Field
 f_array = F_Vector . map F_Double
+
+-- | Maybe variant of 'f_instr'.
+f_instr_m :: Field -> Maybe I.Instr
+f_instr_m f = case f of {F_Instr n -> Just n;_ -> Nothing;}
+
+-- | Variant of 'f_instr' with specified error message.
+f_instr_err :: String -> Field -> I.Instr
+f_instr_err err = fromMaybe (error ("f_instr: " ++ err)) . f_instr_m
 
 -- | Numerical unary operator.
 --
@@ -62,15 +75,18 @@ f_binop f p q =
       (F_Vector v,F_Vector w) -> F_Vector (zipWith (f_binop f) v w)
       _ -> error ("f_binop: " ++ show (p,q))
 
+-- | At floating branch of 'Field'.
 f_atf :: (Double -> a) -> Field -> a
 f_atf f = f . f_double
 
+-- | At floating branches of 'Field's.
 f_atf2 :: (Double -> Double -> a) -> Field -> Field -> a
 f_atf2 f p q =
     case (p,q) of
       (F_Double n1,F_Double n2) -> f n1 n2
       _ -> error ("f_atf2: " ++ show (p,q))
 
+-- | At floating branches of 'Field's.
 f_atf3 :: (Double -> Double -> Double -> a) -> Field -> Field -> Field -> a
 f_atf3 f p q r =
     case (p,q,r) of
@@ -233,21 +249,30 @@ e_union = Map.union
 e_get :: Key -> Event -> Maybe Field
 e_get k = Map.lookup k
 
+-- | Type specialised 'e_get'.
 e_get_double :: Key -> Event -> Maybe Double
 e_get_double k = fmap (f_double_err k) . e_get k
 
+-- | Type specialised 'e_get'.
+e_get_bool :: Key -> Event -> Maybe Bool
+e_get_bool k = fmap (f_bool_err k) . e_get k
+
+-- | Type specialised 'e_get'.
 e_get_int :: Key -> Event -> Maybe Int
 e_get_int k = fmap (f_int_err k) . e_get k
 
+-- | Type specialised 'e_get'.
+e_get_instr :: Key -> Event -> Maybe I.Instr
+e_get_instr k = fmap (f_instr_err k) . e_get k
+
+-- | Type specialised 'e_get'.
 e_get_array :: Key -> Event -> Maybe [Double]
 e_get_array k = fmap (map (f_double_err k) . f_vector) . e_get k
-
-type Type = String
 
 -- | 'Event' /type/.
 --
 -- > e_type e_empty == "s_new"
-e_type :: Event -> Type
+e_type :: Event -> String
 e_type = fromMaybe "s_new" . fmap f_string . e_get "type"
 
 -- | Match on event types, in sequence: s_new, n_set, rest.
@@ -351,13 +376,7 @@ e_edit' k f e =
       Just n -> e_insert k (f n) e
       Nothing -> e
 
--- * Event instrumentals
-
--- | Access 'I.Instr' at 'Event'.
-e_instr :: Event -> Maybe I.Instr
-e_instr = fmap f_instr . e_get "instr"
-
--- * Event temporals
+-- * Event temporal
 
 -- | Merge two time-stamped 'Event' sequences.  Note that this uses
 -- 'D.fwd' to calculate start times.
@@ -380,21 +399,18 @@ e_add_fwd e =
 e_merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
 e_merge p q = e_add_fwd (e_merge' p q)
 
--- | Does 'Event' have a non-zero @rest@ key.
+-- | Does 'Event' have a 'True' @rest@ key.
 e_is_rest :: Event -> Bool
-e_is_rest e =
-    case e_get_double "rest" e of
-      Just r -> r > 0
-      Nothing -> False
+e_is_rest = fromMaybe False . e_get_bool "rest"
 
 -- * SC3
 
--- | Generate @SC3@ 'Bundle' messages describing 'Event'.  Consults the
--- 'instr_send_release' in relation to gate command.
+-- | Generate @SC3@ /(on,off)/ 'Bundle's describing 'Event'.
 e_bundle :: Time -> Int -> Event-> Maybe (Bundle,Bundle)
 e_bundle t j e =
-    let s = maybe "default" I.i_name (e_instr e)
-        sr = maybe True I.i_send_release (e_instr e)
+    let e_i = e_get_instr "instr" e
+        s = maybe "default" I.i_name e_i
+        sr = maybe True I.i_send_release e_i
         p = e_pitch e
         d = e_dur e
         rt = D.occ d {- rt = release time -}
@@ -417,56 +433,51 @@ e_bundle t j e =
                         else e_type_match' e ([n_set i [("gate",0)]]
                                              ,[n_set i [("gate",0)]]
                                              ,[])
-                m_on' = case I.i_synthdef =<< e_instr e of
+                m_on' = case I.i_synthdef =<< e_i of
                           Just sy -> d_recv sy : m_on
                           Nothing -> m_on
             in Just (Bundle t' m_on'
                     ,Bundle (t' + realToFrac rt) m_off)
 
--- | Transform (productively) a sorted 'Event' list into an 'NRT' score.
+-- | Ordered sequence of 'Event'.
+newtype Event_Seq = Event_Seq {e_seq_events :: [Event]}
+
+-- | Transform 'Event_Seq' into a sequence of @SC3@ /(on,off)/ 'Bundles'.
+--
+-- > e_bundle_seq (replicate 5 e_empty)
+e_bundle_seq :: Time -> Event_Seq -> [(Bundle,Bundle)]
+e_bundle_seq st =
+    let rec t i l =
+            case l of
+              [] -> []
+              e:l' -> let t' = t + D.fwd (e_dur e)
+                          i' = i + 1
+                      in e_bundle t i e `mcons` rec t' i' l'
+    in rec st 1000 . e_seq_events
+
+-- | Transform (productively) an 'Event_Seq' into an 'NRT' score.
 --
 -- > e_nrt (replicate 5 e_empty)
 -- > take 5 (nrt_bundles (e_nrt (repeat e_empty)))
-e_nrt :: [Event] -> NRT
+e_nrt :: Event_Seq -> NRT
 e_nrt =
-    let cmb (o,c) r = span (<= o) (insert o (insert c r))
-        rec r t i l =
+    let rec r l =
             case l of
               [] -> r
-              e:l' -> let t' = t + D.fwd (e_dur e)
-                          i' = i + 1
-                      in case e_bundle t i e of
-                            Just p -> let (c,r') = cmb p r
-                                      in c ++ rec r' t' i' l'
-                            Nothing -> rec r t' i' l'
-    in NRT . rec [] 0 1000
+              (o,c):l' -> let (c',r') = span (<= o) (insert o (insert c r))
+                          in c' ++ rec r' l'
+    in NRT . rec [] . e_bundle_seq 0
 
--- | Send 'Event' to @scsynth@ at 'Transport'.
-e_send :: Transport m => Time -> Int -> Event -> m ()
-e_send t j e =
-    case e_bundle t j e of
-      Just (p,q) -> sendBundle p >> sendBundle q
-      Nothing -> return ()
-
--- | Function to audition a sequence of 'Event's using the @scsynth@
--- instance at 'Transport' starting at indicated 'Time'.
-e_tplay :: Transport m => Time -> [Int] -> [Event] -> m ()
-e_tplay t j e =
-    case (j,e) of
-      (_,[]) -> return ()
-      ([],_) -> error ("e_tplay: no-id: " ++ show e)
-      (i:j',d:e') -> do let t' = t + D.fwd (e_dur d)
-                        e_send t i d
-                        pauseThreadUntil t'
-                        e_tplay t' j' e'
-
--- | Variant of 'e_tplay' with current clock time from 'time' as start
--- time.  This function is used to implement the pattern instances of
--- 'Audible'.
-e_play :: Transport m => [Int] -> [Event] -> m ()
-e_play lj le = do
+-- | Audition 'Event_Seq'.
+e_play :: Transport m => Event_Seq -> m ()
+e_play l = do
   st <- time
-  e_tplay st lj le
+  let f (p,q) = pauseThreadUntil (bundleTime p - 0.1) >>
+                sendBundle p >>
+                sendBundle q
+  mapM_ f (e_bundle_seq st l)
+
+instance Audible Event_Seq where play = e_play
 
 -- * Temporal
 
@@ -489,3 +500,8 @@ t_merge p q =
 -- | Three tuple of /n/.
 type T3 n = (n,n,n)
 
+-- * List
+
+-- | 'Maybe' variant of ':'.
+mcons :: Maybe a -> [a] -> [a]
+mcons e l = case e of {Just e' -> e' : l;Nothing -> l}
