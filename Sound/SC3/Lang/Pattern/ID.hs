@@ -810,8 +810,10 @@ pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite e l r = toP . P.white e l r
 
 -- | A variant of 'pwhite' that generates integral (rounded) values.
-pwhitei :: (RealFrac n,Random n,Enum e) => e -> n -> n -> Int -> P n
-pwhitei e l r = fmap roundf . pwhite e l r
+--
+-- >  pwhitei 'α' 1 9 3 == toP [6,1,7]
+pwhitei :: (RealFracE n,Random n,Enum e) => e -> n -> n -> Int -> P n
+pwhitei e l r = fmap roundE . pwhite e l r
 
 -- | SC3 pattern to embed values randomly chosen from a list.  Returns
 -- one item from the list at random for each repeat, the probability

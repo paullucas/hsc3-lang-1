@@ -9,6 +9,7 @@ import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
 import System.Random {- base -}
 
+import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Control.Duration as D
 import qualified Sound.SC3.Lang.Control.Instrument as I
 import qualified Sound.SC3.Lang.Control.Pitch as P
@@ -17,6 +18,15 @@ import qualified Sound.SC3.Lang.Math as M
 -- * Field
 
 -- | Event field.
+--
+-- 'Field's are 'Num'.
+--
+-- > 5 :: Field
+-- > 4 + 5 :: Field
+-- > negate 5 :: Field
+-- > f_array [2,3] + f_array [4,5] == f_array [6,8]
+-- > f_array [1,2,3] + f_array [4,5] == f_array [5,7,7]
+-- > 4 + f_array [5,6] == f_array [9,10]
 data Field = F_Double {f_double :: Double}
            | F_Vector {f_vector :: [Field]}
            | F_String {f_string :: String}
@@ -53,9 +63,19 @@ f_instr_m f = case f of {F_Instr n -> Just n;_ -> Nothing;}
 f_instr_err :: String -> Field -> I.Instr
 f_instr_err err = fromMaybe (error ("f_instr: " ++ err)) . f_instr_m
 
+-- | Map /fn/ over vector elements at /f/.
+--
+-- > f_map negate (f_array [0,1]) == f_array [0,-1]
+f_map :: (Field -> Field) -> Field -> Field
+f_map fn f =
+    case f of
+      F_Vector l -> F_Vector (map fn l)
+      _ -> error ("f_map: " ++ show f)
+
 -- | Numerical unary operator.
 --
 -- > f_uop negate (F_Double 1) == F_Double (-1)
+-- > f_uop negate (F_Vector [F_Double 0,F_Double 1]) == f_
 f_uop :: (Double -> Double) -> Field -> Field
 f_uop f p =
     case p of
@@ -72,7 +92,9 @@ f_binop :: (Double -> Double -> Double) -> Field -> Field -> Field
 f_binop f p q =
     case (p,q) of
       (F_Double m,F_Double n) -> F_Double (f m n)
-      (F_Vector v,F_Vector w) -> F_Vector (zipWith (f_binop f) v w)
+      (F_Vector v,F_Vector w) -> F_Vector (C.zipWith_c (f_binop f) v w)
+      (F_Double _,F_Vector w) -> F_Vector (C.zipWith_c (f_binop f) [p] w)
+      (F_Vector v,F_Double _) -> F_Vector (C.zipWith_c (f_binop f) v [q])
       _ -> error ("f_binop: " ++ show (p,q))
 
 -- | At floating branch of 'Field'.
@@ -184,8 +206,9 @@ instance Random Field where
   random g = let (n,g') = randomR (0::Double,1::Double) g
              in (F_Double n,g')
 
-instance EqE Field where
-instance OrdE Field where
+instance EqE Field
+instance OrdE Field
+instance RealFracE Field
 instance UnaryOp Field
 instance BinaryOp Field
 
