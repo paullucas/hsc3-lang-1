@@ -58,7 +58,7 @@ nchoose k = kvariant k . choose
 exprand :: (Floating n,Random n,RandomGen g) => n -> n -> g -> (n,g)
 exprand l r g =
     let (n,g') = rrand 0.0 1.0 g
-    in (M.exprandrng l r n,g')
+    in (M.exprange l r n,g')
 
 -- | Variant of 'exprand' generating /k/ values.
 nexprand :: (Floating n,Random n,RandomGen g) =>

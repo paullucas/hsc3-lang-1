@@ -82,8 +82,8 @@ warpFader d n = if d == W_Map then n * n else sqrt n
 warpDbFader :: (Eq a,Floating a) => Warp a
 warpDbFader d n =
     if d == W_Map
-    then if n == 0 then -180 else rmsToDb (n * n)
-    else sqrt (dbToRms n)
+    then if n == 0 then -180 else ampdb (n * n)
+    else sqrt (dbamp n)
 
 -- | A curve warp given by a real /n/.
 --

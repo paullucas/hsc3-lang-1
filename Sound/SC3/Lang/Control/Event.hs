@@ -346,7 +346,7 @@ e_db = fromMaybe (-20) . e_get_double "db"
 -- > e_amp (e_from_list [("amp",0.01)]) == 0.01
 -- > e_amp e_empty == 0.1
 e_amp :: Event -> Double
-e_amp e = fromMaybe (M.dbToRms (e_db e)) (e_get_double "amp" e)
+e_amp e = fromMaybe (M.dbamp (e_db e)) (e_get_double "amp" e)
 
 -- | Message /latency/ of event.
 --

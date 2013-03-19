@@ -414,7 +414,7 @@ pdurStutter = liftP2 durStutter
 -- > > Pexprand(0.0001,1,10).asStream.all
 -- > pexprand 'α' 0.0001 1 10
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
-pexprand e l r n = fmap (M.exprandrng l r) (pwhite e 0 1 n)
+pexprand e l r n = fmap (M.exprange l r) (pwhite e 0 1 n)
 
 -- | SC3 pattern to take the first n elements of the pattern.  See
 -- also 'ptake'.

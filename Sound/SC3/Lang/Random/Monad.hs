@@ -65,7 +65,7 @@ nchoose k = replicateM k . choose
 exprand :: (Floating n,Random n,RandomGen g) => n -> n -> Rand g n
 exprand l r = do
   n <- rrand 0.0 1.0
-  return (M.exprandrng l r n)
+  return (M.exprange l r n)
 
 -- | Variant of 'exprand' generating /k/ values.
 --
