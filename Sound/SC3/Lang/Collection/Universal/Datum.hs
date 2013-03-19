@@ -43,6 +43,7 @@
 -- 'Datum' are 'Ord'
 --
 -- > Double 7.5 > Int 7
+-- > String "because" > String "again"
 --
 -- 'Datum' are 'Enum'
 --
@@ -52,6 +53,7 @@
 -- 'Datum' are 'Random'
 --
 -- > System.Random.randomRIO (Int 0,Int 9):: IO Datum
+-- > System.Random.randomRIO (Float 0,Float 1):: IO Datum
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
 import Data.Ratio {- base -}
@@ -79,14 +81,14 @@ type UOp n = (n -> n)
 -- | Lift an equivalent set of 'Int', 'Float' and 'Double' unary
 -- functions to 'Datum'.
 --
--- > map (liftD negate negate) [Int 5,Float 5] == [Int (-5),Float (-5)]
+-- > map (liftD abs abs abs) [Int 5,Float (-5)] == [Int 5,Float 5]
 liftD :: UOp Int -> UOp Float -> UOp Double -> UOp Datum
 liftD fi ff fd d =
     case d of
       Int n -> Int (fi n)
       Float n -> Float (ff n)
       Double n -> Double (fd n)
-      _ -> error "liftD: non numerical"
+      _ -> error "liftD: NaN"
 
 -- | Lift a 'Float' and 'Double' unary operator to 'Datum' via
 -- 'datum_promote'.
@@ -112,7 +114,7 @@ liftD2 fi ff fd d1 d2 =
       (Double n1,Double n2) -> Double (fd n1 n2)
       _ -> case (datum_floating d1,datum_floating d2) of
              (Just n1,Just n2) -> Double (fd n1 n2)
-             _ -> error "liftD2: non numerical"
+             _ -> error "liftD2: NaN"
 
 -- | A 'datum_promote' variant of 'liftD2'.
 --
@@ -127,14 +129,14 @@ liftD2' f d1 =
 -- | Direct unary 'Int' and 'Double' functions at 'Datum' fields, or
 -- 'error'.
 --
--- > atD show show (Int 5) == "5"
+-- > atD show show show (Int 5) == "5"
 atD :: (Int -> a) -> (Float -> a) -> (Double -> a) -> Datum -> a
 atD fi ff fd d =
     case d of
       Int n -> fi n
       Float n -> ff n
       Double n -> fd n
-      _ -> error "atD: partial"
+      _ -> error "atD: NaN"
 
 -- | Lift a 'Double' unary operator to 'Datum' via 'datum_promote'.
 --
@@ -153,7 +155,7 @@ atD2 fi ff fd d1 d2 =
       (Int n1,Int n2) -> fi n1 n2
       (Float n1,Float n2) -> ff n1 n2
       (Double n1,Double n2) -> fd n1 n2
-      _ -> error "atD2: partial"
+      _ -> error "atD2: NaN"
 
 -- | Ternary /at/ function.
 type TriAt n a = (n -> n -> n -> a)
@@ -166,7 +168,7 @@ atD3 fi ff fd d1 d2 d3 =
       (Int n1,Int n2,Int n3) -> fi n1 n2 n3
       (Float n1,Float n2,Float n3) -> ff n1 n2 n3
       (Double n1,Double n2,Double n3) -> fd n1 n2 n3
-      _ -> error "atD3: partial"
+      _ -> error "atD3: NaN"
 
 instance IsString Datum where
     fromString = String
@@ -211,7 +213,7 @@ instance Real Datum where
           Int n -> fromIntegral n % 1
           Float n -> toRational n
           Double n -> toRational n
-          _ -> error "datum,real: partial"
+          _ -> error "Datum.toRational: NaN"
 
 instance RealFrac Datum where
   properFraction d =
@@ -239,9 +241,11 @@ instance RealFloat Datum where
     atan2 = liftD2' atan2
 
 instance Ord Datum where
-    compare p q = case (datum_double p,datum_double q) of
-                    (Just i,Just j) -> compare i j
-                    _ -> error "datum,ord: partial"
+    compare p q = case (datum_promote p,datum_promote q) of
+                    (Double i, Double j) -> compare i j
+                    (String i,String j) -> compare i j
+                    (TimeStamp i,TimeStamp j) -> compare i j
+                    _ -> error "Datum.compare"
 
 instance Enum Datum where
     fromEnum = atD fromEnum fromEnum fromEnum
@@ -273,5 +277,5 @@ instance Random Datum where
         (Int l,Int r) -> let (n,g') = randomR (l,r) g in (Int n,g')
         (Float l,Float r) -> let (n,g') = randomR (l,r) g in (Float n,g')
         (Double l,Double r) -> let (n,g') = randomR (l,r) g in (Double n,g')
-        _ -> error "randomR,datum: partial"
+        _ -> error "Datum.randomR: NaN"
   random g = let (n,g') = randomR (0::Double,1::Double) g in (Double n,g')
