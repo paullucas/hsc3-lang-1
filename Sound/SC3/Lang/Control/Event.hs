@@ -55,6 +55,16 @@ f_int_err err = round . fromMaybe (error ("f_int: " ++ err)) . f_double_m
 f_array :: [Double] -> Field
 f_array = F_Vector . map F_Double
 
+-- | Maybe variant of 'f_vector'.
+f_vector_m :: Field -> Maybe [Field]
+f_vector_m f = case f of {F_Vector v -> Just v;_ -> Nothing;}
+
+-- | 'length' of 'f_vector_m'.
+--
+-- > f_vector_length (f_array [1..5]) == Just 5
+f_vector_length :: Field -> Maybe Int
+f_vector_length = fmap length . f_vector_m
+
 -- | Maybe variant of 'f_instr'.
 f_instr_m :: Field -> Maybe I.Instr
 f_instr_m f = case f of {F_Instr n -> Just n;_ -> Nothing;}
@@ -114,6 +124,16 @@ f_atf3 f p q r =
     case (p,q,r) of
       (F_Double n1,F_Double n2,F_Double n3) -> f n1 n2 n3
       _ -> error ("f_atf3: " ++ show (p,q,r))
+
+-- | Extend to 'Field' to /n/.
+--
+-- > f_mce_extend 3 (f_array [1,2]) == f_array [1,2,1]
+-- > f_mce_extend 3 1 == f_array [1,1,1]
+f_mce_extend :: Int -> Field -> Field
+f_mce_extend n f =
+    case f of
+      F_Vector v -> F_Vector (take n (cycle v))
+      _ -> F_Vector (replicate n f)
 
 instance IsString Field where
     fromString = F_String
@@ -259,6 +279,12 @@ e_insert k v = Map.insert k v
 -- > e_get "k" (e_from_list [("k",1)]) == Just 1
 e_from_list :: [(Key,Field)] -> Event
 e_from_list = Map.fromList
+
+-- | Event from association list.
+--
+-- > let a = [("k",1)] in e_to_list (e_from_list a) == a
+e_to_list :: Event -> [(Key,Field)]
+e_to_list = Map.toList
 
 -- | Union of two events (left-biased).
 --
@@ -425,6 +451,36 @@ e_merge p q = e_add_fwd (e_merge' p q)
 -- | Does 'Event' have a 'True' @rest@ key.
 e_is_rest :: Event -> Bool
 e_is_rest = fromMaybe False . e_get_bool "rest"
+
+-- * MCE
+
+-- | Maximum vector length at 'Event'.
+--
+-- > e_mce_depth (e_from_list [("a",1)]) == Nothing
+-- > e_mce_depth (e_from_list [("a",1),("b",f_array [2,3])]) == Just 2
+e_mce_depth :: Event -> Maybe Int
+e_mce_depth e =
+    let f = map snd (e_to_list e)
+    in case mapMaybe f_vector_length f of
+         [] -> Nothing
+         l -> Just (maximum l)
+
+-- | Extend vectors at 'Event' if required.
+--
+-- > let {e = e_from_list [("a",f_array [1,2]),("b",f_array [2,3,4])]
+-- >     ;r = e_from_list [("a",f_array [1,2,1]),("b",f_array [2,3,4])]}
+-- > in e_mce_extend e == r
+--
+-- > let e = e_mce_extend (e_from_list [("a",1)])
+-- > in e_mce_extend e == e
+e_mce_extend :: Event -> Event
+e_mce_extend e =
+    let e' = e_to_list e
+        f = map snd e'
+    in case e_mce_depth e of
+         Nothing -> e
+         Just n -> let f' = map (f_mce_extend n) f
+                   in e_from_list (zip (map fst e') f')
 
 -- * SC3
 
