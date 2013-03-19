@@ -90,8 +90,7 @@ liftD fi ff fd d =
       Double n -> Double (fd n)
       _ -> error "liftD: NaN"
 
--- | Lift a 'Float' and 'Double' unary operator to 'Datum' via
--- 'datum_promote'.
+-- | Lift a 'Double' unary operator to 'Datum' via 'datum_promote'.
 --
 -- > liftD' negate (Int 5) == Double (-5)
 liftD' :: UOp Double -> UOp Datum
@@ -126,8 +125,8 @@ liftD2' f d1 =
 
 -- * At
 
--- | Direct unary 'Int' and 'Double' functions at 'Datum' fields, or
--- 'error'.
+-- | Direct unary 'Int', 'Float' and 'Double' functions at 'Datum'
+-- fields, or 'error'.
 --
 -- > atD show show show (Int 5) == "5"
 atD :: (Int -> a) -> (Float -> a) -> (Double -> a) -> Datum -> a
@@ -138,7 +137,7 @@ atD fi ff fd d =
       Double n -> fd n
       _ -> error "atD: NaN"
 
--- | Lift a 'Double' unary operator to 'Datum' via 'datum_promote'.
+-- | Lift a 'Double' /at/ operator to 'Datum' via 'datum_promote'.
 --
 -- > atD' floatRadix (Int 5) == 2
 atD' :: (Double -> a) -> Datum -> a
@@ -147,8 +146,8 @@ atD' f = f . d_double . datum_promote
 -- | Binary /at/ function.
 type BinAt n a = (n -> n -> a)
 
--- | Direct binary 'Int' and 'Double' functions at 'Datum' fields, or
--- 'error'.
+-- | Direct binary 'Int', 'Float' and 'Double' functions at 'Datum'
+-- fields, or 'error'.
 atD2 :: BinAt Int a -> BinAt Float a -> BinAt Double a -> BinAt Datum a
 atD2 fi ff fd d1 d2 =
     case (d1,d2) of
@@ -160,8 +159,8 @@ atD2 fi ff fd d1 d2 =
 -- | Ternary /at/ function.
 type TriAt n a = (n -> n -> n -> a)
 
--- | Direct ternary 'Int' and 'Double' functions at 'Datum' fields, or
--- 'error'.
+-- | Direct ternary 'Int', 'Float' and 'Double' functions at 'Datum'
+-- fields, or 'error'.
 atD3 :: TriAt Int a -> TriAt Float a -> TriAt Double a -> TriAt Datum a
 atD3 fi ff fd d1 d2 d3 =
     case (d1,d2,d3) of
