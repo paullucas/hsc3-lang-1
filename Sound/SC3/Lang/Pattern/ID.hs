@@ -19,50 +19,38 @@ import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Control.Event as E
 import qualified Sound.SC3.Lang.Control.Instrument as I
 import qualified Sound.SC3.Lang.Math as M
-import Sound.SC3.Lang.Pattern.List
+import qualified Sound.SC3.Lang.Pattern.List as P
 import qualified Sound.SC3.Lang.Random.Gen as R
 
--- * P type and instances
+-- * M
 
 -- | Pattern continuation mode
 data M = Stop
        | Continue
          deriving (Eq,Show)
 
+-- | Join a set of 'M' values, if any are 'Stop' then 'Stop' else
+-- 'Continue'.
+--
+-- > stP_join [Stop,Continue] == Stop
+-- > stP_join [Continue] == Continue
+stP_join :: [M] -> M
+stP_join m = if Stop `elem` m then Stop else Continue
+
+-- * P
+
 -- | Pattern data type (opaque)
 data P a = P {unP :: [a]
              ,stP :: M}
     deriving (Eq,Show)
 
--- | A variant of 'pappend' that preserves the continuation mode but
--- is strict in the right argument.
-pappend' :: P a -> P a -> P a
-pappend' (P xs _) (P ys st) = P (xs ++ ys) st
-
--- | 'Data.Monoid.mappend' variant to sequence two patterns.
---
--- Note that in order for 'Data.Monoid.mappend' to be productive in
--- 'Data.Monoid.mconcat' on an infinite list it cannot store the
--- right-hand stop/continue mode, see 'pappend''
---
--- > toP [1,2] `pappend` toP [2,3] == toP [1,2,2,3]
--- > ptake 3 (prepeat 3 `pappend` prepeat 4) == toP' [3,3,3]
--- > ptake 3 (pconcat (cycle [prepeat 3])) == toP' [3,3,3]
--- > pempty `pappend` pempty == pempty
-pappend :: P a -> P a -> P a
-pappend p q = fromList (unP p ++ unP q)
-
 instance Monoid (P a) where
     mappend = pappend
-    mempty = P [] Continue
-
--- | A '>>=' variant using the continuation maintaining 'pappend'' function.
-(>>=*) ::P a -> (a -> P b) -> P b
-m >>=* k = F.foldr (pappend' . k) mempty m
+    mempty = pempty
 
 instance Monad P where
-    m >>= k = F.foldr (mappend . k) mempty m
-    return x = P [x] Continue
+    (>>=) = pbind'
+    return = preturn
 
 instance Functor P where
     fmap f (P xs st) = P (map f xs) st
@@ -103,26 +91,26 @@ instance (OrdE a) => OrdE (P a) where
     (<*) = pzipWith (<*)
     (<=*) = pzipWith (<=*)
 
+-- * Math
+
 -- | Pseudo-/infinite/ value for use at repeat counts.
 inf :: Int
 inf = maxBound
 
 -- | Constant /NaN/ (not a number) value for use as a rest indicator
 -- at a frequency model input (not at a @rest@ key).
-nan :: (Monad m,Floating a) => m a
-nan = return (sqrt (-1))
+--
+-- > isNaN nan == True
+nan :: Floating a => a
+nan = sqrt (-1)
 
 -- * Extension
-
--- | Join a set of 'M' values, if any are 'Stop' then 'Stop' else
--- 'Continue'.
-stP_join :: [M] -> M
-stP_join m = if Stop `elem` m then Stop else Continue
 
 -- | Extension of a set of patterns.  If any patterns are stopping,
 -- the longest such pattern, else the longest of the continuing
 -- patterns.
 --
+-- > C.extension [[1,2],[3,4,5]] == [(),(),()]
 -- > pextension [toP [1,2],toP [3,4,5]] == [(),(),()]
 -- > pextension [toP' [1,2],toP [3,4,5]] == [(),()]
 pextension :: [P a] -> [()]
@@ -140,8 +128,9 @@ pextend l =
     let f = pzipWith (\_ x -> x) (P (pextension l) Stop) . pcycle
     in map f l
 
--- | Variant of 'transpose'.
+-- | Variant of 'L.transpose'.
 --
+-- > L.transpose [[1,2],[3,4,5]] == [[1,3],[2,4],[5]]
 -- > ptranspose [toP [1,2],toP [3,4,5]] == toP [[1,3],[2,4],[5]]
 ptranspose :: [P a] -> P [a]
 ptranspose l =
@@ -160,15 +149,12 @@ pflop' l =
 -- | Variant of 'ptranspose' transforming the input patterns by
 -- 'pextension'.
 --
+-- > C.flop [[1,2],[3,4,5]] == [[1,3],[2,4],[1,5]]
 -- > pflop [toP [1,2],toP [3,4,5]] == toP' (map toP [[1,3],[2,4],[1,5]])
 pflop :: [P a] -> P (P a)
-pflop = fmap fromList . pflop'
+pflop = fmap toP . pflop'
 
--- | Composition of 'pjoin' and 'pflop'.
-pflopJoin :: [P a] -> P a
-pflopJoin = pjoin . pflop
-
--- * P lifting
+-- * Lift P
 
 -- | Lift unary list function to 'P'.
 liftP :: ([a] -> [b]) -> P a -> P b
@@ -202,6 +188,8 @@ pnull :: P a -> Bool
 pnull = null . F.toList
 
 -- | Select 'M' according to repeat count, see 'inf'.
+--
+-- > map stp [5,inf] == [Stop,Continue]
 stp :: Int -> M
 stp n = if n == inf then Continue else Stop
 
@@ -220,22 +208,14 @@ continuing (P xs _) = P xs Continue
 -- | The basic list to pattern function.  The pattern is continuing.
 --
 -- > continuing (pseq [1,2,3] 1) == toP [1,2,3]
-fromList :: [a] -> P a
-fromList xs = P xs Continue
-
--- | Alias for 'fromList'.
 toP :: [a] -> P a
-toP = fromList
+toP xs = P xs Continue
 
--- | A variant from 'fromList' to make stopping patterns.
+-- | A variant of 'toP' to make stopping patterns.
 --
 -- > pseq [1,2,3] 1 == toP' [1,2,3]
-fromList' :: [a] -> P a
-fromList' xs = P xs Stop
-
--- | Alias for 'fromList''.
 toP' :: [a] -> P a
-toP' = fromList'
+toP' xs = P xs Stop
 
 -- | Pattern variant of 'repeat'. See also 'pure' and 'pcycle'.
 --
@@ -243,7 +223,9 @@ toP' = fromList'
 -- > ptake 5 (Control.Applicative.pure 3) == toP' [3]
 -- > take 5 (Control.Applicative.pure 3) == [3]
 prepeat :: a -> P a
-prepeat = fromList . repeat
+prepeat = toP . repeat
+
+-- * Zip P
 
 -- | Pattern variant of 'zipWith'.  Note that 'zipWith' is truncating,
 -- whereas the numerical instances are extending.
@@ -306,19 +288,91 @@ pzip4 = pzipWith4 (,,,)
 punzip :: P (a,b) -> (P a,P b)
 punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 
+-- * Monoid
+
+-- | Implementation of `Data.Monoid.mempty`, ie. the empty pattern.
+--
+-- > pempty `pappend` pempty == pempty
+-- > pempty `pappend` 1 == 1 `pappend` pempty
+pempty :: P a
+pempty = P [] Continue
+
+-- | Implementation of 'Data.Monoid.mappend' to sequence two patterns.
+--
+-- Note that in order for 'Data.Monoid.mappend' to be productive in
+-- 'Data.Monoid.mconcat' on an infinite list it cannot store the
+-- right-hand stop/continue mode, see 'pappend''
+--
+-- > toP [1,2] `pappend` toP [2,3] == toP [1,2,2,3]
+-- > ptake 3 (prepeat 3 `pappend` prepeat 4) == toP' [3,3,3]
+-- > ptake 3 (foldr pappend pempty (cycle [prepeat 3])) == toP' [3,3,3]
+-- > pempty `pappend` pempty == pempty
+pappend :: P a -> P a -> P a
+pappend p q = toP (unP p ++ unP q)
+
+-- | A variant of 'pappend' that preserves the continuation mode but
+-- is strict in the right argument.
+--
+-- > toP [1,2] `pappend'` toP [2,3] == toP [1,2,2,3]
+-- > ptake 3 (prepeat 3 `pappend'` prepeat 4) == toP' [3,3,3]
+-- > pempty `pappend'` pempty == pempty
+--
+-- The following is @_|_@:
+--
+-- > ptake 3 (foldr pappend' pempty (cycle [prepeat 3]))
+pappend' :: P a -> P a -> P a
+pappend' (P xs _) (P ys st) = P (xs ++ ys) st
+
+-- | 'pconcat' is 'Data.Monoid.mconcat'.  See also 'pjoin'.
+--
+-- > take 3 (concat (replicate maxBound [1,2])) == [1,2,1]
+-- > ptake 3 (pconcat (cycle [toP [1,2]])) == toP' [1,2,1]
+-- > ptake 3 (pconcat [pseq [1,2] 1,pseq [3,4] 1]) == toP' [1,2,3]
+pconcat :: [P a] -> P a
+pconcat = mconcat
+
+-- | Variant using 'pappend''.
+pconcat' :: [P a] -> P a
+pconcat' = foldr pappend' pempty
+
+-- * Monad
+
+-- | 'Control.Monad.>>='
+pbind' :: P a -> (a -> P b) -> P b
+pbind' m k = F.foldr (mappend . k) mempty m
+
+-- | 'Control.Monad.return'
+preturn :: a -> P a
+preturn x = P [x] Continue
+
+-- | '>>=' variant using the continuation maintaining 'pappend'' function.
+(>>=*) ::P a -> (a -> P b) -> P b
+m >>=* k = F.foldr (pappend' . k) mempty m
+
+-- | `Control.Monad.join`, see also `pconcat`.
+--
+-- > take 3 (Control.Monad.join (replicate maxBound [1,2])) == [1,2,1]
+-- > ptake 3 (pjoin (preplicate inf (toP [1,2]))) == toP' [1,2,1]
+pjoin :: P (P a) -> P a
+pjoin = join
+
+-- | Variant that maintains the continuing mode of the outer structure.
+pjoin' :: P (P a) -> P a
+pjoin' x = (join x) {stP = stP x}
+
 -- * SC3 patterns
 
 -- | A variant of 'pbrown' where the l, r and s inputs are patterns.
 --
 -- > pbrown' 'α' 1 700 (pseq [1,20] inf) 4 == toP' [415,419,420,428]
 pbrown' :: (Enum e,Random n,Num n,Ord n) => e -> P n -> P n -> P n -> Int -> P n
-pbrown' e l r s n = let f = liftP3 (brown' e) in ptake n (f l r s)
+pbrown' e l r s n = let f = liftP3 (P.brown' e) in ptake n (f l r s)
 
 -- | SC3 pattern to generate psuedo-brownian motion.
 --
 -- > pbrown 'α' 0 9 1 5 == toP' [4,4,5,4,3]
 pbrown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> Int -> P n
-pbrown e l r s n = ptake n (fromList (brown e l r s))
+pbrown e l r s n = ptake n (toP (P.brown e l r s))
 
 -- | SC3 sample and hold pattern.  For true values in the control
 -- pattern, step the value pattern, else hold the previous value.
@@ -366,7 +420,7 @@ pconst n p t =
         f j (i:is) = if i + j < n - t
                      then i : f (j + i) is
                      else [n - j]
-    in stopping (fromList (f 0 (unP p)))
+    in stopping (toP (f 0 (unP p)))
 
 -- | SC3 pattern to derive notes from an index into a scale.
 --
@@ -380,10 +434,10 @@ pconst n p t =
 -- >     ;r = [0,2,4,5,7,5,4,2,0,4,7,12,7,4,0,2,3,5,7,5,3,2,0,3,7,12,7,3]}
 -- > in pdegreeToKey p (pstutter 14 q) (return 12) == toP' r
 --
--- This is the pattern variant of 'P.degree_to_key'.
+-- This is the pattern variant of 'M.degreeToKey'.
 --
 -- > let s = [0,2,4,5,7,9,11]
--- > in map (P.degree_to_key s 12) [0,2,4,7,4,2,0] == [0,4,7,12,7,4,0]
+-- > in map (M.degreeToKey s 12) [0,2,4,7,4,2,0] == [0,4,7,12,7,4,0]
 pdegreeToKey :: (RealFrac a) => P a -> P [a] -> P a -> P a
 pdegreeToKey = pzipWith3 (\i j k -> M.degreeToKey j k i)
 
@@ -406,7 +460,7 @@ pdiff p = p - ptail p
 -- >     ;d = pseq [0.5,1,2,0.25,0.25] inf}
 -- > in ptake 24 (pdurStutter s d)
 pdurStutter :: Fractional a => P Int -> P a -> P a
-pdurStutter = liftP2 durStutter
+pdurStutter = liftP2 P.durStutter
 
 -- | An SC3 pattern of random values that follow a exponential
 -- distribution.
@@ -473,21 +527,24 @@ pgeom i s n = P (C.geom n i s) Stop
 -- >     ;c = pwhite 'γ' 10 19 inf}
 -- > in ptake 9 (pif a b c) == toP' [11,3,18,11,11,15,17,17,16]
 pif :: P Bool -> P a -> P a -> P a
-pif = liftP3 ifExtending
+pif = liftP3 P.ifExtending
 
 -- | SC3 interlaced embedding of subarrays.
 --
 -- > > Place([0,[1,2],[3,4,5]],3).asStream.all
+-- > C.lace 9 [[0],[1,2],[3,4,5]] == [0,1,3,0,2,4,0,1,5]
 -- > place [[0],[1,2],[3,4,5]] 3 == toP' [0,1,3,0,2,4,0,1,5]
 --
 -- > > Place(#[1,[2,5],[3,6]],2).asStream.nextN(6)
+-- > C.lace 6 [[1],[2,5],[3,6]] == [1,2,3,1,5,6]
 -- > place [[1],[2,5],[3,6]] 2 == toP' [1,2,3,1,5,6]
+-- > C.lace 12 [[1],[2,5],[3,6..]] == [1,2,3,1,5,6,1,2,9,1,5,12]
 -- > place [[1],[2,5],[3,6..]] 4 == toP' [1,2,3,1,5,6,1,2,9,1,5,12]
 place :: [[a]] -> Int -> P a
 place a n =
     let i = length a
         f = if n == inf then id else take (n * i)
-    in stoppingN n (fromList (f (L.concat (C.flop a))))
+    in stoppingN n (toP (f (L.concat (C.flop a))))
 
 -- | SC3 pattern to lace input patterns.  Note that the current
 -- implementation stops late, it cycles the second series one place.
@@ -528,7 +585,7 @@ pnormalizeSum = liftP C.normalizeSum
 
 -- | Un-joined variant of 'prand'.
 prand' :: Enum e => e -> [P a] -> Int -> P (P a)
-prand' e a n = P (rand' e a n) (stp n)
+prand' e a n = P (P.rand' e a n) (stp n)
 
 -- | SC3 pattern to make n random selections from a list of patterns,
 -- the resulting pattern is flattened (joined).
@@ -556,8 +613,8 @@ preject f = liftP (filter (not . f))
 prorate' :: Num a => Either a [a] -> a -> P a
 prorate' p =
     case p of
-      Left p' -> fromList . rorate_n' p'
-      Right p' -> fromList . rorate_l' p'
+      Left p' -> toP . P.rorate_n' p'
+      Right p' -> toP . P.rorate_l' p'
 
 -- | SC3 sub-dividing pattern.
 --
@@ -638,7 +695,7 @@ pseqn n q =
 --
 -- > pser1 [1,pser [10,20] 3,3] 9 == toP' [1,10,3,1,20,3,1,10,3]
 pser1 :: [P a] -> Int -> P a
-pser1 a i = ptake i (pflopJoin a)
+pser1 a i = ptake i (pjoin (pflop a))
 
 -- | SC3 pattern that is like 'pseq', however the repeats variable
 -- gives the number of elements in the sequence, not the number of
@@ -674,7 +731,7 @@ pshuf e a =
 -- > pslide [1,2,3,4] 4 3 1 0 True == toP' [1,2,3,2,3,4,3,4,1,4,1,2]
 -- > pslide [1,2,3,4,5] 3 3 (-1) 0 True == toP' [1,2,3,5,1,2,4,5,1]
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
-pslide a n j s i = stoppingN n . fromList . slide a n j s i
+pslide a n j s i = stoppingN n . toP . P.slide a n j s i
 
 -- | Pattern variant of 'splitAt'.
 psplitAt :: Int -> P a -> (P a,P a)
@@ -686,7 +743,7 @@ psplitPlaces' = liftP2 S.splitPlaces
 
 -- | A variant of 'psplitPlaces'' that joins the output pattern.
 psplitPlaces :: P Int -> P a -> P (P a)
-psplitPlaces n = fmap fromList . psplitPlaces' n
+psplitPlaces n = fmap toP . psplitPlaces' n
 
 -- | SC3 pattern to repeat each element of a pattern _n_ times.
 --
@@ -700,7 +757,7 @@ psplitPlaces n = fmap fromList . psplitPlaces' n
 --
 -- > pstutter (toP [1,2,3]) (toP [4,5,6]) == toP [4,5,5,6,6,6]
 pstutter :: P Int -> P a -> P a
-pstutter = liftP2 stutterExtending
+pstutter = liftP2 P.stutterExtending
 
 -- | SC3 pattern to select elements from a list of patterns by a
 -- pattern of indices.
@@ -708,7 +765,7 @@ pstutter = liftP2 stutterExtending
 -- > switch l i = i >>= (l !!)
 -- > pswitch [pseq [1,2,3] 2,pseq [65,76] 1,800] (toP [2,2,0,1])
 pswitch :: [P a] -> P Int -> P a
-pswitch l = liftP (switch (map unP l))
+pswitch l = liftP (P.switch (map unP l))
 
 -- | SC3 pattern that uses a pattern of indices to select which
 -- pattern to retrieve the next value from.  Only one value is
@@ -722,7 +779,7 @@ pswitch l = liftP (switch (map unP l))
 --
 -- > pswitch1 [pseq [1,2,3] inf,pseq [65,76] inf,8] (pseq [2,2,0,1] 6)
 pswitch1 :: [P a] -> P Int -> P a
-pswitch1 l = liftP (switch1 (map unP l))
+pswitch1 l = liftP (P.switch1 (map unP l))
 
 -- | SC3 pattern to combine a list of streams to a stream of lists.
 -- See also `pflop`.
@@ -739,7 +796,7 @@ ptuple p = pseq [pflop' p]
 
 -- | A variant of 'pwhite' where the range inputs are patterns.
 pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
-pwhite' e = liftP2 (white' e)
+pwhite' e = liftP2 (P.white' e)
 
 -- | SC3 pattern to generate a uniform linear distribution in given range.
 --
@@ -750,7 +807,7 @@ pwhite' e = liftP2 (white' e)
 --
 -- > let p = pwhite 'α' 0.0 1.0 3 in p - p == toP [0,0,0]
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
-pwhite e l r = fromList . white e l r
+pwhite e l r = toP . P.white e l r
 
 -- | A variant of 'pwhite' that generates integral (rounded) values.
 pwhitei :: (RealFrac n,Random n,Enum e) => e -> n -> n -> Int -> P n
@@ -769,7 +826,7 @@ pwhitei e l r = fmap roundf . pwhite e l r
 -- > let w = C.normalizeSum [1,3,5]
 -- > in pwrand 'α' [1,2,pseq [3,4] 1] w 6 == toP [3,4,1,3,4,3]
 pwrand :: (Enum e) => e -> [P a] -> [Double] -> Int -> P a
-pwrand e a w n = P (wrand e (map unP a) w n) Continue
+pwrand e a w n = P (P.wrand e (map unP a) w n) Continue
 
 -- | SC3 pattern to constrain the range of output values by wrapping.
 -- See also 'pfold'.
@@ -783,43 +840,13 @@ pwrap xs l r = fmap (genericWrap l r) xs
 --
 -- > pxrand 'α' [1,toP [2,3],toP [4,5,6]] 15
 pxrand :: Enum e => e -> [P a] -> Int -> P a
-pxrand e a n = P (xrand e (map unP a) n) Continue
+pxrand e a n = P (P.xrand e (map unP a) n) Continue
 
--- * Monoid aliases
-
--- | 'pconcat' is 'Data.Monoid.mconcat'.  See also 'pjoin'.
---
--- > take 3 (concat (replicate maxBound [1,2])) == [1,2,1]
--- > ptake 3 (pconcat (cycle [toP [1,2]])) == toP' [1,2,1]
--- > ptake 3 (pconcat [pseq [1,2] 1,pseq [3,4] 1]) == toP' [1,2,3]
-pconcat :: [P a] -> P a
-pconcat = mconcat
-
--- | Pattern variant for `Data.Monoid.mempty`, ie. the empty pattern.
---
--- > pempty `pappend` pempty == pempty
--- > pempty `pappend` 1 == 1 `pappend` pempty
-pempty :: P a
-pempty = mempty
-
--- * Monad aliases
-
--- | `Control.Monad.join` pattern variant.  See also `pconcat`.
---
--- > take 3 (Control.Monad.join (replicate maxBound [1,2])) == [1,2,1]
--- > ptake 3 (pjoin (preplicate inf (toP [1,2]))) == toP' [1,2,1]
-pjoin :: P (P a) -> P a
-pjoin = join
-
--- | Variant that maintains the continuing mode of the outer structure.
-pjoin' :: P (P a) -> P a
-pjoin' x = (join x) {stP = stP x}
-
--- * Data.List functions
+-- * Data.List
 
 -- | Pattern variant of ':'.
 --
--- > pcons 'α' (pn (return 'β') 2) == fromList' "αββ"
+-- > pcons 'α' (pn (return 'β') 2) == toP' "αββ"
 pcons :: a -> P a -> P a
 pcons i (P j st) = P (i:j) st
 
@@ -856,7 +883,7 @@ pfilter f = liftP (filter f)
 -- > pn (toP [1,2]) 3 == toP' [1,2,1,2,1,2]
 -- > preplicate 4 (toP [1,2]) :: P (P Int)
 preplicate :: Int -> a -> P a
-preplicate n = fromList . replicate n
+preplicate n = toP . replicate n
 
 -- | Pattern variant of `scanl`.  `scanl` is similar to `foldl`, but
 -- returns a list of successive reduced values from the left.
@@ -905,13 +932,13 @@ pconcatReplicate i = stoppingN i . pconcat . replicate i
 --
 -- > pcountpost (pbool (pseq [1,0,1,0,0,0,1,1] 1)) == toP' [1,3,0,0]
 pcountpost :: P Bool -> P Int
-pcountpost = liftP countpost
+pcountpost = liftP P.countpost
 
 -- | Count the number of `False` values preceding each `True` value.
 --
 -- > pcountpre (pbool (pseq [0,0,1,0,0,0,1,1] 1)) == toP' [2,3,0]
 pcountpre :: P Bool -> P Int
-pcountpre = liftP countpre
+pcountpre = liftP P.countpre
 
 -- | Interleave elements from two patterns.  If one pattern ends the
 -- other pattern continues until it also ends.
@@ -923,14 +950,14 @@ pcountpre = liftP countpre
 -- > ptake 5 (pinterleave (pcycle 1) (pcycle 2)) == toP' [1,2,1,2,1]
 -- > ptake 10 (pinterleave (pwhite 'α' 1 9 inf) (pseries 10 1 5))
 pinterleave :: P a -> P a -> P a
-pinterleave = liftP2 interleave
+pinterleave = liftP2 P.interleave
 
 -- | Pattern to remove successive duplicates.
 --
 -- > prsd (pstutter 2 (toP [1,2,3])) == toP [1,2,3]
 -- > prsd (pseq [1,2,3] 2) == toP' [1,2,3,1,2,3]
 prsd :: (Eq a) => P a -> P a
-prsd = liftP rsd
+prsd = liftP P.rsd
 
 -- | Pattern where the 'tr' pattern determines the rate at which
 -- values are read from the `x` pattern.  For each sucessive true
@@ -939,7 +966,7 @@ prsd = liftP rsd
 --
 -- > let {tr = pbool (toP [0,1,0,0,1,1])
 -- >     ;r = [Nothing,Just 1,Nothing,Nothing,Just 2,Just 3]}
--- > in ptrigger tr (toP [1,2,3]) == fromList r
+-- > in ptrigger tr (toP [1,2,3]) == toP r
 ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q =
     let r = pcountpre p
@@ -991,20 +1018,25 @@ pedit k f = fmap (E.e_edit' k f)
 -- implications.  The pattern constructed here uses the 'Synthdef' for
 -- the first element, and the subsequently the /name/.
 pinstr' :: I.Instr -> P E.Field
-pinstr' i = fromList (map E.F_Instr (I.i_repeat i))
+pinstr' i = toP (map E.F_Instr (I.i_repeat i))
 
+-- | 'I.Instr' pattern from instrument /name/.
 pinstr :: String -> P E.Field
 pinstr s = pinstr' (I.Instr_Ref s True)
 
+-- | 'I.Instr' pattern from 'Synthdef'.
 psynth :: Synthdef -> P E.Field
 psynth s = pinstr' (I.Instr_Def s True)
 
+-- | 'punion' of 'pinstr''.
 p_with_instr' :: I.Instr -> P_Event -> P_Event
 p_with_instr' i = punion (pbind [("instr",pinstr' i)])
 
+-- | 'punion' of 'pinstr'.
 p_with_instr :: String -> P_Event -> P_Event
 p_with_instr s = p_with_instr' (I.Instr_Ref s True)
 
+-- | 'punion' of 'psynth'.
 p_with_synth :: Synthdef -> P_Event -> P_Event
 p_with_synth s = p_with_instr' (I.Instr_Def s True)
 
@@ -1049,7 +1081,7 @@ pstretch = pmul "stretch"
 -- | Merge two 'E.Event' patterns with indicated start 'Time's.
 ptmerge :: (Time,P_Event) -> (Time,P_Event) -> P_Event
 ptmerge (pt,p) (qt,q) =
-    fromList (E.e_merge (pt,F.toList p) (qt,F.toList q))
+    toP (E.e_merge (pt,F.toList p) (qt,F.toList q))
 
 -- | Variant of 'ptmerge' with zero start times.
 pmerge :: P_Event -> P_Event -> P_Event
@@ -1069,5 +1101,6 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- * NRT
 
+-- | Transform an /event/ pattern into a /non-real time/ SC3 score.
 pNRT :: P_Event -> NRT
 pNRT = E.e_nrt . E.Event_Seq . unP

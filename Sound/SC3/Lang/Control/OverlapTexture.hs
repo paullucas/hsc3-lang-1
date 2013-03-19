@@ -37,6 +37,7 @@ with_env (s,t) g = with_env_u g (constant s) (constant t)
 -- overlaping (simultaneous) nodes and 4. number of nodes altogether.
 type OverlapTexture = (Double,Double,Double,Int)
 
+-- | Record of 'OverlapTexture'.
 data OverlapTexture_ =
     OverlapTexture {sustain_time :: Double
                    ,transition_time :: Double

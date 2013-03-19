@@ -43,6 +43,7 @@ defaultSynthdef =
         z = lpf (mix (varSaw AR f3 0 0.3 * 0.3)) l * e
     in synthdef "default" (out 0 (pan2 z p a))
 
+-- | 'Instr' of 'defaultSynthdef'.
 defaultInstr :: Instr
 defaultInstr = Instr_Def defaultSynthdef True
 

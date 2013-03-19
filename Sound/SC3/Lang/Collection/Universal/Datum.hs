@@ -54,7 +54,6 @@
 -- > System.Random.randomRIO (Int 0,Int 9):: IO Datum
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
-import Data.Maybe {- base -}
 import Data.Ratio {- base -}
 import GHC.Exts (IsString(..)) {- base -}
 import Sound.OSC {- hosc -}
@@ -74,6 +73,7 @@ datum_promote d =
 
 -- * Lifting
 
+-- | Unary operator.
 type UOp n = (n -> n)
 
 -- | Lift an equivalent set of 'Int', 'Float' and 'Double' unary
@@ -142,6 +142,7 @@ atD fi ff fd d =
 atD' :: (Double -> a) -> Datum -> a
 atD' f = f . d_double . datum_promote
 
+-- | Binary /at/ function.
 type BinAt n a = (n -> n -> a)
 
 -- | Direct binary 'Int' and 'Double' functions at 'Datum' fields, or
@@ -154,6 +155,7 @@ atD2 fi ff fd d1 d2 =
       (Double n1,Double n2) -> fd n1 n2
       _ -> error "atD2: partial"
 
+-- | Ternary /at/ function.
 type TriAt n a = (n -> n -> n -> a)
 
 -- | Direct ternary 'Int' and 'Double' functions at 'Datum' fields, or
@@ -210,9 +212,6 @@ instance Real Datum where
           Float n -> toRational n
           Double n -> toRational n
           _ -> error "datum,real: partial"
-
-datum_floating_err :: Floating n => Datum -> n
-datum_floating_err = fromJust . datum_floating
 
 instance RealFrac Datum where
   properFraction d =

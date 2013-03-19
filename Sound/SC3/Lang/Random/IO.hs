@@ -6,6 +6,7 @@ import System.Random {- random -}
 
 import Sound.SC3.Lang.Random.Gen as R
 
+-- | 'liftIO' of 'randomRIO'.
 randomM :: (Random a, MonadIO m) => (a, a) -> m a
 randomM = liftIO . randomRIO
 
@@ -17,6 +18,7 @@ rand n = randomM (0,n)
 rand2 :: (MonadIO m,Random n,Num n) => n -> m n
 rand2 n = randomM (-n,n)
 
+-- | 'liftIO' of 'getStdRandom'.
 randomG :: MonadIO m => (StdGen -> (a, StdGen)) -> m a
 randomG = liftIO . getStdRandom
 
