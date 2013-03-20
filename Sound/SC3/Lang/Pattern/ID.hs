@@ -49,7 +49,7 @@ instance Monoid (P a) where
     mempty = pempty
 
 instance Monad P where
-    (>>=) = pbind'
+    m >>= k = F.foldr (mappend . k) mempty m
     return = preturn
 
 instance Functor P where
@@ -132,6 +132,9 @@ pextend l =
 --
 -- > L.transpose [[1,2],[3,4,5]] == [[1,3],[2,4],[5]]
 -- > ptranspose [toP [1,2],toP [3,4,5]] == toP [[1,3],[2,4],[5]]
+--
+-- > let p = ptranspose [pseq [1,2] inf,pseq [4,5] inf]
+-- > in ptake 2 (pdrop (2^16) p) == toP' [[1,4],[2,5]]
 ptranspose :: [P a] -> P [a]
 ptranspose l =
     let d = L.transpose (map unP l)
@@ -233,6 +236,8 @@ prepeat = toP . repeat
 -- > zipWith (*) [1,2,3] [5,6] == [5,12]
 -- > pzipWith (*) (toP [1,2,3]) (toP [5,6]) == toP [5,12,15]
 -- > toP [1,2,3] * toP [5,6] == toP [5,12,15]
+--
+-- > pzipWith (,) (pseq [1,2] inf) (pseq [3,4] inf)
 --
 -- Note that the list instance of applicative is combinatorial
 -- (ie. Monadic).
@@ -336,10 +341,6 @@ pconcat' :: [P a] -> P a
 pconcat' = foldr pappend' pempty
 
 -- * Monad
-
--- | 'Control.Monad.>>='
-pbind' :: P a -> (a -> P b) -> P b
-pbind' m k = F.foldr (mappend . k) mempty m
 
 -- | 'Control.Monad.return'
 preturn :: a -> P a
@@ -977,7 +978,10 @@ ptrigger p q =
 
 -- * Event Patterns
 
--- | Synonymn for an event pattern.
+-- | Synonymn for a /field/ pattern.
+type P_Field = P E.Field
+
+-- | Synonymn for an /event/ pattern.
 type P_Event = P E.Event
 
 instance Audible P_Event where
@@ -990,7 +994,7 @@ type P_Bind = [(E.Key,P E.Field)]
 --
 -- > > Padd(\freq,801,Pbind(\freq,100)).asStream.next(())
 -- > padd "freq" 801 (pbind [("freq",100)]) == pbind [("freq",901)]
-padd :: E.Key -> P E.Field -> P_Event -> P_Event
+padd :: E.Key -> P_Field -> P_Event -> P_Event
 padd k = pzipWith (\i j -> E.e_edit k 0 (+ i) j)
 
 -- | Left-biased union of event patterns.
@@ -1005,10 +1009,22 @@ punion = pzipWith E.e_union
 --
 -- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
 -- >                 ,("y",pseq [1,2,3] 1)]) == toP' [200,200,300]
+--
+-- > ptake 2 (pbind [("x",pwhitei 'α' 0 9 inf)
+-- >                ,("y",pseq [1,2,3] inf)])
 pbind :: P_Bind -> P_Event
 pbind xs =
     let xs' = pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
     in pure E.e_from_list <*> xs'
+
+-- | Two-channel MCE for /field/ patterns.
+--
+-- > pmce2 (toP [1,2]) (toP [3,4]) == toP [E.f_array [1,3],E.f_array [2,4]]
+--
+-- > let p = pmce2 (pseq [1,2] inf) (pseq [3,4] inf)
+-- > in ptake 2 p == toP' [E.f_array [1,3],E.f_array [2,4]]
+pmce2 :: P_Field -> P_Field -> P_Field
+pmce2 p q = pzipWith (\m n -> E.F_Vector [m,n]) p q
 
 -- | Edit 'a' at 'E.Key' in each element of an 'E.Event' pattern.
 pedit :: E.Key -> (E.Field -> E.Field) -> P_Event -> P_Event
@@ -1019,15 +1035,15 @@ pedit k f = fmap (E.e_edit' k f)
 -- sent to the server before processing the event, which has timing
 -- implications.  The pattern constructed here uses the 'Synthdef' for
 -- the first element, and the subsequently the /name/.
-pinstr' :: I.Instr -> P E.Field
+pinstr' :: I.Instr -> P_Field
 pinstr' i = toP (map E.F_Instr (I.i_repeat i))
 
 -- | 'I.Instr' pattern from instrument /name/.
-pinstr :: String -> P E.Field
+pinstr :: String -> P_Field
 pinstr s = pinstr' (I.Instr_Ref s True)
 
 -- | 'I.Instr' pattern from 'Synthdef'.
-psynth :: Synthdef -> P E.Field
+psynth :: Synthdef -> P_Field
 psynth s = pinstr' (I.Instr_Def s True)
 
 -- | 'punion' of 'pinstr''.
@@ -1055,7 +1071,7 @@ pkey_m k = fmap (E.e_get k)
 --
 -- > pkey "freq" (pbind [("freq",440)]) == toP' [440]
 -- > pkey "amp" (pbind [("amp",toP [0,1])]) == toP' [0,1]
-pkey :: E.Key -> P_Event -> P E.Field
+pkey :: E.Key -> P_Event -> P_Field
 pkey k = fmap (fromJust . E.e_get k)
 
 -- | SC3 pattern that is a variant of 'pbind' for controlling
@@ -1066,16 +1082,16 @@ pmono b =
     in pbind (("type",ty) : b)
 
 -- | Idiom to scale 'a' at 'E.Key' in an 'E.Event' pattern.
-pmul :: E.Key -> P E.Field -> P_Event -> P_Event
+pmul :: E.Key -> P_Field -> P_Event -> P_Event
 pmul k = pzipWith (\i j -> E.e_edit k 1 (* i) j)
 
 -- | Variant that does not insert key.
-pmul' :: E.Key -> P E.Field -> P_Event -> P_Event
+pmul' :: E.Key -> P_Field -> P_Event -> P_Event
 pmul' k = pzipWith (\i j -> E.e_edit' k (* i) j)
 
 -- | SC3 pattern to do time stretching.  It is equal to 'pmul' at
 -- \"stretch\".
-pstretch :: P E.Field -> P_Event -> P_Event
+pstretch :: P_Field -> P_Event -> P_Event
 pstretch = pmul "stretch"
 
 -- * Parallel patterns
@@ -1098,8 +1114,45 @@ ptpar l =
       (pt,p):(qt,q):r -> ptpar ((min pt qt,ptmerge (pt,p) (qt,q)) : r)
 
 -- | Variant of 'ptpar' with zero start times.
+--
+-- > let {a = pbind [("a",pseq [1,2,3] inf)]
+-- >     ;b = pbind [("b",pseq [4,5,6] inf)]
+-- >     ;r = toP' [E.e_from_list [("a",1),("fwd'",0)]
+-- >               ,E.e_from_list [("b",4),("fwd'",1)]]}
+-- > in ptake 2 (ppar [a,b]) == r
 ppar :: [P_Event] -> P_Event
 ppar l = ptpar (zip (repeat 0) l)
+
+-- * MCE
+
+-- | Variant of 'L.transpose' for fixed /width/ interior lists.  This
+-- function is more productive than the general version.
+--
+-- > map head (transpose_fixed 4 (repeat [1..4])) == [1..4]
+-- > map head (L.transpose (repeat [1..4])) == _|_
+transpose_fixed :: Int -> [[a]] -> [[a]]
+transpose_fixed w l =
+    let f n = map (!! n)
+        g = map f [0 .. w - 1]
+    in zipWith (\p q -> p q) g (repeat l)
+
+-- | Variant of 'transpose_fixed' deriving /width/ from first element.
+transpose_fixed' :: [[a]] -> [[a]]
+transpose_fixed' l =
+    case l of
+      [] -> []
+      h:_ -> transpose_fixed (length h) l
+
+-- | Remove one layer of MCE expansion at an /event/ pattern.
+--
+-- > let {a = pseq [300,400,500] inf
+-- >     ;b = pseq [302,402,502,202] inf
+-- >     ;c = pmce2 a b}
+-- > in ptake 4 (p_un_mce (pbind [("freq",c)]))
+p_un_mce :: P_Event -> P_Event
+p_un_mce (P l st) =
+    let l' = transpose_fixed' (map E.e_un_mce' l)
+    in P (E.e_par (zip (repeat 0) l')) st
 
 -- * NRT
 

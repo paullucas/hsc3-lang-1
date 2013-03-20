@@ -49,6 +49,12 @@ f_bool_err err = (> 0) . fromMaybe (error ("f_bool: " ++ err)) . f_double_m
 f_int_err :: String -> Field -> Int
 f_int_err err = round . fromMaybe (error ("f_int: " ++ err)) . f_double_m
 
+-- | Single element 'F_Vector' constructor.
+--
+-- > f_ref 1 == f_array [1]
+f_ref :: Field -> Field
+f_ref = F_Vector . return
+
 -- | Uniform vector constructor.
 --
 -- > f_array [1,2] == F_Vector [F_Double 1,F_Double 2]
@@ -64,6 +70,16 @@ f_vector_m f = case f of {F_Vector v -> Just v;_ -> Nothing;}
 -- > f_vector_length (f_array [1..5]) == Just 5
 f_vector_length :: Field -> Maybe Int
 f_vector_length = fmap length . f_vector_m
+
+-- | Indexed variant of 'f_double_err'.
+--
+-- > f_double_err_ix "" Nothing 1 == 1
+-- > f_double_err_ix "" (Just 1) (f_array [0,1]) == 1
+f_double_err_ix :: String -> Maybe Int -> Field -> Double
+f_double_err_ix err n =
+    case n of
+      Nothing -> f_double_err err
+      Just i -> f_double_err err . (!! i) . f_vector
 
 -- | Maybe variant of 'f_instr'.
 f_instr_m :: Field -> Maybe I.Instr
@@ -298,9 +314,28 @@ e_union = Map.union
 e_get :: Key -> Event -> Maybe Field
 e_get k = Map.lookup k
 
+-- | Immediate or vector element lookup.
+--
+-- > e_get_ix Nothing "a" (e_from_list [("a",1)]) == Just 1
+--
+-- > let n = f_array [0,1,2]
+-- > in e_get_ix Nothing "a" (e_from_list [("a",n)]) == Just n
+--
+-- > let n = f_array [0..9]
+-- > in e_get_ix (Just 5) "a" (e_from_list [("a",n)]) == Just 5
+e_get_ix :: Maybe Int -> Key -> Event -> Maybe Field
+e_get_ix n k =
+    case n of
+      Nothing -> e_get k
+      Just i -> fmap ((!! i) . f_vector) . e_get k
+
 -- | Type specialised 'e_get'.
 e_get_double :: Key -> Event -> Maybe Double
 e_get_double k = fmap (f_double_err k) . e_get k
+
+-- | Type specialised 'e_get_ix'.
+e_get_double_ix :: Maybe Int -> Key -> Event -> Maybe Double
+e_get_double_ix n k = fmap (f_double_err k) . e_get_ix n k
 
 -- | Type specialised 'e_get'.
 e_get_bool :: Key -> Event -> Maybe Bool
@@ -310,13 +345,25 @@ e_get_bool k = fmap (f_bool_err k) . e_get k
 e_get_int :: Key -> Event -> Maybe Int
 e_get_int k = fmap (f_int_err k) . e_get k
 
+-- | Type specialised 'e_get_ix'.
+e_get_int_ix :: Maybe Int -> Key -> Event -> Maybe Int
+e_get_int_ix n k = fmap (f_int_err k) . e_get_ix n k
+
 -- | Type specialised 'e_get'.
 e_get_instr :: Key -> Event -> Maybe I.Instr
 e_get_instr k = fmap (f_instr_err k) . e_get k
 
+-- | Type specialised 'e_get_ix'.
+e_get_instr_ix :: Maybe Int -> Key -> Event -> Maybe I.Instr
+e_get_instr_ix n k = fmap (f_instr_err k) . e_get_ix n k
+
 -- | Type specialised 'e_get'.
 e_get_array :: Key -> Event -> Maybe [Double]
 e_get_array k = fmap (map (f_double_err k) . f_vector) . e_get k
+
+-- | Type specialised 'e_get_ix'.
+e_get_array_ix :: Maybe Int -> Key -> Event -> Maybe [Double]
+e_get_array_ix n k = fmap (map (f_double_err k) . f_vector) . e_get_ix n k
 
 -- | 'Event' /type/.
 --
@@ -339,14 +386,14 @@ e_type_match' e (f,g,h) = e_type_match e (const f,const g,const h)
 
 -- | Generate 'D.Dur' from 'Event'.
 --
--- > D.delta (e_duration e_empty) == 1
--- > D.fwd (e_duration (e_from_list [("dur",1),("stretch",2)])) == 2
+-- > D.delta (e_dur Nothing e_empty) == 1
+-- > D.fwd (e_dur Nothing (e_from_list [("dur",1),("stretch",2)])) == 2
 --
 -- > let e = e_from_list [("dur",1),("legato",0.5)]
--- > in D.occ (e_duration e) == 0.5
-e_dur :: Event -> D.Dur
-e_dur e =
-    let f k = e_get_double k e
+-- > in D.occ (e_dur Nothing e) == 0.5
+e_dur :: Maybe Int -> Event -> D.Dur
+e_dur n e =
+    let f k = e_get_double_ix n k e
     in D.optDur (f "tempo"
                 ,f "dur"
                 ,f "stretch"
@@ -358,20 +405,26 @@ e_dur e =
 
 -- | Generate 'Pitch' from 'Event'.
 --
--- > P.midinote (e_pitch e_empty) == 60
--- > P.freq (e_pitch (e_from_list [("degree",5)])) == 440
--- > P.midinote (e_pitch (e_from_list [("degree",5),("scale",f_array [0,2,3,5,7,8,10])])) == 68
--- > P.freq (e_pitch (e_from_list [("midinote",69)])) == 440
-e_pitch :: Event -> P.Pitch
-e_pitch e =
-    let f k = e_get_double k e
+-- > P.midinote (e_pitch Nothing e_empty) == 60
+-- > P.freq (e_pitch Nothing (e_from_list [("degree",5)])) == 440
+--
+-- > let e = e_from_list [("degree",5),("scale",f_array [0,2,3,5,7,8,10])]
+-- > in P.midinote (e_pitch Nothing e) == 68
+--
+-- > let e = e_from_list [("degree",5),("scale",f_ref (f_array [0,2,3,5,7,8,10]))]
+-- > in P.midinote (e_pitch (Just 0) (e_mce_expand e)) == 68
+--
+-- > P.freq (e_pitch Nothing (e_from_list [("midinote",69)])) == 440
+e_pitch :: Maybe Int -> Event -> P.Pitch
+e_pitch n e =
+    let f k = e_get_double_ix n k e
     in P.optPitch (f "mtranspose"
                   ,f "gtranspose"
                   ,f "ctranspose"
                   ,f "octave"
                   ,f "root"
                   ,f "degree"
-                  ,e_get_array "scale" e
+                  ,e_get_array_ix n "scale" e
                   ,f "stepsPerOctave"
                   ,f "detune"
                   ,f "harmonic"
@@ -380,8 +433,8 @@ e_pitch e =
                   ,f "note")
 
 -- | 'Event' identifier.
-e_id :: Event -> Maybe Int
-e_id = e_get_int "id"
+e_id :: Maybe Int -> Event -> Maybe Int
+e_id n = e_get_int_ix n "id"
 
 -- | Lookup /db/ field of 'Event'.
 --
@@ -404,9 +457,11 @@ e_latency :: Event -> Double
 e_latency = fromMaybe 0.1 . e_get_double "latency"
 
 -- | Extract non-'reserved' 'Keys' from 'Event'.
-e_parameters :: Event -> [(Key,Double)]
-e_parameters =
-    map (\(k,v) -> (k,f_double_err k v)) .
+--
+-- > e_parameters Nothing (e_from_list [("freq",1),("a",1)]) == [("a",1)]
+e_parameters :: Maybe Int -> Event -> [(Key,Double)]
+e_parameters n =
+    map (\(k,v) -> (k,f_double_err_ix k n v)) .
     filter k_is_parameter .
     Map.toList
 
@@ -431,7 +486,7 @@ e_edit' k f e =
 -- 'D.fwd' to calculate start times.
 e_merge' :: (Time,[Event]) -> (Time,[Event]) -> [(Time,Event)]
 e_merge' (pt,p) (qt,q) =
-    let fwd = D.fwd . e_dur
+    let fwd = D.fwd . e_dur Nothing
         p_st = map (+ pt) (0 : scanl1 (+) (map fwd p))
         q_st = map (+ qt) (0 : scanl1 (+) (map fwd q))
     in t_merge (zip p_st p) (zip q_st q)
@@ -448,7 +503,20 @@ e_add_fwd e =
 e_merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
 e_merge p q = e_add_fwd (e_merge' p q)
 
+-- > e_par [(0,repeat (e_from_list [("a",1)]))
+-- >       ,(0,repeat (e_from_list [("b",2)]))
+-- >       ,(0,repeat (e_from_list [("c",3)]))]
+e_par :: [(Time,[Event])] -> [Event]
+e_par l =
+    case l of
+      [] -> []
+      [(_,p)] -> p
+      (pt,p):(qt,q):r -> e_par ((min pt qt,e_merge (pt,p) (qt,q)) : r)
+
 -- | Does 'Event' have a 'True' @rest@ key.
+--
+-- > e_is_rest e_empty == False
+-- > e_is_rest (e_from_list [("rest",1)]) == True
 e_is_rest :: Event -> Bool
 e_is_rest = fromMaybe False . e_get_bool "rest"
 
@@ -465,33 +533,58 @@ e_mce_depth e =
          [] -> Nothing
          l -> Just (maximum l)
 
--- | Extend vectors at 'Event' if required.
+-- | Extend vectors at 'Event' if required, returning 'e_mce_depth'.
 --
 -- > let {e = e_from_list [("a",f_array [1,2]),("b",f_array [2,3,4])]
 -- >     ;r = e_from_list [("a",f_array [1,2,1]),("b",f_array [2,3,4])]}
--- > in e_mce_extend e == r
+-- > in e_mce_extend e == Just (3,r)
 --
--- > let e = e_mce_extend (e_from_list [("a",1)])
--- > in e_mce_extend e == e
-e_mce_extend :: Event -> Event
+-- > let e = e_from_list [("a",1)]
+-- > in e_mce_extend e == Nothing
+e_mce_extend :: Event -> Maybe (Int,Event)
 e_mce_extend e =
     let e' = e_to_list e
-        f = map snd e'
-    in case e_mce_depth e of
-         Nothing -> e
-         Just n -> let f' = map (f_mce_extend n) f
-                   in e_from_list (zip (map fst e') f')
+        flds = map snd e'
+        f n = let flds' = map (f_mce_extend n) flds
+              in (n,e_from_list (zip (map fst e') flds'))
+    in fmap f (e_mce_depth e)
+
+-- | 'e_mce_extend' variant.
+e_mce_expand :: Event -> Event
+e_mce_expand e = maybe e snd (e_mce_extend e)
+
+-- | Parallel 'Event's, if required.
+--
+-- > let {e = e_from_list [("a",1),("b",f_array [2,3])]
+-- >     ;r = [e_from_list [("a",1),("b",2)],e_from_list [("a",1),("b",3)]]}
+-- > in e_un_mce e == Just r
+--
+-- > let {e = e_from_list [("a",f_array [1,2]),("b",f_array [3,4,5])]
+-- >     ;r = e_from_list [("a",1),("b",5)]}
+-- > in fmap (!! 2) (e_un_mce e) == Just r
+--
+-- > e_un_mce (e_from_list [("a",1)]) == Nothing
+e_un_mce :: Event -> Maybe [Event]
+e_un_mce e =
+    let e' = e_to_list e
+        flds = map snd e'
+        f n = let flds' = transpose (map (f_vector . f_mce_extend n) flds)
+              in map (e_from_list . zip (map fst e')) flds'
+    in fmap f (e_mce_depth e)
+
+-- | 'e_un_mce' variant.
+e_un_mce' :: Event -> [Event]
+e_un_mce' e = fromMaybe [e] (e_un_mce e)
 
 -- * SC3
 
--- | Generate @SC3@ /(on,off)/ 'Bundle's describing 'Event'.
-e_bundle :: Time -> Int -> Event-> Maybe (Bundle,Bundle)
-e_bundle t j e =
-    let e_i = e_get_instr "instr" e
+-- | Generate @SC3@ /(on,off)/ 'Message' sets describing 'Event'.
+e_messages :: D.Dur -> Event -> Int -> Maybe Int -> Maybe (T2 [Message])
+e_messages d e n_id n =
+    let e_i = e_get_instr_ix n "instr" e
         s = maybe "default" I.i_name e_i
         sr = maybe True I.i_send_release e_i
-        p = e_pitch e
-        d = e_dur e
+        p = e_pitch n e
         rt = D.occ d {- rt = release time -}
         f = P.freq p
         pr = ("freq",f)
@@ -499,24 +592,42 @@ e_bundle t j e =
              : ("delta",D.delta d)
              : ("sustain",rt)
              : ("amp",e_amp e)
-             : e_parameters e
-        i = fromMaybe j (e_id e)
-        t' = t + realToFrac (e_latency e)
+             : e_parameters n e
+        n_id' = fromMaybe n_id (e_id n e)
     in if e_is_rest e || isNaN f
        then Nothing
-       else let m_on = e_type_match' e ([s_new s i AddToTail 1 pr]
-                                       ,[n_set i pr]
+       else let m_on = e_type_match' e ([s_new s n_id' AddToTail 1 pr]
+                                       ,[n_set n_id' pr]
                                        ,[])
                 m_off = if not sr
                         then []
-                        else e_type_match' e ([n_set i [("gate",0)]]
-                                             ,[n_set i [("gate",0)]]
+                        else e_type_match' e ([n_set n_id' [("gate",0)]]
+                                             ,[n_set n_id' [("gate",0)]]
                                              ,[])
                 m_on' = case I.i_synthdef =<< e_i of
                           Just sy -> d_recv sy : m_on
                           Nothing -> m_on
-            in Just (Bundle t' m_on'
-                    ,Bundle (t' + realToFrac rt) m_off)
+            in Just (m_on',m_off)
+
+-- | MCE variant of 'e_messages'.
+e_messages_mce :: D.Dur -> Event -> Int -> (Maybe (T2 [Message]),Int)
+e_messages_mce d e n_id =
+    let (r,n) = case e_mce_extend e of
+                  Just (m,e') -> (zipWith (e_messages d e') [n_id ..] (map Just [0 .. m - 1]),m)
+                  Nothing -> ([e_messages d e n_id Nothing],1)
+    in case unzip (catMaybes r) of
+         ([],[]) -> (Nothing,n_id)
+         (m_on,m_off) -> (Just (concat m_on,concat m_off),n_id + n)
+
+-- | Generate @SC3@ /(on,off)/ 'Bundle's describing 'Event'.
+e_bundles :: Time -> Int -> D.Dur -> Event-> (Maybe (T2 Bundle),Int)
+e_bundles t n_id d e =
+    let rt = D.occ d {- rt = release time -}
+        t' = t + realToFrac (e_latency e)
+        t'' = t' + realToFrac rt
+    in case e_messages_mce d e n_id of
+         (Nothing,n_id') -> (Nothing,n_id')
+         (Just (m_on,m_off),n_id') -> (Just (Bundle t' m_on,Bundle t'' m_off),n_id')
 
 -- | Ordered sequence of 'Event'.
 newtype Event_Seq = Event_Seq {e_seq_events :: [Event]}
@@ -524,20 +635,22 @@ newtype Event_Seq = Event_Seq {e_seq_events :: [Event]}
 -- | Transform 'Event_Seq' into a sequence of @SC3@ /(on,off)/ 'Bundles'.
 --
 -- > e_bundle_seq (replicate 5 e_empty)
-e_bundle_seq :: Time -> Event_Seq -> [(Bundle,Bundle)]
+e_bundle_seq :: Time -> Event_Seq -> [T2 Bundle]
 e_bundle_seq st =
     let rec t i l =
             case l of
               [] -> []
-              e:l' -> let t' = t + D.fwd (e_dur e)
-                          i' = i + 1
-                      in e_bundle t i e `mcons` rec t' i' l'
+              e:l' -> let d = e_dur Nothing e
+                          t' = t + D.fwd d
+                          (b,i') = e_bundles t i d e
+                      in b `mcons` rec t' i' l'
     in rec st 1000 . e_seq_events
 
 -- | Transform (productively) an 'Event_Seq' into an 'NRT' score.
 --
--- > e_nrt (replicate 5 e_empty)
--- > take 5 (nrt_bundles (e_nrt (repeat e_empty)))
+-- > let {n1 = nrt_bundles (e_nrt (Event_Seq (replicate 5 e_empty)))
+-- >     ;n2 = take 10 (nrt_bundles (e_nrt (Event_Seq (repeat e_empty))))}
+-- > in n1 == n2
 e_nrt :: Event_Seq -> NRT
 e_nrt =
     let rec r l =
@@ -575,6 +688,9 @@ t_merge p q =
             else (t1,e1) : t_merge p r1
 
 -- * Tuple
+
+-- | Two tuple of /n/.
+type T2 n = (n,n)
 
 -- | Three tuple of /n/.
 type T3 n = (n,n,n)
