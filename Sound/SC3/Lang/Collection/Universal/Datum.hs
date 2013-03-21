@@ -175,7 +175,7 @@ atD3 fi fh ff fd d1 d2 d3 =
       _ -> error "atD3: NaN"
 
 instance IsString Datum where
-    fromString = String
+    fromString = ASCII_String . string_to_ascii
 
 instance Num Datum where
     negate = liftD negate negate negate negate
@@ -246,11 +246,12 @@ instance RealFloat Datum where
     atan2 = liftD2' atan2
 
 instance Ord Datum where
-    compare p q = case (datum_promote p,datum_promote q) of
-                    (Double i, Double j) -> compare i j
-                    (String i,String j) -> compare i j
-                    (TimeStamp i,TimeStamp j) -> compare i j
-                    _ -> error "Datum.compare"
+    compare p q =
+        case (datum_promote p,datum_promote q) of
+          (Double i, Double j) -> compare i j
+          (ASCII_String (ASCII i),ASCII_String (ASCII j)) -> compare i j
+          (TimeStamp i,TimeStamp j) -> compare i j
+          _ -> error "Datum.compare"
 
 instance Enum Datum where
     fromEnum = atD fromEnum fromEnum fromEnum fromEnum
