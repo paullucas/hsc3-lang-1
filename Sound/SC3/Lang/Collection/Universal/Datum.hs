@@ -22,7 +22,7 @@
 -- 'Datum' are 'Floating'
 --
 -- > pi :: Datum
--- > sqrt (Int 4) == Double 2
+-- > sqrt (Int32 4) == Double 2
 -- > (2.0 ** 3.0) :: Datum
 --
 -- 'Datum' are 'Real'
@@ -38,54 +38,44 @@
 --
 -- 'Datum' are 'RealFloat'
 --
--- > isNaN (sqrt (negate (Int 1))) == True
+-- > isNaN (sqrt (negate (Int32 1))) == True
 --
 -- 'Datum' are 'Ord'
 --
--- > Double 7.5 > Int 7
+-- > Double 7.5 > Int32 7
 -- > String "because" > String "again"
 --
 -- 'Datum' are 'Enum'
 --
--- > [Int 0 .. Int 4] == [Int 0,Int 1,Int 2,Int 3,Int 4]
+-- > [Int32 0 .. Int32 4] == [Int32 0,Int32 1,Int32 2,Int32 3,Int32 4]
 -- > [Double 1 .. Double 3] == [Double 1,Double 2,Double 3]
 --
 -- 'Datum' are 'Random'
 --
--- > System.Random.randomRIO (Int 0,Int 9):: IO Datum
+-- > System.Random.randomRIO (Int32 0,Int32 9):: IO Datum
 -- > System.Random.randomRIO (Float 0,Float 1):: IO Datum
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
+import Data.Int {- base -}
 import Data.Ratio {- base -}
 import GHC.Exts (IsString(..)) {- base -}
 import Sound.OSC {- hosc -}
 import System.Random {- random -}
-
--- * Cast, Coerce, Promote
-
--- | Promote 'Int' and 'Float' 'Datum' to 'Double' 'Datum'.
---
--- > map datum_promote [Int 5,Float 5] == [Double 5,Double 5]
-datum_promote :: Datum -> Datum
-datum_promote d =
-    case d of
-      Int n -> Double (fromIntegral n)
-      Float n -> Double (realToFrac n)
-      _ -> d
 
 -- * Lifting
 
 -- | Unary operator.
 type UOp n = (n -> n)
 
--- | Lift an equivalent set of 'Int', 'Float' and 'Double' unary
+-- | Lift an equivalent set of 'Int32', 'Int64', 'Float' and 'Double' unary
 -- functions to 'Datum'.
 --
--- > map (liftD abs abs abs) [Int 5,Float (-5)] == [Int 5,Float 5]
-liftD :: UOp Int -> UOp Float -> UOp Double -> UOp Datum
-liftD fi ff fd d =
+-- > map (liftD abs abs abs abs) [Int32 5,Float (-5)] == [Int32 5,Float 5]
+liftD :: UOp Int32 -> UOp Int64 -> UOp Float -> UOp Double -> UOp Datum
+liftD fi fh ff fd d =
     case d of
-      Int n -> Int (fi n)
+      Int32 n -> Int32 (fi n)
+      Int64 n -> Int64 (fh n)
       Float n -> Float (ff n)
       Double n -> Double (fd n)
       _ -> error "liftD: NaN"
@@ -94,21 +84,26 @@ liftD fi ff fd d =
 --
 -- > liftD' negate (Int 5) == Double (-5)
 liftD' :: UOp Double -> UOp Datum
-liftD' fd = liftD (error "liftD'") (error "liftD'") fd . datum_promote
+liftD' fd =
+    liftD (error "liftD'") (error "liftD'") (error "liftD'") fd .
+    datum_promote
 
 -- | A binary operator.
 type BinOp n = (n -> n -> n)
 
--- | Given 'Int', 'Float' and 'Double' binary operators generate
--- 'Datum' operator.  If 'Datum' are of equal type result type is
--- equal, else result type is 'Double'.
+-- | Given 'Int32', 'Int64', 'Float' and 'Double' binary operators
+-- generate 'Datum' operator.  If 'Datum' are of equal type result
+-- type is equal, else result type is 'Double'.
 --
--- > liftD2 (+) (+) (+) (Float 1) (Float 2) == Float 3
--- > liftD2 (*) (*) (*) (Int 3) (Float 4) == Double 12
-liftD2 :: BinOp Int -> BinOp Float -> BinOp Double -> BinOp Datum
-liftD2 fi ff fd d1 d2 =
+-- > liftD2 (+) (+) (+) (+) (Float 1) (Float 2) == Float 3
+-- > liftD2 (*) (*) (*) (*) (Int32 3) (Float 4) == Double 12
+liftD2 :: BinOp Int32 -> BinOp Int64 ->
+          BinOp Float -> BinOp Double ->
+          BinOp Datum
+liftD2 fi fh ff fd d1 d2 =
     case (d1,d2) of
-      (Int n1,Int n2) -> Int (fi n1 n2)
+      (Int32 n1,Int32 n2) -> Int32 (fi n1 n2)
+      (Int64 n1,Int64 n2) -> Int64 (fh n1 n2)
       (Float n1,Float n2) -> Float (ff n1 n2)
       (Double n1,Double n2) -> Double (fd n1 n2)
       _ -> case (datum_floating d1,datum_floating d2) of
@@ -121,18 +116,22 @@ liftD2 fi ff fd d1 d2 =
 liftD2' :: BinOp Double -> BinOp Datum
 liftD2' f d1 =
     let d1' = datum_promote d1
-    in liftD2 (error "liftD2'") (error "liftD2'") f d1' . datum_promote
+    in liftD2 (error "liftD2'") (error "liftD2'") (error "liftD2'") f d1' .
+       datum_promote
 
 -- * At
 
--- | Direct unary 'Int', 'Float' and 'Double' functions at 'Datum'
--- fields, or 'error'.
+-- | Direct unary 'Int32', 'Int64', 'Float' and 'Double' functions at
+-- 'Datum' fields, or 'error'.
 --
--- > atD show show show (Int 5) == "5"
-atD :: (Int -> a) -> (Float -> a) -> (Double -> a) -> Datum -> a
-atD fi ff fd d =
+-- > atD show show show show (Int 5) == "5"
+atD :: (Int32 -> a) -> (Int64 -> a) ->
+       (Float -> a) -> (Double -> a) ->
+       Datum -> a
+atD fi fh ff fd d =
     case d of
-      Int n -> fi n
+      Int32 n -> fi n
+      Int64 n -> fh n
       Float n -> ff n
       Double n -> fd n
       _ -> error "atD: NaN"
@@ -148,10 +147,13 @@ type BinAt n a = (n -> n -> a)
 
 -- | Direct binary 'Int', 'Float' and 'Double' functions at 'Datum'
 -- fields, or 'error'.
-atD2 :: BinAt Int a -> BinAt Float a -> BinAt Double a -> BinAt Datum a
-atD2 fi ff fd d1 d2 =
+atD2 :: BinAt Int32 a -> BinAt Int64 a ->
+        BinAt Float a -> BinAt Double a ->
+        BinAt Datum a
+atD2 fi fh ff fd d1 d2 =
     case (d1,d2) of
-      (Int n1,Int n2) -> fi n1 n2
+      (Int32 n1,Int32 n2) -> fi n1 n2
+      (Int64 n1,Int64 n2) -> fh n1 n2
       (Float n1,Float n2) -> ff n1 n2
       (Double n1,Double n2) -> fd n1 n2
       _ -> error "atD2: NaN"
@@ -161,10 +163,13 @@ type TriAt n a = (n -> n -> n -> a)
 
 -- | Direct ternary 'Int', 'Float' and 'Double' functions at 'Datum'
 -- fields, or 'error'.
-atD3 :: TriAt Int a -> TriAt Float a -> TriAt Double a -> TriAt Datum a
-atD3 fi ff fd d1 d2 d3 =
+atD3 :: TriAt Int32 a -> TriAt Int64 a ->
+        TriAt Float a -> TriAt Double a ->
+        TriAt Datum a
+atD3 fi fh ff fd d1 d2 d3 =
     case (d1,d2,d3) of
-      (Int n1,Int n2,Int n3) -> fi n1 n2 n3
+      (Int32 n1,Int32 n2,Int32 n3) -> fi n1 n2 n3
+      (Int64 n1,Int64 n2,Int64 n3) -> fh n1 n2 n3
       (Float n1,Float n2,Float n3) -> ff n1 n2 n3
       (Double n1,Double n2,Double n3) -> fd n1 n2 n3
       _ -> error "atD3: NaN"
@@ -173,13 +178,13 @@ instance IsString Datum where
     fromString = String
 
 instance Num Datum where
-    negate = liftD negate negate negate
-    (+) = liftD2 (+) (+) (+)
-    (-) = liftD2 (-) (-) (-)
-    (*) = liftD2 (*) (*) (*)
-    abs = liftD abs abs abs
-    signum = liftD signum signum signum
-    fromInteger n = Int (fromInteger n)
+    negate = liftD negate negate negate negate
+    (+) = liftD2 (+) (+) (+) (+)
+    (-) = liftD2 (-) (-) (-) (-)
+    (*) = liftD2 (*) (*) (*) (*)
+    abs = liftD abs abs abs abs
+    signum = liftD signum signum signum signum
+    fromInteger n = Int64 (fromInteger n)
 
 instance Fractional Datum where
     recip = liftD' recip
@@ -209,7 +214,8 @@ instance Floating Datum where
 instance Real Datum where
     toRational d =
         case d of
-          Int n -> fromIntegral n % 1
+          Int32 n -> fromIntegral n % 1
+          Int64 n -> fromIntegral n % 1
           Float n -> toRational n
           Double n -> toRational n
           _ -> error "Datum.toRational: NaN"
@@ -247,33 +253,38 @@ instance Ord Datum where
                     _ -> error "Datum.compare"
 
 instance Enum Datum where
-    fromEnum = atD fromEnum fromEnum fromEnum
+    fromEnum = atD fromEnum fromEnum fromEnum fromEnum
     enumFrom =
         atD
-        (map Int . enumFrom)
+        (map Int32 . enumFrom)
+        (map Int64 . enumFrom)
         (map Float . enumFrom)
         (map Double . enumFrom)
     enumFromThen =
         atD2
-        (\a -> map Int . enumFromThen a)
+        (\a -> map Int32 . enumFromThen a)
+        (\a -> map Int64 . enumFromThen a)
         (\a -> map Float . enumFromThen a)
         (\a -> map Double . enumFromThen a)
     enumFromTo =
         atD2
-        (\a -> map Int . enumFromTo a)
+        (\a -> map Int32 . enumFromTo a)
+        (\a -> map Int64 . enumFromTo a)
         (\a -> map Float . enumFromTo a)
         (\a -> map Double . enumFromTo a)
     enumFromThenTo =
         atD3
-        (\a b ->  map Int . enumFromThenTo a b)
+        (\a b ->  map Int32 . enumFromThenTo a b)
+        (\a b ->  map Int64 . enumFromThenTo a b)
         (\a b ->  map Float . enumFromThenTo a b)
         (\a b ->  map Double . enumFromThenTo a b)
-    toEnum = Int
+    toEnum = Int64 . fromIntegral
 
 instance Random Datum where
   randomR i g =
       case i of
-        (Int l,Int r) -> let (n,g') = randomR (l,r) g in (Int n,g')
+        (Int32 l,Int32 r) -> let (n,g') = randomR (l,r) g in (Int32 n,g')
+        (Int64 l,Int64 r) -> let (n,g') = randomR (l,r) g in (Int64 n,g')
         (Float l,Float r) -> let (n,g') = randomR (l,r) g in (Float n,g')
         (Double l,Double r) -> let (n,g') = randomR (l,r) g in (Double n,g')
         _ -> error "Datum.randomR: NaN"
