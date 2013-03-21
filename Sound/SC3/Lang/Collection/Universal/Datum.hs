@@ -56,6 +56,7 @@
 -- > System.Random.randomRIO (Float 0,Float 1):: IO Datum
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
+import qualified Data.ByteString.Char8 as C {- bytestring -}
 import Data.Int {- base -}
 import Data.Ratio {- base -}
 import GHC.Exts (IsString(..)) {- base -}
@@ -175,7 +176,7 @@ atD3 fi fh ff fd d1 d2 d3 =
       _ -> error "atD3: NaN"
 
 instance IsString Datum where
-    fromString = ASCII_String . string_to_ascii
+    fromString = ASCII_String . C.pack
 
 instance Num Datum where
     negate = liftD negate negate negate negate
@@ -249,7 +250,7 @@ instance Ord Datum where
     compare p q =
         case (datum_promote p,datum_promote q) of
           (Double i, Double j) -> compare i j
-          (ASCII_String (ASCII i),ASCII_String (ASCII j)) -> compare i j
+          (ASCII_String i,ASCII_String j) -> compare i j
           (TimeStamp i,TimeStamp j) -> compare i j
           _ -> error "Datum.compare"
 
