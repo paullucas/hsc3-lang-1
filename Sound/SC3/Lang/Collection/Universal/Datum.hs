@@ -59,7 +59,7 @@ module Sound.SC3.Lang.Collection.Universal.Datum where
 import qualified Data.ByteString.Char8 as C {- bytestring -}
 import Data.Int {- base -}
 import Data.Ratio {- base -}
-import GHC.Exts (IsString(..)) {- base -}
+import Data.String {- base -}
 import Sound.OSC {- hosc -}
 import System.Random {- random -}
 
