@@ -40,27 +40,80 @@ stP_join m = if Stop `elem` m then Stop else Continue
 -- * P
 
 -- | Pattern data type (opaque)
+--
+-- Patterns are 'Functor's.
+--
+-- > fmap (* 2) (toP [1,2,3,4,5]) == toP [2::Int,4,6,8,10]
+--
+-- Patterns are 'Monoid's.
+--
+-- > mempty :: P Int
+-- > mempty `mappend` mempty == (mempty :: P Int)
+-- > mempty `mappend` 1 == (1 :: P Int) `mappend` mempty
+-- > toP [1,2,3] `mappend` toP [4,5,6] == toP [1::Int,2,3,4,5,6]
+--
+-- > take 3 (concat (repeat [1,2])) == [1::Int,2,1]
+-- > ptake 3 (mconcat (repeat (toP [1,2]))) == toP' [1::Int,2,1]
+-- > ptake 3 (mconcat [pseq [1,2] 1,pseq [3,4] 1]) == toP' [1::P Int,2,3]
+--
+-- Patterns are 'Applicative'.
+--
+-- > (pure (+) <*> toP [1,3,5] <*> toP [6,4,2]) == toP [7::Int,7,7]
+-- > liftA2 (+) (toP [1,2]) (toP [3,4]) == toP [4::Int,6]
+-- > liftA2 (+) (toP [1,2,3]) (toP [4,5,6,7]) == toP [5::Int,7,9,8]
+--
+-- Patterns are 'Monad's.
+--
+-- > take 3 (join (repeat [1,2])) == [1,2,1]
+-- > ptake 3 (join (prepeat (toP [1,2]))) == toP' [1,2,1]
+--
+-- > do {x <- toP [1::Int,2]
+-- >    ;y <- toP [3::Int,4,5]
+-- >    ;return (x,y)} == toP [(1,3),(1,4),(1,5),(2,3),(2,4),(2,5)]
+--
+-- > liftM2 (+) (toP [0,1]) (toP [0,2]) == toP [0::Int,2,1,3]
+-- > mfilter even (toP [1,2,3,4]) == toP [2::Int,4]
+--
+-- Patterns are 'MonadPlus'.
+--
+-- > msum [toP [1,2,3],toP [4,5,6]] == toP [1::Int,2,3,4,5,6]
+--
+-- Patterns are 'Num'erical.
+--
+-- > 1 == toP [1::Int]
+-- > (1 :: P Int) + 2 == 3
+-- > 1 + toP [2,3,4] == toP [3::Int,4,5]
+-- > toP [1,2,3] + 2 == toP [3::Int,4,5]
+-- > toP [1,3,5] + toP [6,4,2] == toP [7::Int,7,7]
 data P a = P {unP :: [a]
              ,stP :: M}
     deriving (Eq,Show)
 
-instance Monoid (P a) where
-    mappend = pappend
-    mempty = pempty
-
-instance Monad P where
-    m >>= k = F.foldr (mappend . k) mempty m
-    return = preturn
-
 instance Functor P where
     fmap f (P xs st) = P (map f xs) st
 
-instance F.Foldable P where
-    foldr f i (P xs _) = L.foldr f i xs
+instance Monoid (P a) where
+    mappend p q = toP (unP p ++ unP q)
+    mempty = P [] Continue
 
 instance Applicative P where
     pure x = P [x] Continue
     f <*> e = fmap (\(f',e') -> f' e') (pzip f e)
+
+instance Alternative P where
+    empty = mempty
+    (<|>) = mappend
+
+instance Monad P where
+    m >>= k = F.foldr (mappend . k) mempty m
+    return x = P [x] Continue
+
+instance MonadPlus P where
+    mzero = mempty
+    mplus = mappend
+
+instance F.Foldable P where
+    foldr f i (P xs _) = L.foldr f i xs
 
 instance Traversable P where
     traverse f (P xs st) = pure P <*> traverse f xs <*> pure st
@@ -94,6 +147,8 @@ instance (OrdE a) => OrdE (P a) where
 -- * Math
 
 -- | Pseudo-/infinite/ value for use at repeat counts.
+--
+-- > inf == maxBound
 inf :: Int
 inf = maxBound
 
@@ -121,11 +176,10 @@ pextension x =
 -- | Extend a set of patterns following 'pextension' rule.
 --
 -- > pextend [toP [1,2],toP [3,4,5]] == [toP' [1,2,1],toP' [3,4,5]]
---
 -- > pextend [toP' [1,2],toP [3,4,5]] == [toP' [1,2],toP' [3,4]]
 pextend :: [P a] -> [P a]
 pextend l =
-    let f = pzipWith (\_ x -> x) (P (pextension l) Stop) . pcycle
+    let f = pzipWith (flip const) (P (pextension l) Stop) . pcycle
     in map f l
 
 -- | Variant of 'L.transpose'.
@@ -143,11 +197,11 @@ ptranspose l =
 
 -- | Variant of 'pflop'.
 --
--- > pflop' [toP [1,2],toP [3,4,5]] == toP' [[1,3],[2,4],[1,5]]
+-- > pflop' [toP [1,2],toP [3,4,5]] == toP' [[1::Int,3],[2,4],[1,5]]
 pflop' :: [P a] -> P [a]
 pflop' l =
     let l' = map pcycle l
-    in pzipWith (\_ x -> x) (P (pextension l) Stop) (ptranspose l')
+    in pzipWith (flip const) (P (pextension l) Stop) (ptranspose l')
 
 -- | Variant of 'ptranspose' transforming the input patterns by
 -- 'pextension'.
@@ -295,28 +349,18 @@ punzip (P p st) = let (i,j) = unzip p in (P i st,P j st)
 
 -- * Monoid
 
--- | Implementation of `Data.Monoid.mempty`, ie. the empty pattern.
---
--- > pempty `pappend` pempty == pempty
--- > pempty `pappend` 1 == 1 `pappend` pempty
-pempty :: P a
-pempty = P [] Continue
-
--- | Implementation of 'Data.Monoid.mappend' to sequence two patterns.
---
--- Note that in order for 'Data.Monoid.mappend' to be productive in
+-- | In order for 'Data.Monoid.mappend' to be productive in
 -- 'Data.Monoid.mconcat' on an infinite list it cannot store the
--- right-hand stop/continue mode, see 'pappend''
+-- right-hand stop/continue mode.
 --
--- > toP [1,2] `pappend` toP [2,3] == toP [1,2,2,3]
--- > ptake 3 (prepeat 3 `pappend` prepeat 4) == toP' [3,3,3]
--- > ptake 3 (foldr pappend pempty (cycle [prepeat 3])) == toP' [3,3,3]
--- > pempty `pappend` pempty == pempty
-pappend :: P a -> P a -> P a
-pappend p q = toP (unP p ++ unP q)
-
--- | A variant of 'pappend' that preserves the continuation mode but
--- is strict in the right argument.
+-- 'pappend'' is a variant of 'mappend' that preserves the
+-- continuation mode but is strict in the right argument.
+--
+--
+-- > toP [1,2] `mappend` toP [2,3] == toP [1::Int,2,2,3]
+-- > ptake 3 (prepeat 3 `mappend` prepeat 4) == toP' [3::Int,3,3]
+-- > ptake 3 (foldr mappend mempty (cycle [prepeat 3])) == toP' [3::Int,3,3]
+-- > mempty `mappend` (mempty :: P Int) == mempty
 --
 -- > toP [1,2] `pappend'` toP [2,3] == toP [1,2,2,3]
 -- > ptake 3 (prepeat 3 `pappend'` prepeat 4) == toP' [3,3,3]
@@ -328,36 +372,20 @@ pappend p q = toP (unP p ++ unP q)
 pappend' :: P a -> P a -> P a
 pappend' (P xs _) (P ys st) = P (xs ++ ys) st
 
--- | 'pconcat' is 'Data.Monoid.mconcat'.  See also 'pjoin'.
---
--- > take 3 (concat (replicate maxBound [1,2])) == [1,2,1]
--- > ptake 3 (pconcat (cycle [toP [1,2]])) == toP' [1,2,1]
--- > ptake 3 (pconcat [pseq [1,2] 1,pseq [3,4] 1]) == toP' [1,2,3]
-pconcat :: [P a] -> P a
-pconcat = mconcat
-
--- | Variant using 'pappend''.
+-- | Variant of 'mconcat' using 'pappend''.
 pconcat' :: [P a] -> P a
 pconcat' = foldr pappend' pempty
 
 -- * Monad
 
--- | 'Control.Monad.return'
-preturn :: a -> P a
-preturn x = P [x] Continue
-
 -- | '>>=' variant using the continuation maintaining 'pappend'' function.
 (>>=*) ::P a -> (a -> P b) -> P b
 m >>=* k = F.foldr (pappend' . k) mempty m
 
--- | `Control.Monad.join`, see also `pconcat`.
---
--- > take 3 (Control.Monad.join (replicate maxBound [1,2])) == [1,2,1]
--- > ptake 3 (pjoin (preplicate inf (toP [1,2]))) == toP' [1,2,1]
-pjoin :: P (P a) -> P a
-pjoin = join
-
 -- | Variant that maintains the continuing mode of the outer structure.
+--
+-- > join (pseq [1,2] 1) == toP [1,2]
+-- > pjoin' (pseq [1,2] 1) == toP' [1,2]
 pjoin' :: P (P a) -> P a
 pjoin' x = (join x) {stP = stP x}
 
@@ -659,12 +687,12 @@ pseq1 a i = pjoin' (ptake i (pflop a))
 --
 -- > ptake 3 (pdrop 1000000 (pseq [1,2,3] inf)) == toP' [2,3,1]
 pseq :: [P a] -> Int -> P a
-pseq a i = stoppingN i (pn (pconcat a) i)
+pseq a i = stoppingN i (pn (mconcat a) i)
 
 -- | A variant of 'pseq' that passes a new seed at each invocation,
 -- see also 'pfuncn'.
 pseqr :: (Int -> [P a]) -> Int -> P a
-pseqr f n = pconcat (L.concatMap f [1 .. n])
+pseqr f n = mconcat (L.concatMap f [1 .. n])
 
 -- | A variant of 'pseq' to aid translating a common SC3 idiom where a
 -- finite random pattern is included in a @Pseq@ list.  In the SC3
@@ -688,7 +716,7 @@ pseqn :: [Int] -> [P a] -> Int -> P a
 pseqn n q =
     let go _ 0 = pempty
         go p c = let (i,j) = unzip (zipWith psplitAt n p)
-                 in pconcat i `pappend` go j (c - 1)
+                 in mconcat i `pappend` go j (c - 1)
     in go (map pcycle q)
 
 -- | Variant of 'pser' that consumes sub-patterns one element per
@@ -696,7 +724,7 @@ pseqn n q =
 --
 -- > pser1 [1,pser [10,20] 3,3] 9 == toP' [1,10,3,1,20,3,1,10,3]
 pser1 :: [P a] -> Int -> P a
-pser1 a i = ptake i (pjoin (pflop a))
+pser1 a i = ptake i (join (pflop a))
 
 -- | SC3 pattern that is like 'pseq', however the repeats variable
 -- gives the number of elements in the sequence, not the number of
@@ -706,7 +734,7 @@ pser1 a i = ptake i (pjoin (pflop a))
 -- > pser [1,pser [10,20] 3,3] 9 == toP' [1,10,20,10,3,1,10,20,10]
 -- > pser [1,2,3] 5 * 3 == toP' [3,6,9,3,6]
 pser :: [P a] -> Int -> P a
-pser a i = ptake i (pcycle (pconcat a))
+pser a i = ptake i (pcycle (mconcat a))
 
 -- | SC3 arithmetric series pattern, see also 'pgeom'.
 --
@@ -927,9 +955,9 @@ ptake n = stoppingN n . liftP (take n)
 pbool :: (Ord a,Num a) => P a -> P Bool
 pbool = fmap (> 0)
 
--- | 'pconcat' '.' 'replicate', stopping after /n/ elements.
+-- | 'mconcat' '.' 'replicate', stopping after /n/ elements.
 pconcatReplicate :: Int -> P a -> P a
-pconcatReplicate i = stoppingN i . pconcat . replicate i
+pconcatReplicate i = stoppingN i . mconcat . replicate i
 
 -- | Count the number of `False` values following each `True` value.
 --
@@ -974,21 +1002,21 @@ ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q =
     let r = pcountpre p
         f i x = preplicate i Nothing `pappend` return (Just x)
-    in pjoin (pzipWith f r q)
+    in join (pzipWith f r q)
 
 -- * Event Patterns
 
--- | Synonymn for a /field/ pattern.
+-- | Synonym for a /field/ pattern.
 type P_Field = P E.Field
 
--- | Synonymn for an /event/ pattern.
+-- | Synonym for an /event/ pattern.
 type P_Event = P E.Event
-
-instance Audible P_Event where
-    play = E.e_play . E.Event_Seq . unP
 
 -- | Synonym for 'pbind' input type.
 type P_Bind = [(E.Key,P E.Field)]
+
+instance Audible P_Event where
+    play = E.e_play . E.Event_Seq . unP
 
 -- | Add a value to an existing key, or set the key if it doesn't exist.
 --
@@ -1024,7 +1052,10 @@ pbind xs =
 -- > let p = pmce2 (pseq [1,2] inf) (pseq [3,4] inf)
 -- > in ptake 2 p == toP' [E.f_array [1,3],E.f_array [2,4]]
 pmce2 :: P_Field -> P_Field -> P_Field
-pmce2 p q = pzipWith (\m n -> E.F_Vector [m,n]) p q
+pmce2 p = pzipWith (\m n -> E.F_Vector [m,n]) p
+
+pmce3 :: P_Field -> P_Field -> P_Field -> P_Field
+pmce3 p q = pzipWith3 (\m n o -> E.F_Vector [m,n,o]) p q
 
 -- | Edit 'a' at 'E.Key' in each element of an 'E.Event' pattern.
 pedit :: E.Key -> (E.Field -> E.Field) -> P_Event -> P_Event
@@ -1125,34 +1156,78 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- * MCE
 
+-- | 'Maybe' variant of '!!'.
+lindex :: [a] -> Int -> Maybe a
+lindex l n =
+    if n < 0
+    then Nothing
+    else case (l,n) of
+           ([],_) -> Nothing
+           (x:_,0) -> Just x
+           (_:l',_) -> lindex l' (n - 1)
+
 -- | Variant of 'L.transpose' for fixed /width/ interior lists.  This
 -- function is more productive than the general version.
 --
--- > map head (transpose_fixed 4 (repeat [1..4])) == [1..4]
+-- > map head (transpose_fixed undefined 4 (repeat [1..4])) == [1::Int .. 4]
 -- > map head (L.transpose (repeat [1..4])) == _|_
-transpose_fixed :: Int -> [[a]] -> [[a]]
-transpose_fixed w l =
-    let f n = map (!! n)
+transpose_fixed :: a -> Int -> [[a]] -> [[a]]
+transpose_fixed def w l =
+    let f n = map (fromMaybe def . (`lindex` n))
         g = map f [0 .. w - 1]
-    in zipWith (\p q -> p q) g (repeat l)
+    in zipWith ($) g (repeat l)
 
 -- | Variant of 'transpose_fixed' deriving /width/ from first element.
-transpose_fixed' :: [[a]] -> [[a]]
-transpose_fixed' l =
+--
+-- > transpose_fixed' undefined [[1,2,3],[4,5,6]] == [[1::Int,4],[2,5],[3,6]]
+-- > transpose_fixed' 0 [[1,2,3],[4,5],[6,7,8]] == [[1,4,6],[2,5,7],[3,0,8]]
+transpose_fixed' :: a -> [[a]] -> [[a]]
+transpose_fixed' def l =
     case l of
       [] -> []
-      h:_ -> transpose_fixed (length h) l
+      h:_ -> transpose_fixed def (length h) l
 
--- | Remove one layer of MCE expansion at an /event/ pattern.
+-- | Remove one layer of MCE expansion at an /event/ pattern.  The
+-- pattern will be expanded only to the width of the initial input.
 --
 -- > let {a = pseq [300,400,500] inf
 -- >     ;b = pseq [302,402,502,202] inf
--- >     ;c = pmce2 a b}
--- > in ptake 4 (p_un_mce (pbind [("freq",c)]))
+-- >     ;c = pseq [pmce3 900 901 902,pmce2 a b,900] inf}
+-- > in ptake 9 (p_un_mce (pbind [("freq",c)]))
 p_un_mce :: P_Event -> P_Event
 p_un_mce (P l st) =
-    let l' = transpose_fixed' (map E.e_un_mce' l)
+    let l' = transpose_fixed' E.e_empty (map E.e_un_mce' l)
     in P (E.e_par (zip (repeat 0) l')) st
+
+-- * Aliases
+
+-- | Implementation of 'Data.Monoid.mappend' to sequence two patterns.
+pappend :: P a -> P a -> P a
+pappend = mappend
+
+-- | Type specialised 'Data.Monoid.mconcat'.
+pconcat :: [P a] -> P a
+pconcat = mconcat
+
+-- | Implementation of `Data.Monoid.mempty`, ie. the empty pattern.
+pempty :: P a
+pempty = P [] Continue
+
+-- | Type specialised 'Control.Monad.join'.
+pjoin :: P (P a) -> P a
+pjoin = join
+
+-- | Type specialised 'Data.Functor.fmap'.
+pmap :: (a -> b) -> P a -> P b
+pmap = fmap
+
+-- | Type specialised 'Control.Applicative.pure'.
+ppure :: a -> P a
+ppure = pure
+
+-- | Type specialised 'Control.Monad.return'
+preturn :: a -> P a
+preturn = return
 
 -- * NRT
 
