@@ -37,17 +37,22 @@ data Field = F_Double {f_double :: Double}
 f_double_m :: Field -> Maybe Double
 f_double_m f = case f of {F_Double n -> Just n;_ -> Nothing;}
 
+f_reader_err :: String -> String -> (Field -> Maybe a) -> Field -> a
+f_reader_err nm err f x =
+    let s = nm ++ ": " ++ err ++ " (" ++ show x ++ ")"
+    in fromMaybe (error s) (f x)
+
 -- | Variant of 'f_double' with specified error message.
 f_double_err :: String -> Field -> Double
-f_double_err err = fromMaybe (error ("f_double: " ++ err)) . f_double_m
+f_double_err err = f_reader_err "f_double" err f_double_m
 
 -- | Run '>' @0@ at 'f_double'.
 f_bool_err :: String -> Field -> Bool
-f_bool_err err = (> 0) . fromMaybe (error ("f_bool: " ++ err)) . f_double_m
+f_bool_err err = (> 0) . f_reader_err "f_bool" err f_double_m
 
 -- | Run 'round' at 'f_double'.
 f_int_err :: String -> Field -> Int
-f_int_err err = round . fromMaybe (error ("f_int: " ++ err)) . f_double_m
+f_int_err err = round . f_reader_err "f_int" err f_double_m
 
 -- | Single element 'F_Vector' constructor.
 --
@@ -439,16 +444,16 @@ e_id n = e_get_int_ix n "id"
 -- | Lookup /db/ field of 'Event'.
 --
 -- > e_db e_empty == (-20)
-e_db :: Event -> Double
-e_db = fromMaybe (-20) . e_get_double "db"
+e_db :: Maybe Int -> Event -> Double
+e_db n = fromMaybe (-20) . e_get_double_ix n "db"
 
 -- | The linear amplitude of the amplitude model at /e/.
 --
--- > e_amp (e_from_list [("db",-60)]) == 0.001
--- > e_amp (e_from_list [("amp",0.01)]) == 0.01
--- > e_amp e_empty == 0.1
-e_amp :: Event -> Double
-e_amp e = fromMaybe (M.dbamp (e_db e)) (e_get_double "amp" e)
+-- > e_amp Nothing (e_from_list [("db",-60)]) == 0.001
+-- > e_amp Nothing (e_from_list [("amp",0.01)]) == 0.01
+-- > e_amp Nothing e_empty == 0.1
+e_amp :: Maybe Int -> Event -> Double
+e_amp n e = fromMaybe (M.dbamp (e_db n e)) (e_get_double_ix n "amp" e)
 
 -- | Message /latency/ of event.
 --
@@ -512,6 +517,10 @@ e_par l =
       [] -> []
       [(_,p)] -> p
       (pt,p):(qt,q):r -> e_par ((min pt qt,e_merge (pt,p) (qt,q)) : r)
+
+-- | 'e_empty' with /rest/.
+e_rest :: Event
+e_rest = e_from_list [("rest",1)]
 
 -- | Does 'Event' have a 'True' @rest@ key.
 --
@@ -591,7 +600,7 @@ e_messages d e n_id n =
              : ("midinote",P.midinote p)
              : ("delta",D.delta d)
              : ("sustain",rt)
-             : ("amp",e_amp e)
+             : ("amp",e_amp n e)
              : e_parameters n e
         n_id' = fromMaybe n_id (e_id n e)
     in if e_is_rest e || isNaN f

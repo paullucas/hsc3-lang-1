@@ -691,6 +691,8 @@ pseq a i = stoppingN i (pn (mconcat a) i)
 
 -- | A variant of 'pseq' that passes a new seed at each invocation,
 -- see also 'pfuncn'.
+--
+-- > pseqr (\e -> [pshuf e [1,2,3,4] 1]) 2 == toP [2::Int,3,4,1,4,1,2,3]
 pseqr :: (Int -> [P a]) -> Int -> P a
 pseqr f n = mconcat (L.concatMap f [1 .. n])
 
@@ -1040,6 +1042,15 @@ punion = pzipWith E.e_union
 --
 -- > ptake 2 (pbind [("x",pwhitei 'α' 0 9 inf)
 -- >                ,("y",pseq [1,2,3] inf)])
+--
+-- > > Pbind(\freq,Prand([300,500,231.2,399.2],inf),\dur,0.1).play;
+-- > audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf),("dur",0.1)])
+--
+-- > > Pbind(\freq, Prand([300,500,231.2,399.2],inf),\dur,Prand([0.1,0.3],inf)).play;
+-- > audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf),("dur",prand 'b' [0.1,0.3] inf)])
+--
+-- > > Pbind(\freq,Prand([1,1.2,2,2.5,3,4],inf) * 200,\dur,0.1).play;
+-- > audition (pbind [("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200),("dur",0.1)])
 pbind :: P_Bind -> P_Event
 pbind xs =
     let xs' = pflop' (fmap (\(k,v) -> pzip (return k) v) xs)
@@ -1190,13 +1201,14 @@ transpose_fixed' def l =
 -- | Remove one layer of MCE expansion at an /event/ pattern.  The
 -- pattern will be expanded only to the width of the initial input.
 --
--- > let {a = pseq [300,400,500] inf
--- >     ;b = pseq [302,402,502,202] inf
--- >     ;c = pseq [pmce3 900 901 902,pmce2 a b,900] inf}
--- > in ptake 9 (p_un_mce (pbind [("freq",c)]))
+-- > let {a = pseq [65,69,74] inf
+-- >     ;b = pseq [60,64,67,72] inf
+-- >     ;c = pseq [pmce3 72 76 79,pmce2 a b] 1}
+-- > in audition (p_un_mce (pbind [("midinote",c)
+-- >                              ,("dur",1 `pcons` prepeat 0.15)]))
 p_un_mce :: P_Event -> P_Event
 p_un_mce (P l st) =
-    let l' = transpose_fixed' E.e_empty (map E.e_un_mce' l)
+    let l' = transpose_fixed' E.e_rest (map E.e_un_mce' l)
     in P (E.e_par (zip (repeat 0) l')) st
 
 -- * Aliases
