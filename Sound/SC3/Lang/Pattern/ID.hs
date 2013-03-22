@@ -1178,20 +1178,32 @@ lindex l n =
            (_:l',_) -> lindex l' (n - 1)
 
 -- | Variant of 'L.transpose' for fixed /width/ interior lists.  This
--- function is more productive than the general version.
+-- function is more productive than the general version for the case
+-- of an infinite list of finite lists.
+--
+-- > L.transpose [[1,5],[2],[3,7]] == [[1,2,3],[5,7]]
+--
+-- > transpose_fixed_m 2 [[1,4],[2],[3,6]] == [[Just 1,Just 2,Just 3]
+-- >                                          ,[Just 4,Nothing,Just 6]]
+transpose_fixed_m :: Int -> [[a]] -> [[Maybe a]]
+transpose_fixed_m w l =
+    let f n = map (`lindex` n) l
+    in map f [0 .. w - 1]
+
+-- | Variant of 'transpose_fixed_m' with default value for holes.
 --
 -- > map head (transpose_fixed undefined 4 (repeat [1..4])) == [1::Int .. 4]
 -- > map head (L.transpose (repeat [1..4])) == _|_
 transpose_fixed :: a -> Int -> [[a]] -> [[a]]
 transpose_fixed def w l =
-    let f n = map (fromMaybe def . (`lindex` n))
-        g = map f [0 .. w - 1]
-    in zipWith ($) g (repeat l)
+    let f n = map (fromMaybe def . (`lindex` n)) l
+    in map f [0 .. w - 1]
 
 -- | Variant of 'transpose_fixed' deriving /width/ from first element.
 --
--- > transpose_fixed' undefined [[1,2,3],[4,5,6]] == [[1::Int,4],[2,5],[3,6]]
--- > transpose_fixed' 0 [[1,2,3],[4,5],[6,7,8]] == [[1,4,6],[2,5,7],[3,0,8]]
+-- > transpose_fixed' undefined [] == []
+-- > transpose_fixed' undefined [[1,3],[2,4]] == [[1::Int,2],[3,4]]
+-- > transpose_fixed' 5 [[1,4],[2],[3,6]] == [[1::Int,2,3],[4,5,6]]
 transpose_fixed' :: a -> [[a]] -> [[a]]
 transpose_fixed' def l =
     case l of
@@ -1200,9 +1212,10 @@ transpose_fixed' def l =
 
 -- | Remove one layer of MCE expansion at an /event/ pattern.  The
 -- pattern will be expanded only to the width of the initial input.
+-- Holes are filled with rests.
 --
 -- > let {a = pseq [65,69,74] inf
--- >     ;b = pseq [60,64,67,72] inf
+-- >     ;b = pseq [60,64,67,72,76] inf
 -- >     ;c = pseq [pmce3 72 76 79,pmce2 a b] 1}
 -- > in audition (p_un_mce (pbind [("midinote",c)
 -- >                              ,("dur",1 `pcons` prepeat 0.15)]))

@@ -48,5 +48,5 @@ defaultInstr :: Instr
 defaultInstr = Instr_Def defaultSynthdef True
 
 {-
-withSC3 (\fd -> async fd (d_recv defaultInstr))
+withSC3 (send (d_recv defaultSynthdef))
 -}
