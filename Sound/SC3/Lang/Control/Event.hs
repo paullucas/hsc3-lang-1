@@ -37,6 +37,7 @@ data Field = F_Double {f_double :: Double}
 f_double_m :: Field -> Maybe Double
 f_double_m f = case f of {F_Double n -> Just n;_ -> Nothing;}
 
+-- | Variant of /reader/ with specified error message.
 f_reader_err :: String -> String -> (Field -> Maybe a) -> Field -> a
 f_reader_err nm err f x =
     let s = nm ++ ": " ++ err ++ " (" ++ show x ++ ")"
@@ -508,6 +509,8 @@ e_add_fwd e =
 e_merge :: (Time,[Event]) -> (Time,[Event]) -> [Event]
 e_merge p q = e_add_fwd (e_merge' p q)
 
+-- | N-ary variant of 'e_merge'.
+--
 -- > e_par [(0,repeat (e_from_list [("a",1)]))
 -- >       ,(0,repeat (e_from_list [("b",2)]))
 -- >       ,(0,repeat (e_from_list [("c",3)]))]

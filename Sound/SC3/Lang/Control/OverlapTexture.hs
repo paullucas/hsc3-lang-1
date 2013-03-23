@@ -7,6 +7,7 @@
 -- post-processing stage.
 module Sound.SC3.Lang.Control.OverlapTexture where
 
+import Control.Applicative {- base -}
 import Data.List {- base -}
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
@@ -92,7 +93,7 @@ overlapTextureP k g =
         (_,_,_,c) = k
     in pbind [("instr",pinstr' (Instr_Def s False))
              ,("dur",pn (return (F_Double d)) c)
-             ,("legato",return (F_Double l))]
+             ,("legato",pure (F_Double l))]
 
 -- | Audition pattern given by 'overlapTextureP'.
 --
@@ -140,7 +141,7 @@ xfadeTextureP k g =
         (_,_,c) = k
     in pbind [("instr",pinstr' (Instr_Def s False))
              ,("dur",pn (return (F_Double d)) c)
-             ,("legato",return (F_Double l))]
+             ,("legato",pure (F_Double l))]
 
 -- | Audition pattern given by 'xfadeTextureP'.
 --
@@ -170,8 +171,8 @@ overlapTextureP_st k u i_st =
         i = flip Instr_Def False
         s = toP (map (i . gen_synth (overlapTexture_env k)) g)
     in pbind [("instr",fmap F_Instr s)
-             ,("dur",prepeat (F_Double d))
-             ,("legato",prepeat (F_Double l))]
+             ,("dur",pure (F_Double d))
+             ,("legato",pure (F_Double l))]
 
 -- | Audition pattern given by 'overlapTextureP_st'.
 overlapTextureS :: OverlapTexture -> USTF st -> st -> IO ()

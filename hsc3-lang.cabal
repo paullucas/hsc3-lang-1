@@ -19,6 +19,7 @@ Data-files:        README
 Library
   Build-Depends:   array,
                    base == 4.*,
+                   bifunctors,
                    bytestring,
                    containers,
                    data-default,

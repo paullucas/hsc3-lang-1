@@ -10,6 +10,10 @@ import System.Random {- random -}
 import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Random.Gen as R
 
+-- | If /n/ is 'maxBound' this is 'id', else it is 'take'.
+inf_take :: Int -> [a] -> [a]
+inf_take n = if n == maxBound then id else take n
+
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
     let (i,g') = randomR (-s,s) g
@@ -33,11 +37,32 @@ durStutter p =
                 _ -> replicate s (d / fromIntegral s)
     in concat . C.zipWith_c f p
 
+-- > hold [] == []
+-- > hold [1..5] == [1,1,1,1,1]
+hold :: [a] -> [a]
+hold l =
+    case l of
+      [] -> []
+      e:_ -> map (const e) l
+
 ifF :: Bool -> a -> a -> a
 ifF x y z = if x then y else z
 
 ifF' :: (Bool,a,a) -> a
 ifF' (x,y,z) = if x then y else z
+
+if_rec :: ([Bool],[a],[a]) -> Maybe (a,([Bool],[a],[a]))
+if_rec i =
+    case i of
+      (True:p,q:q',r) -> Just (q,(p,q',r))
+      (False:p,q,r:r') -> Just (r,(p,q,r'))
+      _ -> Nothing
+
+ifProper :: [Bool] -> [a] -> [a] -> [a]
+ifProper p q r =
+    case if_rec (p,q,r) of
+      Just (e,(p',q',r')) -> e : ifProper p' q' r'
+      Nothing -> []
 
 ifTruncating :: [Bool] -> [a] -> [a] -> [a]
 ifTruncating  a b c = map ifF' (zip3 a b c)
@@ -45,14 +70,12 @@ ifTruncating  a b c = map ifF' (zip3 a b c)
 ifExtending :: [Bool] -> [a] -> [a] -> [a]
 ifExtending a b c = map ifF' (C.zip3_c a b c)
 
+-- > rand' 'α' [1..9] 9 == [3,9,2,9,4,7,4,3,8]
 rand' :: Enum e => e -> [a] -> Int -> [a]
 rand' e a n =
     let k = length a - 1
-        f m g = if m == 0
-                then []
-                else let (i,g') = randomR (0,k) g
-                     in (a !! i) : f (m - 1) g'
-    in f n (mkStdGen (fromEnum e))
+        i = white e 0 k n
+    in map (a !!) i
 
 rorate_n' :: Num a => a -> a -> [a]
 rorate_n' p i = [i * p,i * (1 - p)]
@@ -66,11 +89,14 @@ rorate_l' p i = map (* i) p
 rorate_l :: Num a => [[a]] -> [a] -> [a]
 rorate_l p = concat . C.zipWith_c rorate_l' p
 
+-- > segment [0..4] 5 (3,5) == [3,4,0]
 segment :: [a] -> Int -> (Int,Int) -> [a]
 segment a k (l,r) =
-    let i = map (S.genericWrap 0 k) [l .. r]
+    let i = map (S.genericWrap 0 (k - 1)) [l .. r]
     in map (a !!) i
 
+-- > slide [1,2,3,4] 4 3 1 0 True == [1,2,3,2,3,4,3,4,1,4,1,2]
+-- > slide [1,2,3,4,5] 3 3 (-1) 0 True == [1,2,3,5,1,2,4,5,1]
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
 slide a n j s i wr =
     let k = length a
@@ -106,7 +132,10 @@ white' e l r =
     in snd (mapAccumL f g n)
 
 white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
-white e l r n = take n (randomRs (l,r) (mkStdGen (fromEnum e)))
+white e l r n = inf_take n (randomRs (l,r) (mkStdGen (fromEnum e)))
+
+whitei :: (Random n,Integral n,Enum e) => e -> n -> n -> Int -> [n]
+whitei e l r n = inf_take n (randomRs (l,r) (mkStdGen (fromEnum e)))
 
 wrand' :: (Enum e,Fractional n,Ord n,Random n) => e -> [[a]] -> [n] -> [a]
 wrand' e a w =
@@ -115,7 +144,7 @@ wrand' e a w =
     in f (mkStdGen (fromEnum e))
 
 wrand :: (Enum e,Fractional n,Ord n,Random n) => e -> [[a]] -> [n] -> Int -> [a]
-wrand e a w n = take n (wrand' e a w)
+wrand e a w n = inf_take n (wrand' e a w)
 
 xrand' :: Enum e => e -> [[a]] -> [a]
 xrand' e a =
@@ -125,7 +154,7 @@ xrand' e a =
     in f (-1) (mkStdGen (fromEnum e))
 
 xrand :: Enum e => e -> [[a]] -> Int -> [a]
-xrand e a n = take n (xrand' e a)
+xrand e a n = inf_take n (xrand' e a)
 
 countpost :: [Bool] -> [Int]
 countpost =
@@ -145,12 +174,22 @@ countpre =
                      in if x then r else f (i + 1) xs
     in f 0
 
-interleave :: [a] -> [a] -> [a]
-interleave p q =
+-- interleave2 (lseq [1,2,3] 2) [4,5,6,7] == [1,4,2,5,3,6,1,7,2,3]
+--
+-- > take 9 (interleave2 [1,3..] [2,4..]) == [1..9]
+interleave2 :: [a] -> [a] -> [a]
+interleave2 p q =
     case (p,q) of
       ([],_) -> q
       (_,[]) -> p
-      (x:xs,y:ys) -> x : y : interleave xs ys
+      (x:xs,y:ys) -> x : y : interleave2 xs ys
+
+-- > take 9 (interleave_l [[1,4..],[2,5..],[3,6..]]) == [1..9]
+interleave :: [[a]] -> [a]
+interleave = concat . transpose
+
+lseq :: [a] -> Int -> [a]
+lseq l n = concat (replicate n l)
 
 rsd :: (Eq a) => [a] -> [a]
 rsd =
