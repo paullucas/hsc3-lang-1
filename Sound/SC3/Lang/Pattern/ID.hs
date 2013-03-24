@@ -34,9 +34,9 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- Patterns are 'Monoid's.
 --
 -- > mempty :: P ()
--- > mempty `mappend` mempty == (mempty :: P ())
--- > mempty `mappend` 1 == 1 `pappend` pempty
--- > toP [1,2,3] `mappend` toP [4,5,6] == toP [1,2,3,4,5,6]
+-- > mempty <> mempty == pempty
+-- > mempty <> 1 == 1 <> pempty
+-- > toP [1,2,3] <> toP [4,5,6] == toP [1,2,3,4,5,6]
 --
 -- > take 3 (concat (repeat [1,2])) == [1,2,1]
 -- > ptake 3 (mconcat (repeat (toP [1,2]))) == toP [1,2,1]
@@ -46,8 +46,8 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- Patterns are 'Applicative'.
 --
 -- > (pure (+) <*> [1,3,5] <*> [6,4,2]) == [7,5,3,9,7,5,11,9,7]
--- > getZipList (pure (+) <*> ZipList [1,3,5] <*> ZipList [6,4,2]) == [7,7,7]
--- > (pure (+) <*> toP [1,3,5] <*> toP [6,4,2]) == toP [7,7,7]
+-- > getZipList (liftA2 (+) (ZipList [1,3,5]) (ZipList [6,4,2])) == [7,7,7]
+-- > unP (liftA2 (+) (toP [1,3,5]) (toP [6,4,2])) == [7,7,7]
 -- > liftA2 (+) (toP [1,2]) (toP [3,4]) == toP [4,6]
 -- > liftA2 (+) (toP [1,2,3]) (toP [4,5,6,7]) == toP [5,7,9]
 --
@@ -189,11 +189,9 @@ liftP3_repeat f p q r =
 -- > pzip (pure 3) (pure 4) == pure (3,4)
 -- > pzip 0 1 == pure (0,1)
 --
--- Note that 'pzip' is otherwise like haskell 'zip', truncating,
--- whereas 'C.zip_c' is extending.
+-- Note that 'pzip' is otherwise like haskell 'zip', ie. truncating.
 --
 -- > zip [1,2] [0] == [(1,0)]
--- > C.zip_c [1,2] [0] == [(1,0),(2,0)]
 -- > pzip (toP [1,2]) (return 0) == toP [(1,0)]
 -- > pzip (toP [1,2]) (pure 0) == toP [(1,0),(2,0)]
 -- > pzip (toP [1,2]) 0 == toP [(1,0),(2,0)]
@@ -243,7 +241,8 @@ pzipWith3 f p q r =
 
 -- * Math
 
--- | Pseudo-/infinite/ value for use at repeat counts.
+-- | Type specialised 'maxBound', a pseudo-/infinite/ value for use at
+-- pattern repeat counts.
 --
 -- > inf == maxBound
 inf :: Int
@@ -256,15 +255,31 @@ inf = maxBound
 nan :: Floating a => a
 nan = sqrt (-1)
 
--- * Data.List
+-- * Data.List patterns
 
 -- | Pattern variant of ':'.
 --
 -- > pcons 'α' (pn (return 'β') 2) == toP "αββ"
 pcons :: a -> P a -> P a
-pcons a = mappend (return a)
+pcons = mappend . return
 
--- | Pattern variant of 'take', see also 'pfinval'.
+-- | Pattern variant of 'L.null'.
+--
+-- > pnull mempty == True
+-- > pnull (pure 'a') == False
+-- > pnull (return 'a') == False
+pnull :: P a -> Bool
+pnull = null . unP
+
+-- | Pattern variant of 'L.repeat'. See also 'pure' and 'pcycle'.
+--
+-- > ptake 5 (prepeat 3) == toP [3,3,3,3,3]
+-- > ptake 5 (Control.Applicative.pure 3) == toP [3]
+-- > take 5 (Control.Applicative.pure 3) == [3]
+prepeat :: a -> P a
+prepeat = toP . repeat
+
+-- | Pattern variant of 'P.take_inf', see also 'pfinval'.
 --
 -- > ptake 5 (pseq [1,2,3] 2) == toP [1,2,3,1,2]
 -- > ptake 5 (toP [1,2,3]) == toP [1,2,3]
@@ -276,16 +291,16 @@ pcons a = mappend (return a)
 -- > ptake 5 (toP [1,2,3]) == toP [1,2,3]
 -- > pser [1,2,3] 5 == toP [1,2,3,1,2]
 ptake :: Int -> P a -> P a
-ptake n = liftP (take n)
+ptake n = liftP (P.take_inf n)
 
--- | 'liftP' of 'L.cycle'.
+-- | Type specialised 'P.mcycle'.
 --
--- > ptake 5 (pcycle (toP [1,2,3])) == toP [1,2,3,1,2]
--- > ptake 5 (pseq [1,2,3] inf) == toP [1,2,3,1,2]
+-- > ptake 5 (pcycle (pure 1)) == preplicate 5 1
+-- > ptake 5 (pcycle (return 1)) == preplicate 5 1
 pcycle :: P a -> P a
-pcycle = liftP cycle
+pcycle = P.mcycle
 
--- | Pattern variant of `drop`.
+-- | Lifted 'L.drop'.
 --
 -- > > p = Pseries(1,1,20).drop(5);
 -- > > p.asStream.all == [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
@@ -322,10 +337,10 @@ preplicate n = toP . (if n == inf then repeat else replicate n)
 pscanl :: (a -> b -> a) -> a -> P b -> P a
 pscanl f i = liftP (L.scanl f i)
 
--- | Variant of 'drop', note that 'tail' is partial
+-- | 'pdrop' @1@.  Note that 'tail' is partial
 --
 -- > ptail (toP [1,2]) == toP [2]
--- > ptail mempty == (mempty :: P ())
+-- > ptail mempty == mempty
 ptail :: P a -> P a
 ptail = pdrop 1
 
@@ -339,6 +354,12 @@ ptail = pdrop 1
 ptranspose :: [P a] -> P [a]
 ptranspose l = toP (L.transpose (map unP l))
 
+-- | An /implicitly repeating/ pattern variant of 'P.transpose_st'.
+ptranspose_st_repeat :: [P a] -> P [a]
+ptranspose_st_repeat l = toP (P.transpose_st (map unP_repeat l))
+
+-- * SC3 Collection patterns
+
 -- | Variant of 'C.flop'.
 --
 -- > pflop' [toP [1,2],toP [3,4,5]] == toP [[1,3],[2,4],[1,5]]
@@ -347,36 +368,16 @@ ptranspose l = toP (L.transpose (map unP l))
 pflop' :: [P a] -> P [a]
 pflop' l = toP (C.flop (map unP l))
 
--- | Variant of 'ptranspose' transforming the input patterns by
--- 'pextension'.
+-- | 'fmap' 'toP' of 'pflop''.
 --
 -- > C.flop [[1,2],[3,4,5]] == [[1,3],[2,4],[1,5]]
 -- > pflop [toP [1,2],toP [3,4,5]] == toP (map toP [[1,3],[2,4],[1,5]])
 pflop :: [P a] -> P (P a)
 pflop = fmap toP . pflop'
 
--- * P functions
-
--- | Variant of 'null'.
---
--- > pnull mempty == True
--- > pnull (pure 'a') == False
--- > pnull (return 'a') == False
-pnull :: P a -> Bool
-pnull = null . unP
-
--- | Pattern variant of 'repeat'. See also 'pure' and 'pcycle'.
---
--- > ptake 5 (prepeat 3) == toP [3,3,3,3,3]
--- > ptake 5 (Control.Applicative.pure 3) == toP [3]
--- > take 5 (Control.Applicative.pure 3) == [3]
-prepeat :: a -> P a
-prepeat = toP . repeat
-
 -- * SC3 patterns
 
--- | A variant of 'pbrown' where the l, r and s inputs are
---  /implicitly repeating/ patterns.
+-- | Lifted /implicitly repeating/ 'P.pbrown''.
 --
 -- > pbrown' 'α' 1 700 (pseq [1,20] inf) 4 == toP [415,419,420,428]
 pbrown' :: (Enum e,Random n,Num n,Ord n) =>
@@ -385,7 +386,7 @@ pbrown' e l r s n =
     let f = liftP3_repeat (P.brown' e)
     in ptake n (f l r s)
 
--- | SC3 pattern to generate psuedo-brownian motion.
+-- | Lifted 'P.brown'.
 --
 -- > pbrown 'α' 0 9 1 5 == toP [4,4,5,4,3]
 pbrown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> Int -> P n
@@ -469,10 +470,7 @@ pdegreeToKey = pzipWith3 (\i j k -> M.degreeToKey j k i)
 pdiff :: Num n => P n -> P n
 pdiff p = ptail p - p
 
--- | SC3 pattern to partition a value into /n/ equal subdivisions.
--- Subdivides each duration by each stutter and yields that value
--- stutter times.  A stutter of @0@ will skip the duration value, a
--- stutter of @1@ yields the duration value unaffected.
+-- | Lifted 'P.durStutter'.
 --
 -- > > s = Pseq(#[1,1,1,1,1,2,2,2,2,2,0,1,3,4,0],inf);
 -- > > d = Pseq(#[0.5,1,2,0.25,0.25],1);
@@ -480,38 +478,29 @@ pdiff p = ptail p - p
 --
 -- > let {s = pseq [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0] inf
 -- >     ;d = pseq [0.5,1,2,0.25,0.25] 1}
--- > in ptake 24 (pdurStutter s d)
+-- > in pdurStutter s d == toP [0.5,1.0,2.0,0.25,0.25]
 pdurStutter :: Fractional a => P Int -> P a -> P a
 pdurStutter = liftP2 P.durStutter
 
--- | An SC3 pattern of random values that follow a exponential
--- distribution.
+-- | Lifted 'P.exprand'.
 --
 -- > > Pexprand(0.0001,1,10).asStream.all
 -- > pexprand 'α' 0.0001 1 10
 pexprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> P a
-pexprand e l r n = fmap (M.exprange l r) (pwhite e 0 1 n)
+pexprand e l r = toP . P.exprand e l r
 
--- | SC3 pattern to take the first n elements of the pattern.  See
--- also 'ptake'.
+-- | Alias for 'ptake'
 --
 -- > > Pfinval(5,Pseq(#[1,2,3],inf)).asStream.all == [1,2,3,1,2]
 -- > pfinval 5 (pseq [1,2,3] inf) == toP [1,2,3,1,2]
 pfinval :: Int -> P a -> P a
 pfinval = ptake
 
--- | SC3 pattern to fold values to lie within range (as opposed to
--- wrap and clip).  This is /not/ related to the 'Data.Foldable'
--- pattern instance.
+-- | Type specialised 'P.ffold'.
 --
 -- > pfold (toP [10,11,12,-6,-7,-8]) (-7) 11 == toP [10,11,10,-6,-7,-6]
---
--- The underlying primitive is the 'fold_' function.
---
--- > let f n = fold_ n (-7) 11
--- > in map f [10,11,12,-6,-7,-8] == [10,11,10,-6,-7,-6]
 pfold :: (RealFrac n) => P n -> n -> n -> P n
-pfold p i j = fmap (\n -> fold_ n i j) p
+pfold = P.ffold
 
 -- | Underlying form of haskell 'pfuncn' pattern.
 pfuncn' :: (RandomGen g) => g -> (g -> (n,g)) -> Int -> P n
@@ -555,7 +544,7 @@ pgeom i s n = toP (C.geom n i s)
 -- >     ;c = pwhite 'γ' 10 19 6}
 -- > in pif a b c * (-1) == toP [-7,-3,-11,-17,-18,-6,-3,-4,-5]
 pif :: P Bool -> P a -> P a -> P a
-pif = liftP3_repeat P.ifProper
+pif = liftP3_repeat P.if_demand
 
 -- | SC3 interlaced embedding of subarrays.
 --
@@ -571,20 +560,22 @@ pif = liftP3_repeat P.ifProper
 -- > place [[1],[2,5],[3,6..]] 4 == toP [1,2,3,1,5,6,1,2,9,1,5,12]
 place :: [[a]] -> Int -> P a
 place a n =
-    let i = length a
-        f = if n == inf then id else take (n * i)
-    in toP (f (L.concat (C.flop a)))
+    let f = toP . concat . P.take_inf n . L.transpose . map cycle
+    in f a
 
--- | SC3 pattern to lace input patterns.  Note that the current
--- implementation stops late, it cycles the second series one place.
+-- | SC3 pattern to lace input patterns.
 --
--- > ppatlace [1,pseq [2,3] 2,4] 5 == toP [1,2,4,1,3,4,1,2,4,1,3,4]
+-- > > p = Ppatlace([1,Pseq([2,3],2),4],5);
+-- > > p.asStream.all == [1,2,4,1,3,4,1,2,4,1,3,4,1,4]
+--
+-- > ppatlace [1,pseq [2,3] 2,4] 5 == toP [1,2,4,1,3,4,1,2,4,1,3,4,1,4]
+--
+-- > > p = Ppatlace([1,Pseed(Pn(1000,1),Prand([2,3],inf))],5);
+-- > > p.asStream.all == [1,3,1,3,1,3,1,2,1,2]
+--
 -- > ppatlace [1,prand 'α' [2,3] inf] 5 == toP [1,3,1,2,1,3,1,2,1,2]
 ppatlace :: [P a] -> Int -> P a
-ppatlace a n =
-    let i = length a
-        f = if n == inf then id else take (n * i)
-    in toP (f (L.concat (C.flop (map unP a))))
+ppatlace a n = toP (L.concat (P.take_inf n (L.transpose (map unP_repeat a))))
 
 -- | SC3 pattern to repeat the enclosed pattern a number of times.
 --
@@ -660,12 +651,14 @@ prorate' p =
 -- > > p = Prorate(Pseq([0.35,0.5,0.8]),1);
 -- > > p.asStream.all == [0.35,0.65,0.5,0.5,0.8,0.2];
 --
--- > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) 1
+-- > let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) 1
+-- > in fmap roundE (p * 100) == toP [35,65,50,50,80,20]
 --
 -- > > p = Prorate(Pseq([0.35,0.5,0.8]),Pseed(Pn(100,1),Prand([20,1],inf)));
 -- > > p.asStream.all == [7,13,0.5,0.5,16,4]
 --
--- > prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) (prand 'α' [20,1] 3)
+-- > let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) (prand 'α' [20,1] 3)
+-- > in fmap roundE (p * 100) == toP [35,65,1000,1000,80,20]
 --
 -- > > l = [[1,2],[5,7],[4,8,9]].collect(_.normalizeSum);
 -- > > Prorate(Pseq(l,1)).asStream.all
@@ -729,12 +722,14 @@ pseqr f n = mconcat (L.concatMap f [1 .. n])
 -- the 'pseqn' variant handles many common cases.
 --
 -- > > Pseq([Pn(8,2),Pwhite(9,16,1)],5).asStream.all
--- > pseqn [2,1] [8,pwhite 'α' 9 16 inf] 5
+--
+-- > let p = pseqn [2,1] [8,pwhite 'α' 9 16 inf] 5
+-- > in p == toP [8,8,10,8,8,9,8,8,12,8,8,15,8,8,15]
 pseqn :: [Int] -> [P a] -> Int -> P a
 pseqn n q =
     let go _ 0 = mempty
         go p c = let (i,j) = unzip (zipWith psplitAt n p)
-                 in mconcat i `mappend` go j (c - 1)
+                 in mconcat i <> go j (c - 1)
     in go (map pcycle q)
 
 -- | Variant of 'pser' that consumes sub-patterns one element per
@@ -771,7 +766,7 @@ pshuf e a =
     let (a',_) = R.scramble a (mkStdGen (fromEnum e))
     in pn (toP a')
 
--- | SC3 pattern to slide over a list of values.
+-- | Lifted 'P.slide'.
 --
 -- > > Pslide([1,2,3,4],inf,3,1,0).asStream.all
 -- > pslide [1,2,3,4] 4 3 1 0 True == toP [1,2,3,2,3,4,3,4,1,4,1,2]
@@ -813,154 +808,133 @@ psplitPlaces n = fmap toP . psplitPlaces' n
 -- > pstutter (toP [1,2,3]) (toP [4,5,6]) == toP [4,5,5,6,6,6]
 -- > pstutter 2 (toP [4,5,6]) == toP [4,4,5,5,6,6]
 pstutter :: P Int -> P a -> P a
-pstutter = liftP2_repeat P.stutterTruncating
+pstutter = liftP2_repeat P.stutter
 
--- | SC3 pattern to select elements from a list of patterns by a
--- pattern of indices.
---
--- > let r = P.switch [[1,2,3,1,2,3],[65,76],[800]] [2,2,0,1]
--- > in r == [800,800,1,2,3,1,2,3,65,76]
+-- | Lifted 'P.switch'.
 --
 -- > let p = pswitch [pseq [1,2,3] 2,pseq [65,76] 1,800] (toP [2,2,0,1])
 -- > in p == toP [800,800,1,2,3,1,2,3,65,76]
 pswitch :: [P a] -> P Int -> P a
 pswitch l = liftP (P.switch (map unP l))
 
--- | SC3 pattern that uses a pattern of indices to select which
--- pattern to retrieve the next value from.  Only one value is
--- selected from each pattern.  This is in comparison to 'pswitch',
--- which embeds the pattern in its entirety.
+-- | Lifted /implicitly repeating/ 'P.switch1'.
 --
--- > > Pswitch1([Pseq([1,2,3],inf),
--- > >          Pseq([65,76],inf),
--- > >          8],
--- > >         Pseq([2,2,0,1],6)).asStream.all
+-- > > l = [Pseq([1,2,3],inf),Pseq([65,76],inf),8];
+-- > > p = Pswitch1(l,Pseq([2,2,0,1],3));
+-- > > p.asStream.all == [8,8,1,65,8,8,2,76,8,8,3,65];
 --
 -- > let p = pswitch1 [pseq [1,2,3] inf
 -- >                  ,pseq [65,76] inf
 -- >                  ,8] (pseq [2,2,0,1] 6)
 -- > in p == toP [8,8,1,65,8,8,2,76,8,8,3,65,8,8,1,76,8,8,2,65,8,8,3,76]
 pswitch1 :: [P a] -> P Int -> P a
-pswitch1 l = liftP (P.switch1 (map unP l))
+pswitch1 l = liftP (P.switch1 (map unP_repeat l))
 
--- | SC3 pattern to combine a list of streams to a stream of lists.
--- See also `pflop`.
+-- | 'pseq' of 'ptranspose_st_repeat'.
 --
--- > > Ptuple([Pseries(7,-1,8),
--- > >        Pseq([9,7,7,7,4,4,2,2],1),
--- > >        Pseq([4,4,4,2,2,0,0,-3],1)],1).asStream.nextN(8)
+-- > > l = [Pseries(7,-1,8),3,Pseq([9,7,4,2],1),Pseq([4,2,0,0,-3],1)];
+-- > > p = Ptuple(l,1);
+-- > > p.asStream.all == [[7,3,9,4],[6,3,7,2],[5,3,4,0],[4,3,2,0]]
 --
--- > ptuple [pseries 7 (-1) 8
--- >        ,pseq [9,7,7,7,4,4,2,2] 1
--- >        ,pseq [4,4,4,2,2,0,0,-3] 1] 1
+-- > let p = ptuple [pseries 7 (-1) 8
+-- >                ,3
+-- >                ,pseq [9,7,4,2] 1
+-- >                ,pseq [4,2,0,0,-3] 1] 1
+-- > in p == toP [[7,3,9,4],[6,3,7,2],[5,3,4,0],[4,3,2,0]]
 ptuple :: [P a] -> Int -> P [a]
-ptuple p = pseq [pflop' p]
+ptuple p = pseq [ptranspose_st_repeat p]
 
--- | An /implicitly repeating/ variant of 'pwhite' where the range
--- inputs are patterns.
+-- | Lifted /implicitly repeating/ 'P.pwhite'.
 --
 -- > pwhite' 'α' 0 (pseq [9,19] 3) == toP [3,0,1,6,6,15]
 pwhite' :: (Enum e,Random n) => e -> P n -> P n -> P n
 pwhite' e = liftP2_repeat (P.white' e)
 
--- | SC3 pattern to generate a uniform linear distribution in given range.
+-- | Lifted 'P.white'.
 --
 -- > pwhite 'α' 0 9 5 == toP [3,0,1,6,6]
---
--- It is important to note that this structure is not actually
--- indeterminate, so that the below is zero.
---
--- > let p = pwhite 'α' 0.0 1.0 3 in p - p == toP [0,0,0]
+-- > pwhite 'α' 0 9 5 - pwhite 'α' 0 9 5 == toP [0,0,0,0,0]
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite e l r = toP . P.white e l r
 
--- | A variant of 'pwhite' that generates integral (rounded) values.
+-- | Lifted 'P.whitei'.
 --
--- > pwhitei 'α' 1 9 3 == toP [5,1,7]
+-- > pwhitei 'α' 1 9 5 == toP [5,1,7,7,8]
 pwhitei :: (RealFracE n,Random n,Enum e) => e -> n -> n -> Int -> P n
-pwhitei e l r n = fmap floorE (pwhite e l r n)
+pwhitei e l r =  toP . P.whitei e l r
 
--- | SC3 pattern to embed values randomly chosen from a list.  Returns
--- one item from the list at random for each repeat, the probability
--- for each item is determined by a list of weights which should sum
--- to 1.0.
+-- | Lifted 'P.wrand'.
 --
 -- > let w = C.normalizeSum [12,6,3]
 -- > in pwrand 'α' [1,2,3] w 6 == toP [2,1,2,3,3,2]
 --
--- > > Pwrand.new([1,2,Pseq([3,4],1)],[1,3,5].normalizeSum,6).asStream.all
+-- > > r = Pwrand.new([1,2,Pseq([3,4],1)],[1,3,5].normalizeSum,6);
+-- > > p = Pseed(Pn(100,1),r);
+-- > > p.asStream.all == [2,3,4,1,3,4,3,4,2]
 --
 -- > let w = C.normalizeSum [1,3,5]
--- > in pwrand 'α' [1,2,pseq [3,4] 1] w 6 == toP [3,4,1,3,4,3]
+-- > in pwrand 'ζ' [1,2,pseq [3,4] 1] w 6 == toP [3,4,2,2,3,4,1,3,4]
 pwrand :: (Enum e) => e -> [P a] -> [Double] -> Int -> P a
-pwrand e a w n = toP (P.wrand e (map unP a) w n)
+pwrand e a w = toP . P.wrand e (map unP a) w
 
--- | SC3 pattern to constrain the range of output values by wrapping.
--- See also 'pfold'.
+-- | Type specialised 'P.fwrap', see also 'pfold'.
 --
--- > > Pn(Pwrap(Pgeom(200,1.07,26),200,1000.0),inf).asStream.nextN(26)
--- > pwrap (pgeom 200 1.07 26) 200 1000
+-- > > p = Pwrap(Pgeom(200,1.25,9),200,1000.0);
+-- > > r = p.asStream.all.collect({|n| n.round});
+-- > > r == [200,250,313,391,488,610,763,954,392];
+--
+-- > let p = fmap roundE (pwrap (pgeom 200 1.25 9) 200 1000)
+-- > in p == toP [200,250,312,391,488,610,763,954,391]
 pwrap :: (Ord a,Num a) => P a -> a -> a -> P a
-pwrap xs l r = fmap (genericWrap l r) xs
+pwrap = P.fwrap
 
--- | SC3 pattern that is like 'prand' but filters successive duplicates.
+-- | Lifted 'P.xrand'.
 --
--- > pxrand 'α' [1,toP [2,3],toP [4,5,6]] 15
+-- > let p = pxrand 'α' [1,toP [2,3],toP [4,5,6]] 9
+-- > in p == toP [4,5,6,2,3,4,5,6,1]
 pxrand :: Enum e => e -> [P a] -> Int -> P a
 pxrand e a n = toP (P.xrand e (map unP a) n)
 
 -- * Non-SC3 patterns
 
--- | Transforms a numerical pattern into a boolean pattern where
--- values greater than zero are 'True' and zero and negative values
--- 'False'.
---
--- > pbool (toP [2,1,0,-1]) == toP [True,True,False,False]
+-- | Type specialised 'P.fbool'.
 pbool :: (Ord a,Num a) => P a -> P Bool
-pbool = fmap (> 0)
+pbool = P.fbool
 
--- | 'mconcat' '.' 'replicate'.
+-- | 'mconcat' of 'replicate'.
 pconcatReplicate :: Int -> P a -> P a
 pconcatReplicate i = mconcat . replicate i
 
--- | Count the number of `False` values following each `True` value.
---
--- > pcountpost (pbool (pseq [1,0,1,0,0,0,1,1] 1)) == toP [1,3,0,0]
+-- | Lifted 'P.countpost'.
 pcountpost :: P Bool -> P Int
 pcountpost = liftP P.countpost
 
--- | Count the number of `False` values preceding each `True` value.
---
--- > pcountpre (pbool (pseq [0,0,1,0,0,0,1,1] 1)) == toP [2,3,0]
+-- | Lifted 'P.countpre'.
 pcountpre :: P Bool -> P Int
 pcountpre = liftP P.countpre
 
--- | Sample and hold initial value.
---
--- > phold (toP [1,2,3]) == toP [1,1,1]
+-- | Lifted 'P.hold'.
 phold :: P a -> P a
 phold = liftP P.hold
 
--- | Interleave elements from two patterns.  If one pattern ends the
--- other pattern continues until it also ends.
+-- | Lifted 'P.interleave2'.
 --
--- > let {p = pseq [1,2,3] 2
--- >     ;q = pseq [4,5,6,7] 1}
--- > in pinterleave2 p q == toP [1,4,2,5,3,6,1,7,2,3]
---
--- > ptake 5 (pinterleave2 1 2) == toP [1,2]
--- > ptake 5 (pinterleave2 (pcycle 1) (pcycle 2)) == toP [1,2,1,2,1]
--- > ptake 10 (pinterleave2 (pwhite 'α' 1 9 inf) (pseries 10 1 5))
+-- > let p = pinterleave2 (pwhite 'α' 1 9 inf) (pseries 10 1 5)
+-- > in [3,10,9,11,2,12,9,13,4,14] `L.isPrefixOf` unP p
 pinterleave2 :: P a -> P a -> P a
 pinterleave2 = liftP2 P.interleave2
 
--- | N-ary variant of 'pinterleave2'.
+-- | Lifted 'P.interleave'.
 --
 -- > pinterleave [pwhitei 'α' 0 4 3,pwhitei 'β' 5 9 3] == toP [2,7,0,5,3,6]
 pinterleave :: [P a] -> P a
 pinterleave = toP . P.interleave . map unP
 
--- | Pattern to remove successive duplicates.
+-- | Lifted 'L.isPrefixOf'.
+pisPrefixOf :: Eq a => P a -> P a -> Bool
+pisPrefixOf p q = L.isPrefixOf (unP p) (unP q)
+
+-- | Lifted 'P.rsd'.
 --
 -- > prsd (pstutter 2 (toP [1,2,3])) == toP [1,2,3]
 -- > prsd (pseq [1,2,3] 2) == toP [1,2,3,1,2,3]
@@ -979,7 +953,7 @@ prsd = liftP P.rsd
 ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q =
     let r = pcountpre p
-        f i x = preplicate i Nothing `mappend` return (Just x)
+        f i x = preplicate i Nothing <> return (Just x)
     in join (pzipWith f r q)
 
 -- * Event Patterns
@@ -1041,44 +1015,8 @@ punion = pzipWith E.e_union
 -- >                 ,("dur",0.1)])
 pbind :: P_Bind -> P_Event
 pbind xs =
-    let xs' = ptrs_repeat (fmap (\(k,v) -> pzip (pure k) v) xs)
+    let xs' = ptranspose_st_repeat (fmap (\(k,v) -> pzip (pure k) v) xs)
     in fmap E.e_from_list xs'
-
--- | Inverse of ':'.
---
--- > map uncons [[],[1]] == [(Nothing,[]),(Just 1,[])]
-uncons :: [a] -> (Maybe a,[a])
-uncons l =
-    case l of
-      [] -> (Nothing,[])
-      x:l' -> (Just x,l')
-
--- | Variant of 'catMaybes' that returns 'Nothing' unless /all/
--- elements are 'Just'.
---
--- > map allJust [[Nothing,Just 1],map Just [0,1]] == [Nothing,Just [0,1]]
-allJust :: [Maybe a] -> Maybe [a]
-allJust =
-    let rec r l =
-            case l of
-              [] -> Just (reverse r)
-              Nothing:_ -> Nothing
-              Just e:l' -> rec (e:r) l'
-    in rec []
-
--- | A 'L.transpose' variant, halting when first hole appears.
---
--- > trs [[1,2,3],[4,5,6],[7,8]] == [[1,4,7],[2,5,8]]
-trs :: [[a]] -> [[a]]
-trs l =
-    let (h,l') = unzip (map uncons l)
-    in case allJust h of
-         Just h' -> h' : trs l'
-         Nothing -> []
-
--- | An /implicitly repeating/ pattern variant of 'trs'.
-ptrs_repeat :: [P a] -> P [a]
-ptrs_repeat l = toP (trs (map unP_repeat l))
 
 -- | Two-channel MCE for /field/ patterns.
 --
@@ -1192,49 +1130,6 @@ ppar l = ptpar (zip (repeat 0) l)
 
 -- * MCE
 
--- | 'Maybe' variant of '!!'.
-lindex :: [a] -> Int -> Maybe a
-lindex l n =
-    if n < 0
-    then Nothing
-    else case (l,n) of
-           ([],_) -> Nothing
-           (x:_,0) -> Just x
-           (_:l',_) -> lindex l' (n - 1)
-
--- | Variant of 'L.transpose' for fixed /width/ interior lists.  This
--- function is more productive than the general version for the case
--- of an infinite list of finite lists.
---
--- > L.transpose [[1,5],[2],[3,7]] == [[1,2,3],[5,7]]
---
--- > transpose_fixed_m 2 [[1,4],[2],[3,6]] == [[Just 1,Just 2,Just 3]
--- >                                          ,[Just 4,Nothing,Just 6]]
-transpose_fixed_m :: Int -> [[a]] -> [[Maybe a]]
-transpose_fixed_m w l =
-    let f n = map (`lindex` n) l
-    in map f [0 .. w - 1]
-
--- | Variant of 'transpose_fixed_m' with default value for holes.
---
--- > map head (transpose_fixed undefined 4 (repeat [1..4])) == [1 .. 4]
--- > map head (L.transpose (repeat [1..4])) == _|_
-transpose_fixed :: a -> Int -> [[a]] -> [[a]]
-transpose_fixed def w l =
-    let f n = map (fromMaybe def . (`lindex` n)) l
-    in map f [0 .. w - 1]
-
--- | Variant of 'transpose_fixed' deriving /width/ from first element.
---
--- > transpose_fixed' undefined [] == []
--- > transpose_fixed' undefined [[1,3],[2,4]] == [[1,2],[3,4]]
--- > transpose_fixed' 5 [[1,4],[2],[3,6]] == [[1,2,3],[4,5,6]]
-transpose_fixed' :: a -> [[a]] -> [[a]]
-transpose_fixed' def l =
-    case l of
-      [] -> []
-      h:_ -> transpose_fixed def (length h) l
-
 -- | Remove one layer of MCE expansion at an /event/ pattern.  The
 -- pattern will be expanded only to the width of the initial input.
 -- Holes are filled with rests.
@@ -1247,7 +1142,7 @@ transpose_fixed' def l =
 -- >                              ,("dur",1 `pcons` prepeat 0.15)]))
 p_un_mce :: P_Event -> P_Event
 p_un_mce p =
-    let l' = transpose_fixed' E.e_rest (map E.e_un_mce' (unP p))
+    let l' = P.transpose_fw_def' E.e_rest (map E.e_un_mce' (unP p))
     in toP (E.e_par (zip (repeat 0) l'))
 
 -- * Aliases
