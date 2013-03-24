@@ -116,7 +116,7 @@ transpose_fw_def' def l =
 transpose_st :: [[a]] -> [[a]]
 transpose_st l =
     let (h,l') = unzip (map uncons l)
-    in case allJust h of
+    in case all_just h of
          Just h' -> h' : transpose_st l'
          Nothing -> []
 
@@ -125,9 +125,9 @@ transpose_st l =
 -- | Variant of 'catMaybes' that returns 'Nothing' unless /all/
 -- elements are 'Just'.
 --
--- > map allJust [[Nothing,Just 1],map Just [0,1]] == [Nothing,Just [0,1]]
-allJust :: [Maybe a] -> Maybe [a]
-allJust =
+-- > map all_just [[Nothing,Just 1],map Just [0,1]] == [Nothing,Just [0,1]]
+all_just :: [Maybe a] -> Maybe [a]
+all_just =
     let rec r l =
             case l of
               [] -> Just (reverse r)
@@ -209,11 +209,11 @@ rsd =
 
 -- | Pattern where the 'tr' pattern determines the rate at which
 -- values are read from the `x` pattern.  For each sucessive true
--- value at 'tr' the output is a `Just e` of each succesive element at
+-- value at 'tr' the output is a (`Just` e) of each succesive element at
 -- x.  False values at 'tr' generate `Nothing` values.
 --
--- > let tr = map toEnum [0,0,1,0,0,0,1,1]
--- > in trigger tr [1,2,3]
+-- > let l = trigger (map toEnum [0,1,0,0,1,1]) [1,2,3]
+-- > in l == [Nothing,Just 1,Nothing,Nothing,Just 2,Just 3]
 trigger :: [Bool] -> [a] -> [Maybe a]
 trigger p q =
     let r = countpre p
@@ -222,6 +222,7 @@ trigger p q =
 
 -- * SC3 Patterns
 
+-- | Underlying 'brown''.
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
     let (i,g') = randomR (-s,s) g
@@ -229,13 +230,17 @@ brown_ (l,r,s) (n,g) =
 
 -- | Brown noise with list inputs.
 --
--- > [415,419,420,428] `isPrefixOf` brown' 'α' (repeat 1) (repeat 700) (cycle [1,20])
+-- > let l = brown' 'α' (repeat 1) (repeat 700) (cycle [1,20])
+-- > in [415,419,420,428] `isPrefixOf` l
 brown' :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
 brown' e l_ r_ s_ =
-    let go _ [] = []
-        go (n,g) ((l,r,s):z) = let (n',g') = brown_ (l,r,s) (n,g)
-                               in n' : go (n',g') z
-    in go (randomR (head l_,head r_) (mkStdGen (fromEnum e))) (zip3 l_ r_ s_)
+    let i = (randomR (head l_,head r_) (mkStdGen (fromEnum e)))
+        rec (n,g) z =
+            case z of
+              [] -> []
+              (l,r,s):z' -> let (n',g') = brown_ (l,r,s) (n,g)
+                            in n' : rec (n',g') z'
+    in rec i (zip3 l_ r_ s_)
 
 -- | SC3 pattern to generate psuedo-brownian motion.
 --
@@ -266,10 +271,28 @@ durStutter p =
 exprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> [a]
 exprand e l r n = fmap (M.exprange l r) (white e 0 1 n)
 
+-- | Underlying 'funcn'.
+funcn' :: (RandomGen g) => g -> (g -> (n,g)) -> Int -> [n]
+funcn' g_ f n =
+  let rec [] _ = []
+      rec h g =
+          case h of
+            [] -> []
+            e:h' -> let (r,g') = e g in r : rec h' g'
+  in rec (replicate n f) g_
+
+-- | Variant of the SC3 pattern that evaluates a closure at each step
+-- that has a 'StdGen' form.
+funcn :: Enum e => e -> (StdGen -> (n,StdGen)) -> Int -> [n]
+funcn e = funcn' (mkStdGen (fromEnum e))
+
 -- | 'C.geom' with arguments re-ordered.
+--
+-- > geom 3 6 5 == [3,18,108,648,3888]
 geom :: Num a => a -> a -> Int -> [a]
 geom i s n = C.geom n i s
 
+-- | Underlying 'if_demand'.
 if_rec :: ([Bool],[a],[a]) -> Maybe (a,([Bool],[a],[a]))
 if_rec i =
     case i of
@@ -366,12 +389,14 @@ switch l i = i >>= (l !!)
 -- > in p == [8,8,1,65,8,8,2,76,8,8,3,65,8,8,1,76,8,8,2,65,8,8,3,76]
 switch1 :: [[a]] -> [Int] -> [a]
 switch1 ps =
-    let go _ [] = []
-        go m (i:is) = case M.lookup i m of
+    let rec m l =
+            case l of
+              [] -> []
+              i:l' -> case M.lookup i m of
                         Nothing -> []
                         Just [] -> []
-                        Just (x:xs) -> x : go (M.insert i xs m) is
-    in go (M.fromList (zip [0..] ps))
+                        Just (x:xs) -> x : rec (M.insert i xs m) l'
+    in rec (M.fromList (zip [0..] ps))
 
 -- | 'white' with pattern inputs.
 --
@@ -438,4 +463,3 @@ xrand' e a =
 -- > xrand 'α' [return 1,[2,3],[4,5,6]] 9 == [4,5,6,2,3,4,5,6,1]
 xrand :: Enum e => e -> [[a]] -> Int -> [a]
 xrand e a n = take_inf n (xrand' e a)
-

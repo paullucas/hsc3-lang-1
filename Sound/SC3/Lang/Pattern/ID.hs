@@ -29,6 +29,7 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 --
 -- Patterns are 'Functor's.
 --
+-- > fmap (* 2) [1,2,3,4,5] == [2,4,6,8,10]
 -- > fmap (* 2) (toP [1,2,3,4,5]) == toP [2,4,6,8,10]
 --
 -- Patterns are 'Monoid's.
@@ -37,19 +38,25 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- > mempty <> mempty == pempty
 -- > mempty <> 1 == 1 <> pempty
 -- > toP [1,2,3] <> toP [4,5,6] == toP [1,2,3,4,5,6]
+-- > [1,2,3] <> [4,5,6] == [1,2,3,4,5,6]
 --
 -- > take 3 (concat (repeat [1,2])) == [1,2,1]
 -- > ptake 3 (mconcat (repeat (toP [1,2]))) == toP [1,2,1]
--- > ptake 3 (mconcat [pseq [1,2] 1,pseq [3,4] 1]) == toP [1::P Int,2,3]
+-- > ptake 3 (mconcat [pseq [1,2] 1,pseq [3,4] 1]) == toP [1,2,3]
 -- > ptake 3 (mconcat (repeat (toP [1,2]))) == toP [1,2,1]
 --
 -- Patterns are 'Applicative'.
 --
--- > (pure (+) <*> [1,3,5] <*> [6,4,2]) == [7,5,3,9,7,5,11,9,7]
--- > getZipList (liftA2 (+) (ZipList [1,3,5]) (ZipList [6,4,2])) == [7,7,7]
--- > unP (liftA2 (+) (toP [1,3,5]) (toP [6,4,2])) == [7,7,7]
 -- > liftA2 (+) (toP [1,2]) (toP [3,4]) == toP [4,6]
 -- > liftA2 (+) (toP [1,2,3]) (toP [4,5,6,7]) == toP [5,7,9]
+--
+-- The pattern instance is linear not combinatorial.  That is as for
+-- 'ZipList', not as for list.
+--
+-- > getZipList (liftA2 (+) (ZipList [1,3,5]) (ZipList [6,4,2])) == [7,7,7]
+-- > (pure (+) <*> [1,3,5] <*> [6,4,2]) == [7,5,3,9,7,5,11,9,7]
+-- > (pure (+) <*> toP [1,3,5] <*> toP [6,4,2]) == toP [7,7,7]
+-- > ppure 0 /= preturn 0
 --
 -- Patterns are 'Monad's.
 --
@@ -69,7 +76,7 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 --
 -- Patterns are 'Num'erical.
 --
--- > 1 ::P Int
+-- > 1 :: P Int
 -- > (1 :: P Int) + 2 == 3
 -- > 1 + toP [2,3,4] == toP [3,4,5]
 -- > toP [1,2,3] + 2 == toP [3,4,5]
@@ -173,6 +180,14 @@ liftP2_repeat f p q =
         q' = unP_repeat q
     in toP (f p' q')
 
+-- | Lift ternary list function to pattern function.
+liftP3 :: ([a] -> [b] -> [c] -> [d]) -> P a -> P b -> P c -> P d
+liftP3 f p q r =
+    let p' = unP p
+        q' = unP q
+        r' = unP r
+    in toP (f p' q' r')
+
 -- | Lift ternary list function to /implicitly repeating/ pattern function.
 liftP3_repeat :: ([a] -> [b] -> [c] -> [d]) -> P a -> P b -> P c -> P d
 liftP3_repeat f p q r =
@@ -182,6 +197,33 @@ liftP3_repeat f p q r =
     in toP (f p' q' r')
 
 -- * Zip P
+
+-- | An /implicitly repeating/ pattern variant of 'zipWith'.
+--
+-- > zipWith (*) [1,2,3] [5,6] == [5,12]
+-- > pzipWith (*) (toP [1,2,3]) (toP [5,6]) == toP [5,12]
+--
+-- It is the basis for lifting binary operators to patterns.
+--
+-- > toP [1,2,3] * toP [5,6] == toP [5,12]
+--
+-- > let p = pzipWith (,) (pseq [1,2] 2) (pseq [3,4] inf)
+-- > in p == toP [(1,3),(2,4),(1,3),(2,4)]
+--
+-- > zipWith (,) (return 0) (return 1) == return (0,1)
+-- > pzipWith (,) 0 1 == pure (0,1)
+pzipWith :: (a -> b -> c) -> P a -> P b -> P c
+pzipWith f p q =
+    case (p,q) of
+      (P (Left m),P (Left n)) -> pure (f m n)
+      _ -> toP (zipWith f (unP_repeat p) (unP_repeat q))
+
+-- | An /implicitly repeating/ pattern variant of 'zipWith3'.
+pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
+pzipWith3 f p q r =
+    case (p,q,r) of
+      (P (Left m),P (Left n),P (Left o)) -> pure (f m n o)
+      _ -> toP (zipWith3 f (unP_repeat p) (unP_repeat q) (unP_repeat r))
 
 -- | An /implicitly repeating/ pattern variant of 'zip'.
 --
@@ -208,36 +250,6 @@ pzip3 = pzipWith3 (,,)
 -- > in p == (toP [1,2],toP [4,5])
 punzip :: P (a,b) -> (P a,P b)
 punzip p = let (i,j) = unzip (unP p) in (toP i,toP j)
-
--- | An /implicitly repeating/ pattern variant of 'zipWith'.
---
--- > zipWith (*) [1,2,3] [5,6] == [5,12]
--- > pzipWith (*) (toP [1,2,3]) (toP [5,6]) == toP [5,12]
--- > toP [1,2,3] * toP [5,6] == toP [5,12]
---
--- > let p = pzipWith (,) (pseq [1,2] 2) (pseq [3,4] inf)
--- > in p == toP [(1,3),(2,4),(1,3),(2,4)]
---
--- Note that the list instance of applicative is combinatorial
--- (ie. Monadic).
---
--- > (pure (*) <*> [1,2,3] <*> [5,6]) == [5,6,10,12,15,18]
--- > (pure (*) <*> toP [1,2] <*> toP [5]) == toP [5]
---
--- > zipWith (,) (return 0) (return 1) == return (0,1)
--- > pzipWith (,) 0 1 == pure (0,1)
-pzipWith :: (a -> b -> c) -> P a -> P b -> P c
-pzipWith f p q =
-    case (p,q) of
-      (P (Left m),P (Left n)) -> pure (f m n)
-      _ -> toP (zipWith f (unP_repeat p) (unP_repeat q))
-
--- | An /implicitly repeating/ pattern variant of 'zipWith3'.
-pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
-pzipWith3 f p q r =
-    case (p,q,r) of
-      (P (Left m),P (Left n),P (Left o)) -> pure (f m n o)
-      _ -> toP (zipWith3 f (unP_repeat p) (unP_repeat q) (unP_repeat r))
 
 -- * Math
 
@@ -400,17 +412,17 @@ pbrown e l r s n = ptake n (toP (P.brown e l r s))
 -- > > r = [1,1,2,2,2,3,4,5,5,1,1,1,2,3];
 -- > > p.asStream.all == r
 --
--- > let {c = pbool (pseq [1::P Int,0,1,0,0,1,1] inf)
+-- > let {c = pbool (pseq [1,0,1,0,0,1,1] inf)
 -- >     ;p = pclutch (pser [1,2,3,4,5] 8) c
 -- >     ;r = toP [1,1,2,2,2,3,4,5,5,1,1,1,2,3]}
--- > in p
+-- > in p == toP [1,1,2,2,2,3,4,5,5,1,1,1,2,3]
 --
 -- Note the initialization behavior, nothing is generated until the
 -- first true value.
 --
 -- > let {p = pseq [1,2,3,4,5] 1
 -- >     ;q = pbool (pseq [0,0,0,0,0,0,1,0,0,1,0,1] 1)}
--- > in pclutch p q
+-- > in pclutch p q == toP [1,1,1,2,2,3]
 pclutch :: P a -> P Bool -> P a
 pclutch p q =
     let r = fmap (+ 1) (pcountpost q)
@@ -502,17 +514,10 @@ pfinval = ptake
 pfold :: (RealFrac n) => P n -> n -> n -> P n
 pfold = P.ffold
 
--- | Underlying form of haskell 'pfuncn' pattern.
-pfuncn' :: (RandomGen g) => g -> (g -> (n,g)) -> Int -> P n
-pfuncn' g_ f n =
-  let go [] _ = []
-      go (h:hs) g = let (r,g') = h g in r : go hs g'
-  in toP (go (replicate n f) g_)
-
 -- | A variant of the SC3 pattern that evaluates a closure at each
 -- step.  The haskell variant function has a 'StdGen' form.
-pfuncn :: (Enum e) => e -> (StdGen -> (n,StdGen)) -> Int -> P n
-pfuncn e = pfuncn' (mkStdGen (fromEnum e))
+pfuncn :: Enum e => e -> (StdGen -> (n,StdGen)) -> Int -> P n
+pfuncn e f n = toP (P.funcn e f n)
 
 -- | SC3 geometric series pattern.
 --
@@ -575,7 +580,9 @@ place a n =
 --
 -- > ppatlace [1,prand 'α' [2,3] inf] 5 == toP [1,3,1,2,1,3,1,2,1,2]
 ppatlace :: [P a] -> Int -> P a
-ppatlace a n = toP (L.concat (P.take_inf n (L.transpose (map unP_repeat a))))
+ppatlace a n =
+    let a' = L.transpose (map unP_repeat a)
+    in toP (L.concat (P.take_inf n a'))
 
 -- | SC3 pattern to repeat the enclosed pattern a number of times.
 --
@@ -727,10 +734,11 @@ pseqr f n = mconcat (L.concatMap f [1 .. n])
 -- > in p == toP [8,8,10,8,8,9,8,8,12,8,8,15,8,8,15]
 pseqn :: [Int] -> [P a] -> Int -> P a
 pseqn n q =
-    let go _ 0 = mempty
-        go p c = let (i,j) = unzip (zipWith psplitAt n p)
-                 in mconcat i <> go j (c - 1)
-    in go (map pcycle q)
+    let rec p c = if c == 0
+                  then mempty
+                  else let (i,j) = unzip (zipWith psplitAt n p)
+                       in mconcat i <> rec j (c - 1)
+    in rec (map pcycle q)
 
 -- | Variant of 'pser' that consumes sub-patterns one element per
 -- iteration.
@@ -941,10 +949,7 @@ pisPrefixOf p q = L.isPrefixOf (unP p) (unP q)
 prsd :: (Eq a) => P a -> P a
 prsd = liftP P.rsd
 
--- | Pattern where the 'tr' pattern determines the rate at which
--- values are read from the `x` pattern.  For each sucessive true
--- value at 'tr' the output is a `Just e` of each succesive element at
--- x.  False values at 'tr' generate `Nothing` values.
+-- | Lifted 'P.trigger'.
 --
 -- > let {tr = pbool (toP [0,1,0,0,1,1])
 -- >     ;p = ptrigger tr (toP [1,2,3])
