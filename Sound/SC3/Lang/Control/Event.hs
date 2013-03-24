@@ -4,7 +4,7 @@ module Sound.SC3.Lang.Control.Event where
 import Data.List {- base -}
 import qualified Data.Map as Map {- containers -}
 import Data.Maybe {- base -}
-import GHC.Exts {- base -}
+import Data.String {- base -}
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
 import System.Random {- base -}
@@ -107,7 +107,7 @@ f_map fn f =
 -- | Numerical unary operator.
 --
 -- > f_uop negate (F_Double 1) == F_Double (-1)
--- > f_uop negate (F_Vector [F_Double 0,F_Double 1]) == f_
+-- > f_uop negate (F_Vector [F_Double 0,F_Double 1]) == f_array [0,-1]
 f_uop :: (Double -> Double) -> Field -> Field
 f_uop f p =
     case p of
@@ -257,29 +257,46 @@ instance BinaryOp Field
 -- * Key
 
 -- | The type of the /key/ at an 'Event'.
-type Key = String
+--
+-- > :set -XOverloadedStrings
+-- > [K_dur,"pan"] == [K_dur,K_param "pan"]
+data Key = K_degree | K_mtranspose | K_scale | K_stepsPerOctave
+         | K_gtranspose | K_note | K_octave | K_root
+         | K_ctranspose | K_harmonic | K_midinote
+         | K_detune | K_freq
+         | K_delta | K_dur | K_lag | K_legato | K_fwd' | K_stretch | K_sustain | K_tempo
+         | K_db | K_amp
+         | K_rest
+         | K_instr | K_id | K_type | K_latency
+         | K_param String
+           deriving (Eq,Ord,Show)
+
+instance IsString Key where
+    fromString = K_param
+
+-- | SC3 name of 'Key'.
+--
+-- > map k_name [K_freq,K_dur,K_param "pan"] == ["freq","dur","pan"]
+k_name :: Key -> String
+k_name k =
+    case k of
+      K_param nm -> nm
+      _ -> drop 2 (show k)
 
 -- | List of reserved 'Key's used in pitch, duration and amplitude
 -- models.  These are keys that may be provided explicitly, but if not
 -- will be calculated implicitly.
 --
--- > ("freq" `elem` k_reserved) == True
+-- > (K_freq `elem` k_reserved) == True
 k_reserved :: [Key]
-k_reserved = ["freq","midinote","note"
-             ,"delta","sustain"
-             ,"amp"
-             ,"instr","id","type","latency","rest"]
+k_reserved = [K_freq,K_midinote,K_note
+             ,K_delta,K_sustain
+             ,K_amp
+             ,K_instr,K_id,K_type,K_latency,K_rest]
 
 -- | Is 'Key' /not/ 'k_reserved'.
 k_is_parameter :: (Key,a) -> Bool
 k_is_parameter (k,_) = k `notElem` k_reserved
-
--- | List of 'Key's used in pitch, duration and amplitude models.
-k_models :: T3 [Key]
-k_models =
-    (["amp","db"]
-    ,["delta","dur","legato","fwd'","stretch","sustain","tempo"]
-    ,["ctranspose","degree","freq","midinote","mtranspose","note","octave"])
 
 -- * Event
 
@@ -292,43 +309,43 @@ e_empty = Map.empty
 
 -- | Insert (/k/,/v/) into /e/.
 --
--- > e_get "k" (e_insert "k" 1 e_empty) == Just 1
+-- > e_get K_id (e_insert K_id 1 e_empty) == Just 1
 e_insert :: Key -> Field -> Event -> Event
 e_insert k v = Map.insert k v
 
 -- | Event from association list.
 --
--- > e_get "k" (e_from_list [("k",1)]) == Just 1
+-- > e_get K_id (e_from_list [(K_id,1)]) == Just 1
 e_from_list :: [(Key,Field)] -> Event
 e_from_list = Map.fromList
 
 -- | Event from association list.
 --
--- > let a = [("k",1)] in e_to_list (e_from_list a) == a
+-- > let a = [(K_id,1)] in e_to_list (e_from_list a) == a
 e_to_list :: Event -> [(Key,Field)]
 e_to_list = Map.toList
 
 -- | Union of two events (left-biased).
 --
--- > e_from_list [("a",0)] `e_union` e_from_list [("b",1)]
+-- > e_from_list [(K_id,0)] `e_union` e_from_list [(K_degree,1)]
 e_union :: Event -> Event -> Event
 e_union = Map.union
 
 -- | Lookup /k/ in /e/.
 --
--- > e_get "k" e_empty == Nothing
+-- > e_get K_id e_empty == Nothing
 e_get :: Key -> Event -> Maybe Field
 e_get k = Map.lookup k
 
 -- | Immediate or vector element lookup.
 --
--- > e_get_ix Nothing "a" (e_from_list [("a",1)]) == Just 1
+-- > e_get_ix Nothing K_id (e_from_list [(K_id,1)]) == Just 1
 --
 -- > let n = f_array [0,1,2]
--- > in e_get_ix Nothing "a" (e_from_list [("a",n)]) == Just n
+-- > in e_get_ix Nothing K_id (e_from_list [(K_id,n)]) == Just n
 --
 -- > let n = f_array [0..9]
--- > in e_get_ix (Just 5) "a" (e_from_list [("a",n)]) == Just 5
+-- > in e_get_ix (Just 5) K_id (e_from_list [(K_id,n)]) == Just 5
 e_get_ix :: Maybe Int -> Key -> Event -> Maybe Field
 e_get_ix n k =
     case n of
@@ -337,45 +354,45 @@ e_get_ix n k =
 
 -- | Type specialised 'e_get'.
 e_get_double :: Key -> Event -> Maybe Double
-e_get_double k = fmap (f_double_err k) . e_get k
+e_get_double k = fmap (f_double_err (k_name k)) . e_get k
 
 -- | Type specialised 'e_get_ix'.
 e_get_double_ix :: Maybe Int -> Key -> Event -> Maybe Double
-e_get_double_ix n k = fmap (f_double_err k) . e_get_ix n k
+e_get_double_ix n k = fmap (f_double_err (k_name k)) . e_get_ix n k
 
 -- | Type specialised 'e_get'.
 e_get_bool :: Key -> Event -> Maybe Bool
-e_get_bool k = fmap (f_bool_err k) . e_get k
+e_get_bool k = fmap (f_bool_err (k_name k)) . e_get k
 
 -- | Type specialised 'e_get'.
 e_get_int :: Key -> Event -> Maybe Int
-e_get_int k = fmap (f_int_err k) . e_get k
+e_get_int k = fmap (f_int_err (k_name k)) . e_get k
 
 -- | Type specialised 'e_get_ix'.
 e_get_int_ix :: Maybe Int -> Key -> Event -> Maybe Int
-e_get_int_ix n k = fmap (f_int_err k) . e_get_ix n k
+e_get_int_ix n k = fmap (f_int_err (k_name k)) . e_get_ix n k
 
 -- | Type specialised 'e_get'.
 e_get_instr :: Key -> Event -> Maybe I.Instr
-e_get_instr k = fmap (f_instr_err k) . e_get k
+e_get_instr k = fmap (f_instr_err (k_name k)) . e_get k
 
 -- | Type specialised 'e_get_ix'.
 e_get_instr_ix :: Maybe Int -> Key -> Event -> Maybe I.Instr
-e_get_instr_ix n k = fmap (f_instr_err k) . e_get_ix n k
+e_get_instr_ix n k = fmap (f_instr_err (k_name k)) . e_get_ix n k
 
 -- | Type specialised 'e_get'.
 e_get_array :: Key -> Event -> Maybe [Double]
-e_get_array k = fmap (map (f_double_err k) . f_vector) . e_get k
+e_get_array k = fmap (map (f_double_err (k_name k)) . f_vector) . e_get k
 
 -- | Type specialised 'e_get_ix'.
 e_get_array_ix :: Maybe Int -> Key -> Event -> Maybe [Double]
-e_get_array_ix n k = fmap (map (f_double_err k) . f_vector) . e_get_ix n k
+e_get_array_ix n k = fmap (map (f_double_err (k_name k)) . f_vector) . e_get_ix n k
 
 -- | 'Event' /type/.
 --
 -- > e_type e_empty == "s_new"
 e_type :: Event -> String
-e_type = fromMaybe "s_new" . fmap f_string . e_get "type"
+e_type = fromMaybe "s_new" . fmap f_string . e_get K_type
 
 -- | Match on event types, in sequence: s_new, n_set, rest.
 e_type_match :: Event -> T3 (Event -> t) -> t
@@ -393,81 +410,81 @@ e_type_match' e (f,g,h) = e_type_match e (const f,const g,const h)
 -- | Generate 'D.Dur' from 'Event'.
 --
 -- > D.delta (e_dur Nothing e_empty) == 1
--- > D.fwd (e_dur Nothing (e_from_list [("dur",1),("stretch",2)])) == 2
+-- > D.fwd (e_dur Nothing (e_from_list [(K_dur,1),(K_stretch,2)])) == 2
 --
--- > let e = e_from_list [("dur",1),("legato",0.5)]
+-- > let e = e_from_list [(K_dur,1),(K_legato,0.5)]
 -- > in D.occ (e_dur Nothing e) == 0.5
 e_dur :: Maybe Int -> Event -> D.Dur
 e_dur n e =
     let f k = e_get_double_ix n k e
-    in D.optDur (f "tempo"
-                ,f "dur"
-                ,f "stretch"
-                ,f "legato"
-                ,f "sustain"
-                ,f "delta"
-                ,f "lag"
-                ,f "fwd'")
+    in D.optDur (f K_tempo
+                ,f K_dur
+                ,f K_stretch
+                ,f K_legato
+                ,f K_sustain
+                ,f K_delta
+                ,f K_lag
+                ,f K_fwd')
 
 -- | Generate 'Pitch' from 'Event'.
 --
 -- > P.midinote (e_pitch Nothing e_empty) == 60
--- > P.freq (e_pitch Nothing (e_from_list [("degree",5)])) == 440
+-- > P.freq (e_pitch Nothing (e_from_list [(K_degree,5)])) == 440
 --
--- > let e = e_from_list [("degree",5),("scale",f_array [0,2,3,5,7,8,10])]
+-- > let e = e_from_list [(K_degree,5),(K_scale,f_array [0,2,3,5,7,8,10])]
 -- > in P.midinote (e_pitch Nothing e) == 68
 --
--- > let e = e_from_list [("degree",5),("scale",f_ref (f_array [0,2,3,5,7,8,10]))]
+-- > let e = e_from_list [(K_degree,5),(K_scale,f_ref (f_array [0,2,3,5,7,8,10]))]
 -- > in P.midinote (e_pitch (Just 0) (e_mce_expand e)) == 68
 --
--- > P.freq (e_pitch Nothing (e_from_list [("midinote",69)])) == 440
+-- > P.freq (e_pitch Nothing (e_from_list [(K_midinote,69)])) == 440
 e_pitch :: Maybe Int -> Event -> P.Pitch
 e_pitch n e =
     let f k = e_get_double_ix n k e
-    in P.optPitch (f "mtranspose"
-                  ,f "gtranspose"
-                  ,f "ctranspose"
-                  ,f "octave"
-                  ,f "root"
-                  ,f "degree"
-                  ,e_get_array_ix n "scale" e
-                  ,f "stepsPerOctave"
-                  ,f "detune"
-                  ,f "harmonic"
-                  ,f "freq"
-                  ,f "midinote"
-                  ,f "note")
+    in P.optPitch (f K_mtranspose
+                  ,f K_gtranspose
+                  ,f K_ctranspose
+                  ,f K_octave
+                  ,f K_root
+                  ,f K_degree
+                  ,e_get_array_ix n K_scale e
+                  ,f K_stepsPerOctave
+                  ,f K_detune
+                  ,f K_harmonic
+                  ,f K_freq
+                  ,f K_midinote
+                  ,f K_note)
 
 -- | 'Event' identifier.
 e_id :: Maybe Int -> Event -> Maybe Int
-e_id n = e_get_int_ix n "id"
+e_id n = e_get_int_ix n K_id
 
 -- | Lookup /db/ field of 'Event'.
 --
--- > e_db e_empty == (-20)
+-- > e_db Nothing e_empty == (-20)
 e_db :: Maybe Int -> Event -> Double
-e_db n = fromMaybe (-20) . e_get_double_ix n "db"
+e_db n = fromMaybe (-20) . e_get_double_ix n K_db
 
 -- | The linear amplitude of the amplitude model at /e/.
 --
--- > e_amp Nothing (e_from_list [("db",-60)]) == 0.001
--- > e_amp Nothing (e_from_list [("amp",0.01)]) == 0.01
+-- > e_amp Nothing (e_from_list [(K_db,-60)]) == 0.001
+-- > e_amp Nothing (e_from_list [(K_amp,0.01)]) == 0.01
 -- > e_amp Nothing e_empty == 0.1
 e_amp :: Maybe Int -> Event -> Double
-e_amp n e = fromMaybe (M.dbamp (e_db n e)) (e_get_double_ix n "amp" e)
+e_amp n e = fromMaybe (M.dbamp (e_db n e)) (e_get_double_ix n K_amp e)
 
 -- | Message /latency/ of event.
 --
 -- > e_latency e_empty == 0.1
 e_latency :: Event -> Double
-e_latency = fromMaybe 0.1 . e_get_double "latency"
+e_latency = fromMaybe 0.1 . e_get_double K_latency
 
 -- | Extract non-'reserved' 'Keys' from 'Event'.
 --
--- > e_parameters Nothing (e_from_list [("freq",1),("a",1)]) == [("a",1)]
-e_parameters :: Maybe Int -> Event -> [(Key,Double)]
+-- > e_parameters Nothing (e_from_list [(K_freq,1),(K_param "p",1)]) == [("p",1)]
+e_parameters :: Maybe Int -> Event -> [(String,Double)]
 e_parameters n =
-    map (\(k,v) -> (k,f_double_err_ix k n v)) .
+    map (\(k,v) -> (k_name k,f_double_err_ix (k_name k) n v)) .
     filter k_is_parameter .
     Map.toList
 
@@ -502,7 +519,7 @@ e_add_fwd :: [(Time,Event)] -> [Event]
 e_add_fwd e =
     case e of
       (t0,e0):(t1,e1):e' ->
-          e_insert "fwd'" (F_Double (t1 - t0)) e0 : e_add_fwd ((t1,e1):e')
+          e_insert K_fwd' (F_Double (t1 - t0)) e0 : e_add_fwd ((t1,e1):e')
       _ -> map snd e
 
 -- | Composition of 'add_fwd' and 'merge''.
@@ -511,9 +528,9 @@ e_merge p q = e_add_fwd (e_merge' p q)
 
 -- | N-ary variant of 'e_merge'.
 --
--- > e_par [(0,repeat (e_from_list [("a",1)]))
--- >       ,(0,repeat (e_from_list [("b",2)]))
--- >       ,(0,repeat (e_from_list [("c",3)]))]
+-- > e_par [(0,repeat (e_from_list [(K_id,1)]))
+-- >       ,(0,repeat (e_from_list [(K_param "b",2)]))
+-- >       ,(0,repeat (e_from_list [(K_param "c",3)]))]
 e_par :: [(Time,[Event])] -> [Event]
 e_par l =
     case l of
@@ -523,21 +540,21 @@ e_par l =
 
 -- | 'e_empty' with /rest/.
 e_rest :: Event
-e_rest = e_from_list [("rest",1)]
+e_rest = e_from_list [(K_rest,1)]
 
 -- | Does 'Event' have a 'True' @rest@ key.
 --
 -- > e_is_rest e_empty == False
--- > e_is_rest (e_from_list [("rest",1)]) == True
+-- > e_is_rest (e_from_list [(K_rest,1)]) == True
 e_is_rest :: Event -> Bool
-e_is_rest = fromMaybe False . e_get_bool "rest"
+e_is_rest = fromMaybe False . e_get_bool K_rest
 
 -- * MCE
 
 -- | Maximum vector length at 'Event'.
 --
--- > e_mce_depth (e_from_list [("a",1)]) == Nothing
--- > e_mce_depth (e_from_list [("a",1),("b",f_array [2,3])]) == Just 2
+-- > e_mce_depth (e_from_list [(K_id,1)]) == Nothing
+-- > e_mce_depth (e_from_list [(K_id,1),(K_param "b",f_array [2,3])]) == Just 2
 e_mce_depth :: Event -> Maybe Int
 e_mce_depth e =
     let f = map snd (e_to_list e)
@@ -547,11 +564,11 @@ e_mce_depth e =
 
 -- | Extend vectors at 'Event' if required, returning 'e_mce_depth'.
 --
--- > let {e = e_from_list [("a",f_array [1,2]),("b",f_array [2,3,4])]
--- >     ;r = e_from_list [("a",f_array [1,2,1]),("b",f_array [2,3,4])]}
+-- > let {e = e_from_list [(K_id,f_array [1,2]),(K_param "b",f_array [2,3,4])]
+-- >     ;r = e_from_list [(K_id,f_array [1,2,1]),(K_param "b",f_array [2,3,4])]}
 -- > in e_mce_extend e == Just (3,r)
 --
--- > let e = e_from_list [("a",1)]
+-- > let e = e_from_list [(K_id,1)]
 -- > in e_mce_extend e == Nothing
 e_mce_extend :: Event -> Maybe (Int,Event)
 e_mce_extend e =
@@ -567,15 +584,15 @@ e_mce_expand e = maybe e snd (e_mce_extend e)
 
 -- | Parallel 'Event's, if required.
 --
--- > let {e = e_from_list [("a",1),("b",f_array [2,3])]
--- >     ;r = [e_from_list [("a",1),("b",2)],e_from_list [("a",1),("b",3)]]}
+-- > let {e = e_from_list [(K_id,1),(K_param "b",f_array [2,3])]
+-- >     ;r = [e_from_list [(K_id,1),(K_param "b",2)],e_from_list [(K_id,1),(K_param "b",3)]]}
 -- > in e_un_mce e == Just r
 --
--- > let {e = e_from_list [("a",f_array [1,2]),("b",f_array [3,4,5])]
--- >     ;r = e_from_list [("a",1),("b",5)]}
+-- > let {e = e_from_list [(K_id,f_array [1,2]),(K_param "b",f_array [3,4,5])]
+-- >     ;r = e_from_list [(K_id,1),(K_param "b",5)]}
 -- > in fmap (!! 2) (e_un_mce e) == Just r
 --
--- > e_un_mce (e_from_list [("a",1)]) == Nothing
+-- > e_un_mce (e_from_list [(K_id,1)]) == Nothing
 e_un_mce :: Event -> Maybe [Event]
 e_un_mce e =
     let e' = e_to_list e
@@ -593,7 +610,7 @@ e_un_mce' e = fromMaybe [e] (e_un_mce e)
 -- | Generate @SC3@ /(on,off)/ 'Message' sets describing 'Event'.
 e_messages :: D.Dur -> Event -> Int -> Maybe Int -> Maybe (T2 [Message])
 e_messages d e n_id n =
-    let e_i = e_get_instr_ix n "instr" e
+    let e_i = e_get_instr_ix n K_instr e
         s = maybe "default" I.i_name e_i
         sr = maybe True I.i_send_release e_i
         p = e_pitch n e
@@ -646,7 +663,7 @@ newtype Event_Seq = Event_Seq {e_seq_events :: [Event]}
 
 -- | Transform 'Event_Seq' into a sequence of @SC3@ /(on,off)/ 'Bundles'.
 --
--- > e_bundle_seq (replicate 5 e_empty)
+-- > e_bundle_seq 0 (Event_Seq (replicate 5 e_empty))
 e_bundle_seq :: Time -> Event_Seq -> [T2 Bundle]
 e_bundle_seq st =
     let rec t i l =

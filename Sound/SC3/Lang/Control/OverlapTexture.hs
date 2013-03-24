@@ -91,9 +91,9 @@ overlapTextureP k g =
     let s = gen_synth (overlapTexture_env k) g
         (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
-    in pbind [("instr",pinstr' (Instr_Def s False))
-             ,("dur",pn (return (F_Double d)) c)
-             ,("legato",pure (F_Double l))]
+    in pbind [(K_instr,pinstr' (Instr_Def s False))
+             ,(K_dur,pn (return (F_Double d)) c)
+             ,(K_legato,pure (F_Double l))]
 
 -- | Audition pattern given by 'overlapTextureP'.
 --
@@ -139,9 +139,9 @@ xfadeTextureP k g =
     let s = gen_synth (xfadeTexture_env k) g
         (l,d) = xfadeTexture_dt k
         (_,_,c) = k
-    in pbind [("instr",pinstr' (Instr_Def s False))
-             ,("dur",pn (return (F_Double d)) c)
-             ,("legato",pure (F_Double l))]
+    in pbind [(K_instr,pinstr' (Instr_Def s False))
+             ,(K_dur,pn (return (F_Double d)) c)
+             ,(K_legato,pure (F_Double l))]
 
 -- | Audition pattern given by 'xfadeTextureP'.
 --
@@ -170,9 +170,9 @@ overlapTextureP_st k u i_st =
         g = take c (unfoldr (Just . u) i_st)
         i = flip Instr_Def False
         s = toP (map (i . gen_synth (overlapTexture_env k)) g)
-    in pbind [("instr",fmap F_Instr s)
-             ,("dur",pure (F_Double d))
-             ,("legato",pure (F_Double l))]
+    in pbind [(K_instr,fmap F_Instr s)
+             ,(K_dur,pure (F_Double d))
+             ,(K_legato,pure (F_Double l))]
 
 -- | Audition pattern given by 'overlapTextureP_st'.
 overlapTextureS :: OverlapTexture -> USTF st -> st -> IO ()

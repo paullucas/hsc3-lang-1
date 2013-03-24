@@ -1058,7 +1058,7 @@ psynth s = pinstr' (I.Instr_Def s True)
 
 -- | 'punion' of 'pinstr''.
 p_with_instr' :: I.Instr -> P_Event -> P_Event
-p_with_instr' i = punion (pbind [("instr",pinstr' i)])
+p_with_instr' i = punion (pbind [(E.K_instr,pinstr' i)])
 
 -- | 'punion' of 'pinstr'.
 p_with_instr :: String -> P_Event -> P_Event
@@ -1089,7 +1089,7 @@ pkey k = fmap (fromJust . E.e_get k)
 pmono :: P_Bind -> P_Event
 pmono b =
     let ty = fmap E.F_String ("s_new" `pcons` prepeat "n_set")
-    in pbind (("type",ty) : b)
+    in pbind ((E.K_type,ty) : b)
 
 -- | Idiom to scale 'a' at 'E.Key' in an 'E.Event' pattern.
 pmul :: E.Key -> P_Field -> P_Event -> P_Event
@@ -1100,9 +1100,9 @@ pmul' :: E.Key -> P_Field -> P_Event -> P_Event
 pmul' k = pzipWith (\i j -> E.e_edit' k (* i) j)
 
 -- | SC3 pattern to do time stretching.  It is equal to 'pmul' at
--- \"stretch\".
+-- 'E.K_stretch'.
 pstretch :: P_Field -> P_Event -> P_Event
-pstretch = pmul "stretch"
+pstretch = pmul E.K_stretch
 
 -- * Parallel patterns
 
