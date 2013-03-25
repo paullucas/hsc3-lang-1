@@ -56,8 +56,12 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- > (pure (+) <*> [1,3,5] <*> [6,4,2]) == [7,5,3,9,7,5,11,9,7]
 -- > (pure (+) <*> toP [1,3,5] <*> toP [6,4,2]) == toP [7,7,7]
 -- > ppure 0 /= preturn 0
+-- > pure 1 == [1] && return 1 == [1]
 --
 -- Patterns are 'Monad's.
+--
+-- > (pure 1 >>= return . id) == [1]
+-- > (undetermined 1 >>= undetermined . id) == undetermined 1
 --
 -- > take 3 (join (repeat [1,2])) == [1,2,1]
 -- > ptake 3 (pjoin (prepeat (toP [1,2]))) == toP [1,2,1]
@@ -84,22 +88,27 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 data P a = P {unP_either :: Either a [a]}
            deriving (Eq,Show)
 
+undetermined :: a -> P a
+undetermined a = P (Left a)
+
 -- | List to pattern, inverse is 'unP'.
 --
 -- > unP (toP "str") == "str"
 toP :: [a] -> P a
 toP = P . Right
 
--- | Pattern to list.  'pure' values are singular.
+-- | Pattern to list.  'undetermined' values are singular.
 --
--- > unP (pure 'a') == ['a']
+-- > unP (undetermined 'a') == ['a']
 -- > unP (return 'a') == ['a']
+-- > "aaa" `L.isPrefixOf` unP (pure 'a')
 unP :: P a -> [a]
 unP = either return id . unP_either
 
--- | Variant of 'unP' where 'pure' values are 'repeat'ed.
+-- | Variant of 'unP' where 'undetermined' values are 'repeat'ed.
 --
 -- > unP_repeat (return 'a') == ['a']
+-- > take 2 (unP_repeat (undetermined 'a')) == ['a','a']
 -- > take 2 (unP_repeat (pure 'a')) == ['a','a']
 unP_repeat :: P a -> [a]
 unP_repeat = either repeat id . unP_either
@@ -112,7 +121,7 @@ instance Monoid (P a) where
     mempty = toP []
 
 instance Applicative P where
-    pure = P . Left
+    pure = toP . repeat
     f <*> e = pzipWith ($) f e
 
 instance Alternative P where
@@ -123,7 +132,10 @@ instance F.Foldable P where
     foldr f i p = L.foldr f i (unP p)
 
 instance Monad P where
-    m >>= k = F.foldr (mappend . k) mempty m
+    m >>= k =
+        case m of
+          P (Left e) -> k e
+          P (Right l) -> L.foldr (mappend . k) mempty l
     return x = toP [x]
 
 instance MonadPlus P where
@@ -137,12 +149,12 @@ instance (Num a) => Num (P a) where
     abs = fmap abs
     signum = fmap signum
     negate = fmap negate
-    fromInteger = pure . fromInteger
+    fromInteger = undetermined . fromInteger
 
 instance (Fractional a) => Fractional (P a) where
     (/) = pzipWith (/)
     recip = fmap recip
-    fromRational = pure . fromRational
+    fromRational = undetermined . fromRational
 
 instance (Ord a) => Ord (P a) where
     (>) = error ("~> OrdE.>*")
@@ -207,25 +219,25 @@ liftP3_repeat f p q r =
 -- > in p == toP [(1,3),(2,4),(1,3),(2,4)]
 --
 -- > zipWith (,) (return 0) (return 1) == return (0,1)
--- > pzipWith (,) 0 1 == pure (0,1)
+-- > pzipWith (,) 0 1 == undetermined (0,1)
 pzipWith :: (a -> b -> c) -> P a -> P b -> P c
 pzipWith f p q =
     case (p,q) of
-      (P (Left m),P (Left n)) -> pure (f m n)
+      (P (Left m),P (Left n)) -> undetermined (f m n)
       _ -> toP (zipWith f (unP_repeat p) (unP_repeat q))
 
 -- | An /implicitly repeating/ pattern variant of 'zipWith3'.
 pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
 pzipWith3 f p q r =
     case (p,q,r) of
-      (P (Left m),P (Left n),P (Left o)) -> pure (f m n o)
+      (P (Left m),P (Left n),P (Left o)) -> undetermined (f m n o)
       _ -> toP (zipWith3 f (unP_repeat p) (unP_repeat q) (unP_repeat r))
 
 -- | An /implicitly repeating/ pattern variant of 'zip'.
 --
 -- > zip (return 0) (return 1) == return (0,1)
--- > pzip (pure 3) (pure 4) == pure (3,4)
--- > pzip 0 1 == pure (0,1)
+-- > pzip (undetermined 3) (undetermined 4) == undetermined (3,4)
+-- > pzip 0 1 == undetermined (0,1)
 --
 -- Note that 'pzip' is otherwise like haskell 'zip', ie. truncating.
 --
@@ -274,18 +286,19 @@ pcons = mappend . return
 -- | Pattern variant of 'L.null'.
 --
 -- > pnull mempty == True
+-- > pnull (undetermined 'a') == False
 -- > pnull (pure 'a') == False
 -- > pnull (return 'a') == False
 pnull :: P a -> Bool
 pnull = null . unP
 
--- | Pattern variant of 'L.repeat'. See also 'pure' and 'pcycle'.
+-- | Alias for 'pure'.
 --
 -- > ptake 5 (prepeat 3) == toP [3,3,3,3,3]
--- > ptake 5 (Control.Applicative.pure 3) == toP [3]
--- > take 5 (Control.Applicative.pure 3) == [3]
+-- > ptake 5 (pure 3) == toP [3,3,3,3,3]
+-- > take 5 (pure 3) == [3]
 prepeat :: a -> P a
-prepeat = toP . repeat
+prepeat = pure
 
 -- | Pattern variant of 'P.take_inf', see also 'pfinval'.
 --
@@ -303,6 +316,7 @@ ptake n = liftP (P.take_inf n)
 
 -- | Type specialised 'P.mcycle'.
 --
+-- > ptake 5 (pcycle 1) == preplicate 5 1
 -- > ptake 5 (pcycle (pure 1)) == preplicate 5 1
 -- > ptake 5 (pcycle (return 1)) == preplicate 5 1
 pcycle :: P a -> P a
@@ -610,7 +624,7 @@ pnormalizeSum = liftP C.normalizeSum
 -- | Un-joined variant of 'prand'.
 --
 -- > let p = prand' 'α' [1,toP [2,3],toP [4,5,6]] 5
--- > in p == toP [toP [4,5,6],toP [4,5,6],toP [2,3],toP [4,5,6],pure 1]
+-- > in p == toP [toP [4,5,6],toP [4,5,6],toP [2,3],toP [4,5,6],1]
 prand' :: Enum e => e -> [P a] -> Int -> P (P a)
 prand' e a n = toP (P.rand' e a n)
 
@@ -622,7 +636,7 @@ prand' e a n = toP (P.rand' e a n)
 --
 -- > prand 'α' [1,toP [10,20],2,3,4,5] 5 == toP [5,2,10,20,2,1]
 prand :: Enum e => e -> [P a] -> Int -> P a
-prand e a = pjoin . prand' e a
+prand e a = join . prand' e a
 
 -- | SC3 pattern to rejects values for which the predicate is true.  reject
 -- f is equal to filter (not . f).
@@ -676,7 +690,7 @@ prorate' p =
 --
 -- > pfinval 5 (prorate (fmap Left 0.6) 0.5) == toP [0.3,0.2,0.3,0.2,0.3]
 prorate :: Num a => P (Either a [a]) -> P a -> P a
-prorate p = pjoin . pzipWith prorate' p
+prorate p = pjoin_repeat . pzipWith prorate' p
 
 -- | See 'pfilter'.
 --
@@ -691,7 +705,7 @@ pselect f = liftP (filter f)
 -- > pseq1 [pseq [1,2] 1,pseq [3,4] 1] 2 == toP [1,3,2,4]
 -- > pseq1 [pseq [1,2] inf,pseq [3,4] inf] 3 == toP [1,3,2,4,1,3]
 pseq1 :: [P a] -> Int -> P a
-pseq1 a i = pjoin (ptake i (pflop a))
+pseq1 a i = join (ptake i (pflop a))
 
 -- | SC3 pattern to cycle over a list of patterns. The repeats pattern
 -- gives the number of times to repeat the entire list.
@@ -748,7 +762,7 @@ pseqn n q =
 --
 -- > pser1 [1,pser [10,20] 3,3] 9 == toP [1,10,3,1,20,3,1,10,3]
 pser1 :: [P a] -> Int -> P a
-pser1 a i = ptake i (pjoin (pflop a))
+pser1 a i = ptake i (join (pflop a))
 
 -- | SC3 pattern that is like 'pseq', however the repeats variable
 -- gives the number of elements in the sequence, not the number of
@@ -962,7 +976,7 @@ ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q =
     let r = pcountpre p
         f i x = preplicate i Nothing <> return (Just x)
-    in pjoin (pzipWith f r q)
+    in join (pzipWith f r q)
 
 -- * Event Patterns
 
@@ -1018,18 +1032,19 @@ punion = pzipWith (<>)
 -- > > Pbind(\freq, Prand([300,500,231.2,399.2],inf),
 -- > >       \dur,Prand([0.1,0.3],inf)).play;
 --
--- > audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf)
--- >                 ,("dur",prand 'b' [0.1,0.3] inf)])
+-- > audition (pbind [(E.K_freq,prand 'a' [300,500,231.2,399.2] inf)
+-- >                 ,(E.K_dur,prand 'b' [0.1,0.3] inf)])
 --
 -- > > Pbind(\freq,Prand([1,1.2,2,2.5,3,4],inf) * 200,
 -- > >       \dur,0.1).play;
 --
--- > audition (pbind [("freq",prand 'a' [1,1.2,2,2.5,3,4] inf * 200)
--- >                 ,("dur",0.1)])
+-- > audition (pbind [(E.K_freq,prand 'a' [1,1.2,2,2.5,3,4] inf * 200)
+-- >                 ,(E.K_dur,0.1)])
 pbind :: P_Bind -> P_Event
 pbind xs =
-    let xs' = ptranspose_st_repeat (fmap (\(k,v) -> pzip (pure k) v) xs)
-    in fmap E.e_from_list xs'
+    let xs' = fmap (\(k,v) -> pzip (undetermined k) v) xs
+        xs'' = ptranspose_st_repeat xs'
+    in fmap E.e_from_list xs''
 
 -- | Two-channel MCE for /field/ patterns.
 --
@@ -1164,15 +1179,19 @@ pconcat = mconcat
 pempty :: P a
 pempty = mempty
 
--- | 'pure' preserving pattern 'join'.
---
--- > pjoin (pure (pure 1)) == pure 1
--- > ptake 3 (pjoin (pure (return 1))) == toP [1,1,1]
+-- | Type specialised 'join'.
 pjoin :: P (P a) -> P a
-pjoin p =
+pjoin = join
+
+-- | 'undetermined' preserving pattern 'join'.
+--
+-- > join (undetermined (undetermined 1)) == undetermined 1
+-- > ptake 3 (join (undetermined (return 1))) == toP [1]
+-- > ptake 3 (pjoin_repeat (undetermined (return 1))) == toP [1,1,1]
+pjoin_repeat :: P (P a) -> P a
+pjoin_repeat p =
     case p of
-      P (Left (P (Left e))) -> P (Left e)
-      P (Left (P (Right l))) -> pcycle (P (Right l))
+      P (Left (P (Right l))) -> P (Right (cycle l))
       _ -> join p
 
 -- | Type specialised 'fmap'.
