@@ -36,6 +36,7 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- > mempty :: P ()
 -- > mempty <> mempty == pempty
 -- > mempty <> 1 == 1 <> pempty
+-- > 1 <> 2 == toP [1,2]
 -- > toP [1,2,3] <> toP [4,5,6] == toP [1,2,3,4,5,6]
 -- > [1,2,3] <> [4,5,6] == [1,2,3,4,5,6]
 --
@@ -61,7 +62,7 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- Patterns are 'Monad's.
 --
 -- > (pure 1 >>= return . id) == [1]
--- > (undetermined 1 >>= undetermined . id) == undetermined 1
+-- > (undecided 1 >>= undecided . id) == undecided 1
 --
 -- > take 3 (join (repeat [1,2])) == [1,2,1]
 -- > ptake 3 (pjoin (prepeat (toP [1,2]))) == toP [1,2,1]
@@ -88,8 +89,10 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 data P a = P {unP_either :: Either a [a]}
            deriving (Eq,Show)
 
-undetermined :: a -> P a
-undetermined a = P (Left a)
+-- | Lift a value to a pattern deferring deciding if the constructor
+-- ought to be 'pure' or 'return' to the consuming function.
+undecided :: a -> P a
+undecided a = P (Left a)
 
 -- | List to pattern, inverse is 'unP'.
 --
@@ -97,18 +100,18 @@ undetermined a = P (Left a)
 toP :: [a] -> P a
 toP = P . Right
 
--- | Pattern to list.  'undetermined' values are singular.
+-- | Pattern to list.  'undecided' values are singular.
 --
--- > unP (undetermined 'a') == ['a']
+-- > unP (undecided 'a') == ['a']
 -- > unP (return 'a') == ['a']
 -- > "aaa" `L.isPrefixOf` unP (pure 'a')
 unP :: P a -> [a]
 unP = either return id . unP_either
 
--- | Variant of 'unP' where 'undetermined' values are 'repeat'ed.
+-- | Variant of 'unP' where 'undecided' values are 'repeat'ed.
 --
 -- > unP_repeat (return 'a') == ['a']
--- > take 2 (unP_repeat (undetermined 'a')) == ['a','a']
+-- > take 2 (unP_repeat (undecided 'a')) == ['a','a']
 -- > take 2 (unP_repeat (pure 'a')) == ['a','a']
 unP_repeat :: P a -> [a]
 unP_repeat = either repeat id . unP_either
@@ -149,12 +152,12 @@ instance (Num a) => Num (P a) where
     abs = fmap abs
     signum = fmap signum
     negate = fmap negate
-    fromInteger = undetermined . fromInteger
+    fromInteger = undecided . fromInteger
 
 instance (Fractional a) => Fractional (P a) where
     (/) = pzipWith (/)
     recip = fmap recip
-    fromRational = undetermined . fromRational
+    fromRational = undecided . fromRational
 
 instance (Ord a) => Ord (P a) where
     (>) = error ("~> OrdE.>*")
@@ -219,25 +222,25 @@ liftP3_repeat f p q r =
 -- > in p == toP [(1,3),(2,4),(1,3),(2,4)]
 --
 -- > zipWith (,) (return 0) (return 1) == return (0,1)
--- > pzipWith (,) 0 1 == undetermined (0,1)
+-- > pzipWith (,) 0 1 == undecided (0,1)
 pzipWith :: (a -> b -> c) -> P a -> P b -> P c
 pzipWith f p q =
     case (p,q) of
-      (P (Left m),P (Left n)) -> undetermined (f m n)
+      (P (Left m),P (Left n)) -> undecided (f m n)
       _ -> toP (zipWith f (unP_repeat p) (unP_repeat q))
 
 -- | An /implicitly repeating/ pattern variant of 'zipWith3'.
 pzipWith3 :: (a -> b -> c -> d) -> P a -> P b -> P c -> P d
 pzipWith3 f p q r =
     case (p,q,r) of
-      (P (Left m),P (Left n),P (Left o)) -> undetermined (f m n o)
+      (P (Left m),P (Left n),P (Left o)) -> undecided (f m n o)
       _ -> toP (zipWith3 f (unP_repeat p) (unP_repeat q) (unP_repeat r))
 
 -- | An /implicitly repeating/ pattern variant of 'zip'.
 --
 -- > zip (return 0) (return 1) == return (0,1)
--- > pzip (undetermined 3) (undetermined 4) == undetermined (3,4)
--- > pzip 0 1 == undetermined (0,1)
+-- > pzip (undecided 3) (undecided 4) == undecided (3,4)
+-- > pzip 0 1 == undecided (0,1)
 --
 -- Note that 'pzip' is otherwise like haskell 'zip', ie. truncating.
 --
@@ -286,7 +289,7 @@ pcons = mappend . return
 -- | Pattern variant of 'L.null'.
 --
 -- > pnull mempty == True
--- > pnull (undetermined 'a') == False
+-- > pnull (undecided 'a') == False
 -- > pnull (pure 'a') == False
 -- > pnull (return 'a') == False
 pnull :: P a -> Bool
@@ -1042,7 +1045,7 @@ punion = pzipWith (<>)
 -- >                 ,(E.K_dur,0.1)])
 pbind :: P_Bind -> P_Event
 pbind xs =
-    let xs' = fmap (\(k,v) -> pzip (undetermined k) v) xs
+    let xs' = fmap (\(k,v) -> pzip (undecided k) v) xs
         xs'' = ptranspose_st_repeat xs'
     in fmap E.e_from_list xs''
 
@@ -1183,11 +1186,11 @@ pempty = mempty
 pjoin :: P (P a) -> P a
 pjoin = join
 
--- | 'undetermined' preserving pattern 'join'.
+-- | 'undecided' preserving pattern 'join'.
 --
--- > join (undetermined (undetermined 1)) == undetermined 1
--- > ptake 3 (join (undetermined (return 1))) == toP [1]
--- > ptake 3 (pjoin_repeat (undetermined (return 1))) == toP [1,1,1]
+-- > join (undecided (undecided 1)) == undecided 1
+-- > ptake 3 (join (undecided (return 1))) == toP [1]
+-- > ptake 3 (pjoin_repeat (undecided (return 1))) == toP [1,1,1]
 pjoin_repeat :: P (P a) -> P a
 pjoin_repeat p =
     case p of
