@@ -11,6 +11,7 @@ import qualified Data.List as L {- base -}
 import qualified Data.List.Split as S {- split -}
 import Data.Maybe {- base -}
 import Data.Monoid {- base -}
+import qualified Data.Traversable as T {- base -}
 import Sound.OSC {- hsc3 -}
 import Sound.SC3 {- hsc3 -}
 import System.Random {- random -}
@@ -24,73 +25,55 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 
 -- * P
 
--- | Patterns are opaque.
+-- | Patterns are opaque.  @P a@ is a pattern with elements of type
+-- @a@.  Patterns are constructed, manipulated and destructured using
+-- the functions provided, ie. the pattern instances for 'return',
+-- 'pure' and 'F.toList', and the pattern specific functions
+-- 'undecided' and 'toP'.
 --
--- Patterns are 'Functor's.
+-- > F.toList (toP [1,2,3] * 2) == [2,4,6]
 --
--- > fmap (* 2) [1,2,3,4,5] == [2,4,6,8,10]
+-- Patterns are 'Functor's.  'fmap' applies a function to each element
+-- of a pattern.
+--
 -- > fmap (* 2) (toP [1,2,3,4,5]) == toP [2,4,6,8,10]
 --
--- Patterns are 'Monoid's.
+-- Patterns are 'Monoid's.  'mempty' is the empty pattern, and
+-- 'mappend' ('<>') makes a sequence of two patterns.
 --
--- > mempty :: P ()
--- > mempty <> mempty == pempty
--- > mempty <> 1 == 1 <> pempty
--- > 1 <> 2 == toP [1,2]
--- > toP [1,2,3] <> toP [4,5,6] == toP [1,2,3,4,5,6]
--- > [1,2,3] <> [4,5,6] == [1,2,3,4,5,6]
+-- > 1 <> mempty <> 2 == toP [1,2]
 --
--- > take 3 (concat (repeat [1,2])) == [1,2,1]
--- > ptake 3 (mconcat (repeat (toP [1,2]))) == toP [1,2,1]
--- > ptake 3 (mconcat [pseq [1,2] 1,pseq [3,4] 1]) == toP [1,2,3]
--- > ptake 3 (mconcat (repeat (toP [1,2]))) == toP [1,2,1]
+-- Patterns are 'Applicative'.  The pattern instance is pointwise &
+-- truncating, unlike the combinatorial instance for ordinary lists.
+-- 'pure' lifts a value into an infinite pattern of itself, '<*>'
+-- applies a pattern of functions to a pattern of values.  This is
+-- distinct from the list instance which is monadic, ie. 'pure' is
+-- 'return' and '<*>' is 'ap'.
 --
--- Patterns are 'Applicative'.
+-- > liftA2 (+) (toP [1,2]) (toP [3,4,5]) == toP [4,6]
+-- > liftA2 (+) [1,2] [3,4,5] == [4,5,6,5,6,7]
 --
--- > liftA2 (+) (toP [1,2]) (toP [3,4]) == toP [4,6]
--- > liftA2 (+) (toP [1,2,3]) (toP [4,5,6,7]) == toP [5,7,9]
+-- Patterns are 'Monad's, and therefore allow /do/ notation.
 --
--- The pattern instance is linear not combinatorial.  That is as for
--- 'ZipList', not as for list.
+-- > let p = do {x <- toP [1,2]; y <- toP [3,4,5]; return (x,y)}
+-- > in p == toP [(1,3),(1,4),(1,5),(2,3),(2,4),(2,5)]
 --
--- > getZipList (liftA2 (+) (ZipList [1,3,5]) (ZipList [6,4,2])) == [7,7,7]
--- > (pure (+) <*> [1,3,5] <*> [6,4,2]) == [7,5,3,9,7,5,11,9,7]
--- > (pure (+) <*> toP [1,3,5] <*> toP [6,4,2]) == toP [7,7,7]
--- > ppure 0 /= preturn 0
--- > pure 1 == [1] && return 1 == [1]
+-- Patterns are 'Num'erical.  The instances can be derived from the
+-- 'Applicative' instance.
 --
--- Patterns are 'Monad's.
---
--- > (pure 1 >>= return . id) == [1]
--- > (undecided 1 >>= undecided . id) == undecided 1
---
--- > take 3 (join (repeat [1,2])) == [1,2,1]
--- > ptake 3 (pjoin (prepeat (toP [1,2]))) == toP [1,2,1]
---
--- > do {x <- toP [1,2]
--- >    ;y <- toP [3,4,5]
--- >    ;return (x,y)} == toP [(1,3),(1,4),(1,5),(2,3),(2,4),(2,5)]
---
--- > liftM2 (+) (toP [0,1]) (toP [0,2]) == toP [0,2,1,3]
--- > mfilter even (toP [1,2,3,4]) == toP [2,4]
---
--- Patterns are 'MonadPlus'.
---
--- > msum [toP [1,2,3],toP [4,5,6]] == toP [1,2,3,4,5,6]
---
--- Patterns are 'Num'erical.
---
--- > 1 :: P Int
--- > (1 :: P Int) + 2 == 3
--- > 1 + toP [2,3,4] == toP [3,4,5]
--- > toP [1,2,3] + 2 == toP [3,4,5]
--- > toP [1,3,5] + toP [6,4,2] == toP [7,7,7]
--- > toP [1,2] + toP [3,4,5] == toP [4,6]
+-- > 1 + toP [2,3,4] == liftA2 (+) 1 (toP [2,3,4])
 data P a = P {unP_either :: Either a [a]}
            deriving (Eq,Show)
 
 -- | Lift a value to a pattern deferring deciding if the constructor
--- ought to be 'pure' or 'return' to the consuming function.
+-- ought to be 'pure' or 'return' to the consuming function.  The
+-- pattern instances for 'fromInteger' and 'fromRational' make
+-- 'undecided' patterns.  In general /horizontal/ functions (ie. '<>')
+-- resolve using 'return' and /vertical/ functions (ie. 'zip') resolve
+-- using 'pure'.
+--
+-- 1 <> toP [2,3] == return 1 <> toP [2,3]
+-- toP [1,2] * 3  == toP [1,2] * pure 3
 undecided :: a -> P a
 undecided a = P (Left a)
 
@@ -100,9 +83,9 @@ undecided a = P (Left a)
 toP :: [a] -> P a
 toP = P . Right
 
--- | Pattern to list.  'undecided' values are singular.
+-- | Type specialised 'F.toList'.  'undecided' values are singular.
 --
--- > unP (undecided 'a') == ['a']
+-- > F.toList (undecided 'a') == ['a']
 -- > unP (return 'a') == ['a']
 -- > "aaa" `L.isPrefixOf` unP (pure 'a')
 unP :: P a -> [a]
@@ -133,6 +116,9 @@ instance Alternative P where
 
 instance F.Foldable P where
     foldr f i p = L.foldr f i (unP p)
+
+instance T.Traversable P where
+    traverse f p = pure toP <*> T.traverse f (unP p)
 
 instance Monad P where
     m >>= k =
@@ -178,6 +164,9 @@ liftP :: ([a] -> [b]) -> P a -> P b
 liftP f = toP . f . unP
 
 -- | Lift binary list function to pattern function.
+--
+-- > liftP2 (zipWith (+)) (toP [1,2]) (toP [3,4,5]) == toP [4,6]
+-- > liftA2 (+) (toP [1,2]) (toP [3,4,5]) == toP [4,6]
 liftP2 :: ([a] -> [b] -> [c]) -> P a -> P b -> P c
 liftP2 f p q =
     let p' = unP p
@@ -335,12 +324,13 @@ pcycle = P.mcycle
 pdrop :: Int -> P a -> P a
 pdrop n = liftP (drop n)
 
--- | Pattern variant of `filter`.  Allows values for which the
--- predicate is true.  Aliased to `pselect`.  See also `preject`.
+-- | Type specialised 'mfilter'.  Aliased to `pselect`.  See also
+-- `preject`.
 --
--- > pfilter (< 3) (pseq [1,2,3] 2) == toP [1,2,1,2]
+-- > mfilter even (pseq [1,2,3] 2) == toP [2,2]
+-- > mfilter (< 3) (pseq [1,2,3] 2) == toP [1,2,1,2]
 pfilter :: (a -> Bool) -> P a -> P a
-pfilter f = liftP (filter f)
+pfilter = mfilter
 
 -- | Pattern variant of `replicate`.
 --
@@ -355,10 +345,20 @@ preplicate :: Int -> a -> P a
 preplicate n = toP . (if n == inf then repeat else replicate n)
 
 -- | Pattern variant of `scanl`.  `scanl` is similar to `foldl`, but
--- returns a list of successive reduced values from the left.
+-- returns a list of successive reduced values from the left.  pscanl
+-- is an accumulator, it provides a mechanism for state to be threaded
+-- through a pattern. It can be used to write a function to remove
+-- succesive duplicates from a pattern, to count the distance between
+-- occurences of an element in a pattern and so on.
 --
--- > Data.Foldable.foldl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1) == (43)
+-- > F.foldl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1) == 43
 -- > pscanl (\x y -> 2 * x + y) 4 (pseq [1,2,3] 1) == toP [4,9,20,43]
+--
+-- > F.foldl (flip (:)) [] (toP [1..3]) == [3,2,1]
+-- > pscanl (flip (:)) [] (toP [1..3]) == toP [[],[1],[2,1],[3,2,1]]
+--
+-- > F.foldl (+) 0 (toP [1..5]) == 15
+-- > pscanl (+) 0 (toP [1..5]) == toP [0,1,3,6,10,15]
 pscanl :: (a -> b -> a) -> a -> P b -> P a
 pscanl f i = liftP (L.scanl f i)
 
@@ -1171,10 +1171,15 @@ p_un_mce p =
 -- * Aliases
 
 -- | Type specialised 'mappend'.
+--
+-- > 1 <> mempty <> 2 == toP [1,2]
 pappend :: P a -> P a -> P a
 pappend = mappend
 
--- | Type specialised 'mconcat'.
+-- | Type specialised 'mconcat' (or equivalently 'msum').
+--
+-- > mconcat [pseq [1,2] 1,pseq [3,4] 2] == toP [1,2,3,4,3,4]
+-- > msum [pseq [1,2] 1,pseq [3,4] 2] == toP [1,2,3,4,3,4]
 pconcat :: [P a] -> P a
 pconcat = mconcat
 
@@ -1182,32 +1187,76 @@ pconcat = mconcat
 pempty :: P a
 pempty = mempty
 
+-- | Type specialised 'F.foldr'.
+--
+-- > > (Pser([1,2,3],5) + Pseq([0,10],3)).asStream.all == [1,12,3,11,2]
+--
+-- > let p = pser [1,2,3] 5 + pseq [0,10] 3
+-- > in F.foldr (:) [] p == [1,12,3,11,2]
+--
+-- > Indefinte patterns may be folded.
+--
+-- > take 3 (F.foldr (:) [] (prepeat 1)) == [1,1,1]
+--
+-- The `Foldable` module includes functions for 'F.product', 'F.sum',
+-- 'F.any', 'F.elem' etc.
+--
+-- > F.product (toP [1,3,5]) == 15
+-- > floor (F.sum (ptake 100 (pwhite 'α' 0.25 0.75 inf))) == 51
+-- > F.any even (toP [1,3,5]) == False
+-- > F.elem 5 (toP [1,3,5]) == True
+pfoldr :: (a -> b -> b) -> b -> P a -> b
+pfoldr = F.foldr
+
 -- | Type specialised 'join'.
+--
+-- > join (replicate 2 [1,2]) == [1,2,1,2]
+-- > join (preplicate 2 (toP [1,2])) == toP [1,2,1,2]
 pjoin :: P (P a) -> P a
 pjoin = join
 
--- | 'undecided' preserving pattern 'join'.
+-- | 'join' that pushes an outer 'undecided' inward.
 --
 -- > join (undecided (undecided 1)) == undecided 1
--- > ptake 3 (join (undecided (return 1))) == toP [1]
--- > ptake 3 (pjoin_repeat (undecided (return 1))) == toP [1,1,1]
+-- > join (undecided (return 1)) == return 1
+-- > pjoin_repeat (undecided (return 1)) == pure 1 == _|_
 pjoin_repeat :: P (P a) -> P a
 pjoin_repeat p =
     case p of
-      P (Left (P (Right l))) -> P (Right (cycle l))
+      P (Left (P (Right l))) -> toP (cycle l)
       _ -> join p
 
 -- | Type specialised 'fmap'.
 pmap :: (a -> b) -> P a -> P b
 pmap = fmap
 
+-- | Type specialised '>>='.
+--
+-- > (return 1 >>= return . id) == [1]
+-- > (undecided 1 >>= undecided . id) == undecided 1
+--
+-- > (pseq [1,2] 1 >>= \x ->
+-- >   pseq [3,4,5] 1 >>= \y ->
+-- >    return (x,y)) == toP [(1,3),(1,4),(1,5),(2,3),(2,4),(2,5)]
+pmbind :: P a -> (a -> P b) -> P b
+pmbind = (>>=)
+
 -- | Type specialised 'pure'.
 ppure :: a -> P a
 ppure = pure
 
--- | Type specialised 'return'
+-- | Type specialised 'return'.
 preturn :: a -> P a
 preturn = return
+
+-- | Type specialised 'T.traverse'.
+--
+-- > let {f i e = (i + e,e * 2)
+-- >     ;(r,p) = T.mapAccumL f 0 (toP [1,3,5])}
+-- > in (r,p) == (9,toP [2,6,10])
+ptraverse :: Applicative f => (a -> f b) -> P a -> f (P b)
+ptraverse = T.traverse
+
 
 -- * NRT
 
