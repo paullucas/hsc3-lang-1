@@ -4,6 +4,7 @@ module Sound.SC3.Lang.Control.Event where
 import Data.List {- base -}
 import qualified Data.Map as Map {- containers -}
 import Data.Maybe {- base -}
+import Data.Monoid {- base -}
 import Data.String {- base -}
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
@@ -303,13 +304,9 @@ k_is_parameter (k,_) = k `notElem` k_reserved
 -- | An 'Event' is a ('Key','Field') map.
 type Event = Map.Map Key Field
 
--- | Empty event.
-e_empty :: Event
-e_empty = Map.empty
-
 -- | Insert (/k/,/v/) into /e/.
 --
--- > e_get K_id (e_insert K_id 1 e_empty) == Just 1
+-- > e_get K_id (e_insert K_id 1 mempty) == Just 1
 e_insert :: Key -> Field -> Event -> Event
 e_insert k v = Map.insert k v
 
@@ -325,15 +322,9 @@ e_from_list = Map.fromList
 e_to_list :: Event -> [(Key,Field)]
 e_to_list = Map.toList
 
--- | Union of two events (left-biased).
---
--- > e_from_list [(K_id,0)] `e_union` e_from_list [(K_degree,1)]
-e_union :: Event -> Event -> Event
-e_union = Map.union
-
 -- | Lookup /k/ in /e/.
 --
--- > e_get K_id e_empty == Nothing
+-- > e_get K_id mempty == Nothing
 e_get :: Key -> Event -> Maybe Field
 e_get k = Map.lookup k
 
@@ -390,7 +381,7 @@ e_get_array_ix n k = fmap (map (f_double_err (k_name k)) . f_vector) . e_get_ix 
 
 -- | 'Event' /type/.
 --
--- > e_type e_empty == "s_new"
+-- > e_type mempty == "s_new"
 e_type :: Event -> String
 e_type = fromMaybe "s_new" . fmap f_string . e_get K_type
 
@@ -409,7 +400,7 @@ e_type_match' e (f,g,h) = e_type_match e (const f,const g,const h)
 
 -- | Generate 'D.Dur' from 'Event'.
 --
--- > D.delta (e_dur Nothing e_empty) == 1
+-- > D.delta (e_dur Nothing mempty) == 1
 -- > D.fwd (e_dur Nothing (e_from_list [(K_dur,1),(K_stretch,2)])) == 2
 --
 -- > let e = e_from_list [(K_dur,1),(K_legato,0.5)]
@@ -428,7 +419,7 @@ e_dur n e =
 
 -- | Generate 'Pitch' from 'Event'.
 --
--- > P.midinote (e_pitch Nothing e_empty) == 60
+-- > P.midinote (e_pitch Nothing mempty) == 60
 -- > P.freq (e_pitch Nothing (e_from_list [(K_degree,5)])) == 440
 --
 -- > let e = e_from_list [(K_degree,5),(K_scale,f_array [0,2,3,5,7,8,10])]
@@ -461,7 +452,7 @@ e_id n = e_get_int_ix n K_id
 
 -- | Lookup /db/ field of 'Event'.
 --
--- > e_db Nothing e_empty == (-20)
+-- > e_db Nothing mempty == (-20)
 e_db :: Maybe Int -> Event -> Double
 e_db n = fromMaybe (-20) . e_get_double_ix n K_db
 
@@ -469,13 +460,13 @@ e_db n = fromMaybe (-20) . e_get_double_ix n K_db
 --
 -- > e_amp Nothing (e_from_list [(K_db,-60)]) == 0.001
 -- > e_amp Nothing (e_from_list [(K_amp,0.01)]) == 0.01
--- > e_amp Nothing e_empty == 0.1
+-- > e_amp Nothing mempty == 0.1
 e_amp :: Maybe Int -> Event -> Double
 e_amp n e = fromMaybe (M.dbamp (e_db n e)) (e_get_double_ix n K_amp e)
 
 -- | Message /latency/ of event.
 --
--- > e_latency e_empty == 0.1
+-- > e_latency mempty == 0.1
 e_latency :: Event -> Double
 e_latency = fromMaybe 0.1 . e_get_double K_latency
 
@@ -538,13 +529,13 @@ e_par l =
       [(_,p)] -> p
       (pt,p):(qt,q):r -> e_par ((min pt qt,e_merge (pt,p) (qt,q)) : r)
 
--- | 'e_empty' with /rest/.
+-- | 'mempty' with /rest/.
 e_rest :: Event
 e_rest = e_from_list [(K_rest,1)]
 
 -- | Does 'Event' have a 'True' @rest@ key.
 --
--- > e_is_rest e_empty == False
+-- > e_is_rest mempty == False
 -- > e_is_rest (e_from_list [(K_rest,1)]) == True
 e_is_rest :: Event -> Bool
 e_is_rest = fromMaybe False . e_get_bool K_rest
@@ -663,7 +654,7 @@ newtype Event_Seq = Event_Seq {e_seq_events :: [Event]}
 
 -- | Transform 'Event_Seq' into a sequence of @SC3@ /(on,off)/ 'Bundles'.
 --
--- > e_bundle_seq 0 (Event_Seq (replicate 5 e_empty))
+-- > e_bundle_seq 0 (Event_Seq (replicate 5 mempty))
 e_bundle_seq :: Time -> Event_Seq -> [T2 Bundle]
 e_bundle_seq st =
     let rec t i l =
@@ -677,8 +668,8 @@ e_bundle_seq st =
 
 -- | Transform (productively) an 'Event_Seq' into an 'NRT' score.
 --
--- > let {n1 = nrt_bundles (e_nrt (Event_Seq (replicate 5 e_empty)))
--- >     ;n2 = take 10 (nrt_bundles (e_nrt (Event_Seq (repeat e_empty))))}
+-- > let {n1 = nrt_bundles (e_nrt (Event_Seq (replicate 5 mempty)))
+-- >     ;n2 = take 10 (nrt_bundles (e_nrt (Event_Seq (repeat mempty))))}
 -- > in n1 == n2
 e_nrt :: Event_Seq -> NRT
 e_nrt =
@@ -699,6 +690,19 @@ e_play l = do
   mapM_ f (e_bundle_seq st l)
 
 instance Audible Event_Seq where play = e_play
+
+-- * Aliases
+
+-- | Type-specialised 'mempty'.
+e_empty :: Event
+e_empty = mempty
+
+-- | Type-specialised 'mappend'.
+--
+-- > let {l = [(K_id,0)];r = [(K_degree,1)]}
+-- > in e_from_list l <> e_from_list r == e_from_list (l <> r)
+e_union :: Event -> Event -> Event
+e_union = mappend
 
 -- * Temporal
 

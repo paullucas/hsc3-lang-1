@@ -11,7 +11,6 @@ import qualified Data.List as L {- base -}
 import qualified Data.List.Split as S {- split -}
 import Data.Maybe {- base -}
 import Data.Monoid {- base -}
-import Data.Traversable {- base -}
 import Sound.OSC {- hsc3 -}
 import Sound.SC3 {- hsc3 -}
 import System.Random {- random -}
@@ -61,7 +60,7 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- Patterns are 'Monad's.
 --
 -- > take 3 (join (repeat [1,2])) == [1,2,1]
--- > ptake 3 (join (prepeat (toP [1,2]))) == toP [1,2,1]
+-- > ptake 3 (pjoin (prepeat (toP [1,2]))) == toP [1,2,1]
 --
 -- > do {x <- toP [1,2]
 -- >    ;y <- toP [3,4,5]
@@ -130,9 +129,6 @@ instance Monad P where
 instance MonadPlus P where
     mzero = mempty
     mplus = mappend
-
-instance Traversable P where
-    traverse f p = pure toP <*> traverse f (unP p)
 
 instance (Num a) => Num (P a) where
     (+) = pzipWith (+)
@@ -626,7 +622,7 @@ prand' e a n = toP (P.rand' e a n)
 --
 -- > prand 'α' [1,toP [10,20],2,3,4,5] 5 == toP [5,2,10,20,2,1]
 prand :: Enum e => e -> [P a] -> Int -> P a
-prand e a = join . prand' e a
+prand e a = pjoin . prand' e a
 
 -- | SC3 pattern to rejects values for which the predicate is true.  reject
 -- f is equal to filter (not . f).
@@ -647,6 +643,8 @@ preject :: (a -> Bool) -> P a -> P a
 preject f = liftP (filter (not . f))
 
 -- | Underlying pattern for 'prorate'.
+--
+-- > prorate' (Left 0.6) 0.5
 prorate' :: Num a => Either a [a] -> a -> P a
 prorate' p =
     case p of
@@ -664,7 +662,8 @@ prorate' p =
 -- > > p = Prorate(Pseq([0.35,0.5,0.8]),Pseed(Pn(100,1),Prand([20,1],inf)));
 -- > > p.asStream.all == [7,13,0.5,0.5,16,4]
 --
--- > let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) (prand 'α' [20,1] 3)
+-- > let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1))
+-- >                 (prand 'α' [20,1] 3)
 -- > in fmap roundE (p * 100) == toP [35,65,1000,1000,80,20]
 --
 -- > > l = [[1,2],[5,7],[4,8,9]].collect(_.normalizeSum);
@@ -672,8 +671,12 @@ prorate' p =
 --
 -- > let l = map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]]
 -- > in prorate (toP l) 1
+--
+-- > > Pfinval(5,Prorate(0.6,0.5)).asStream.all == [0.3,0.2,0.3,0.2,0.3]
+--
+-- > pfinval 5 (prorate (fmap Left 0.6) 0.5) == toP [0.3,0.2,0.3,0.2,0.3]
 prorate :: Num a => P (Either a [a]) -> P a -> P a
-prorate p = join . pzipWith prorate' p
+prorate p = pjoin . pzipWith prorate' p
 
 -- | See 'pfilter'.
 --
@@ -688,7 +691,7 @@ pselect f = liftP (filter f)
 -- > pseq1 [pseq [1,2] 1,pseq [3,4] 1] 2 == toP [1,3,2,4]
 -- > pseq1 [pseq [1,2] inf,pseq [3,4] inf] 3 == toP [1,3,2,4,1,3]
 pseq1 :: [P a] -> Int -> P a
-pseq1 a i = join (ptake i (pflop a))
+pseq1 a i = pjoin (ptake i (pflop a))
 
 -- | SC3 pattern to cycle over a list of patterns. The repeats pattern
 -- gives the number of times to repeat the entire list.
@@ -745,7 +748,7 @@ pseqn n q =
 --
 -- > pser1 [1,pser [10,20] 3,3] 9 == toP [1,10,3,1,20,3,1,10,3]
 pser1 :: [P a] -> Int -> P a
-pser1 a i = ptake i (join (pflop a))
+pser1 a i = ptake i (pjoin (pflop a))
 
 -- | SC3 pattern that is like 'pseq', however the repeats variable
 -- gives the number of elements in the sequence, not the number of
@@ -959,7 +962,7 @@ ptrigger :: P Bool -> P a -> P (Maybe a)
 ptrigger p q =
     let r = pcountpre p
         f i x = preplicate i Nothing <> return (Just x)
-    in join (pzipWith f r q)
+    in pjoin (pzipWith f r q)
 
 -- * Event Patterns
 
@@ -969,8 +972,11 @@ type P_Field = P E.Field
 -- | Synonym for an /event/ pattern.
 type P_Event = P E.Event
 
--- | Synonym for 'pbind' input type.
-type P_Bind = [(E.Key,P E.Field)]
+-- | Synonym for ('E.Key','P_Field').
+type P_Binding = (E.Key,P_Field)
+
+-- | Synonym for ['P_Binding'], ie. 'pbind' input type.
+type P_Bind = [P_Binding]
 
 instance Audible P_Event where
     play = E.e_play . E.Event_Seq . unP
@@ -980,20 +986,22 @@ instance Audible P_Event where
 -- > > p = Padd(\freq,801,Pbind(\freq,Pseq([100],1)));
 -- > > p.asStream.all(()) == [('freq':901)]
 --
--- > let p = padd "freq" 801 (pbind [("freq",return 100)])
--- > in p == pbind [("freq",return 901)]
-padd :: E.Key -> P_Field -> P_Event -> P_Event
-padd k = pzipWith (\i j -> E.e_edit k 0 (+ i) j)
+-- > let p = padd (E.K_freq,801) (pbind [(E.K_freq,return 100)])
+-- > in p == pbind [(E.K_freq,return 901)]
+padd :: P_Binding -> P_Event -> P_Event
+padd (k,p) = pzipWith (\i j -> E.e_edit k 0 (+ i) j) p
 
 -- | Left-biased union of event patterns.
 punion :: P_Event -> P_Event -> P_Event
-punion = pzipWith E.e_union
+punion = pzipWith (<>)
 
 -- | SC3 pattern to assign keys to a set of value patterns making an
 -- 'E.Event' pattern. A finite binding stops the 'E.Event' pattern.
 --
 -- > > p = Pbind(\x,Pseq([1,2,3],1),\y,Pseed(Pn(100,1),Prand([4,5,6],inf)));
 -- > > p.asStream.all(()) == [('y':4,'x':1),('y':6,'x':2),('y':4,'x':3)]
+--
+-- > :set -XOverloadedStrings
 --
 -- > pkey "x" (pbind [("x",prand 'α' [100,300,200] inf)
 -- >                 ,("y",pseq [1,2,3] 1)]) == toP [200,200,300]
@@ -1004,8 +1012,8 @@ punion = pzipWith E.e_union
 -- > > Pbind(\freq,Prand([300,500,231.2,399.2],inf),
 -- > >       \dur,0.1).play;
 --
--- > audition (pbind [("freq",prand 'a' [300,500,231.2,399.2] inf)
--- >                 ,("dur",0.1)])
+-- > audition (pbind [(E.K_freq,prand 'a' [300,500,231.2,399.2] inf)
+-- >                 ,(E.K_dur,0.1)])
 --
 -- > > Pbind(\freq, Prand([300,500,231.2,399.2],inf),
 -- > >       \dur,Prand([0.1,0.3],inf)).play;
@@ -1056,18 +1064,6 @@ pinstr s = pinstr' (I.Instr_Ref s True)
 psynth :: Synthdef -> P_Field
 psynth s = pinstr' (I.Instr_Def s True)
 
--- | 'punion' of 'pinstr''.
-p_with_instr' :: I.Instr -> P_Event -> P_Event
-p_with_instr' i = punion (pbind [(E.K_instr,pinstr' i)])
-
--- | 'punion' of 'pinstr'.
-p_with_instr :: String -> P_Event -> P_Event
-p_with_instr s = p_with_instr' (I.Instr_Ref s True)
-
--- | 'punion' of 'psynth'.
-p_with_synth :: Synthdef -> P_Event -> P_Event
-p_with_synth s = p_with_instr' (I.Instr_Def s True)
-
 -- | Pattern to extract 'a's at 'E.Key' from an 'E.Event'
 -- pattern.
 --
@@ -1092,17 +1088,21 @@ pmono b =
     in pbind ((E.K_type,ty) : b)
 
 -- | Idiom to scale 'a' at 'E.Key' in an 'E.Event' pattern.
-pmul :: E.Key -> P_Field -> P_Event -> P_Event
-pmul k = pzipWith (\i j -> E.e_edit k 1 (* i) j)
+pmul :: P_Binding -> P_Event -> P_Event
+pmul (k,p) = pzipWith (\i j -> E.e_edit k 1 (* i) j) p
 
 -- | Variant that does not insert key.
-pmul' :: E.Key -> P_Field -> P_Event -> P_Event
-pmul' k = pzipWith (\i j -> E.e_edit' k (* i) j)
+pmul' :: P_Binding -> P_Event -> P_Event
+pmul' (k,p) = pzipWith (\i j -> E.e_edit' k (* i) j) p
 
 -- | SC3 pattern to do time stretching.  It is equal to 'pmul' at
 -- 'E.K_stretch'.
 pstretch :: P_Field -> P_Event -> P_Event
-pstretch = pmul E.K_stretch
+pstretch p = pmul (E.K_stretch,p)
+
+-- | 'punion' of 'pbind' of 'return', ie. @p_with (K_Instr,psynth s)@.
+p_with :: P_Binding -> P_Event -> P_Event
+p_with = punion . pbind . return
 
 -- * Parallel patterns
 
@@ -1152,31 +1152,38 @@ p_un_mce p =
 
 -- * Aliases
 
--- | Type specialised 'Data.Monoid.mappend'.
+-- | Type specialised 'mappend'.
 pappend :: P a -> P a -> P a
 pappend = mappend
 
--- | Type specialised 'Data.Monoid.mconcat'.
+-- | Type specialised 'mconcat'.
 pconcat :: [P a] -> P a
 pconcat = mconcat
 
--- | Type specialised `Data.Monoid.mempty`.
+-- | Type specialised `mempty`.
 pempty :: P a
 pempty = mempty
 
--- | Type specialised 'Control.Monad.join'.
+-- | 'pure' preserving pattern 'join'.
+--
+-- > pjoin (pure (pure 1)) == pure 1
+-- > ptake 3 (pjoin (pure (return 1))) == toP [1,1,1]
 pjoin :: P (P a) -> P a
-pjoin = join
+pjoin p =
+    case p of
+      P (Left (P (Left e))) -> P (Left e)
+      P (Left (P (Right l))) -> pcycle (P (Right l))
+      _ -> join p
 
--- | Type specialised 'Data.Functor.fmap'.
+-- | Type specialised 'fmap'.
 pmap :: (a -> b) -> P a -> P b
 pmap = fmap
 
--- | Type specialised 'Control.Applicative.pure'.
+-- | Type specialised 'pure'.
 ppure :: a -> P a
 ppure = pure
 
--- | Type specialised 'Control.Monad.return'
+-- | Type specialised 'return'
 preturn :: a -> P a
 preturn = return
 
