@@ -2,18 +2,23 @@
 -- | @sclang@ pattern library functions.
 -- See <http://rd.slavepianos.org/?t=hsc3-texts> for tutorial.
 --
--- `padd`, `pappend`, `pbool`, `pbrown`, `pbrown'`, `pclutch`,
--- `pcollect`, `pconcat`, `pcons`, `pconst`, `pcountpost`,
--- `pcountpre`, `pcycle`, `pdegreeToKey`, `pdiff`, `pdrop`,
--- `pdurStutter`, `pempty`, `pexprand`, `pfilter`, `pfinval`, `pfold`,
--- `pfuncn`, `pgeom`, `pif`, `pinstr`, `pinterleave`, `pjoin`,
--- `place`, `pmono`, `pmul`, `pn`, `ppatlace`, `prand`, `prand'`,
--- `preject`, `prepeat`, `preplicate`, `prorate`, `prsd`, `pscanl`,
--- `pseq`, `pseq1`, `pseqn`, `pseqr`, `pser`, `pseries`, `pshuf`,
--- `pslide`, `psplitPlaces`, `psplitPlaces'`, `pstretch`, `pstutter`,
--- `pswitch1`, `pswitch`, `ptail`, `ptake`, `ptrigger`, `ptuple`,
--- `pwhite`, `pwhite'`, `pwhitei`, `pwrand`, `pwrap`, `pxrand`,
--- `pzip`, `pzipWith`
+-- `pbrown` (Pbrown), `pclutch` (Pclutch), `pcollect`, `pconcat`, `pcons`,
+-- `pconst`, `pcountpost`, `pcountpre`, `pcycle`, `pdegreeToKey`,
+-- `pdiff`, `pdrop`, `pdurStutter`, `pempty`, `pexprand`, `pfilter`,
+-- `pfinval`, `pfold`, `pfuncn`, `pgeom`, `pif`, `pinstr`,
+-- `pinterleave`, `pjoin`, `place`, `pmono`, `pmul` (Pmul), `pn`,
+-- `ppatlace`, `prand`, `prand'`, `preject`, `prepeat`, `preplicate`,
+-- `prorate`, `prsd`, `pscanl`, `pseq`, `pseq1`, `pseqn`, `pseqr`,
+-- `pser`, `pseries`, `pshuf`, `pslide`, `psplitPlaces`,
+-- `psplitPlaces'`, `pstretch`, `pstutter`, `pswitch1`, `pswitch`,
+-- `ptail`, `ptake`, `ptrigger`, `ptuple`, `pwhite`, `pwhite'`,
+-- `pwhitei`, `pwrand`, `pwrap`, `pxrand`, `pzip`, `pzipWith`
+--
+-- `padd` (Padd), 
+--
+-- `pbrown`'
+--
+-- `pappend`, `pbool`, 
 module Sound.SC3.Lang.Pattern.ID where
 
 import Control.Applicative hiding ((<*)) {- base -}
@@ -432,28 +437,19 @@ pflop = fmap toP . pflop'
 
 -- * SC3 patterns
 
--- | Lifted /implicitly repeating/ 'P.pbrown''.
---
--- > pbrown' 'α' 1 700 (pseq [1,20] inf) 4 == toP [415,419,420,428]
-pbrown' :: (Enum e,Random n,Num n,Ord n) =>
-           e -> P n -> P n -> P n -> Int -> P n
-pbrown' e l r s n =
-    let f = liftP3_repeat (P.brown' e)
-    in ptake n (f l r s)
+{-| Pbrown.  Lifted 'P.brown'.  SC3 pattern to generate
+psuedo-brownian motion.
 
--- | Lifted 'P.brown'.  SC3 pattern to generate psuedo-brownian
--- motion.
---
--- > pbrown 'α' 0 9 1 5 == toP [4,4,5,4,3]
---
--- > audition (pbind [(K_dur,0.065)
--- >                 ,(K_freq,pbrown 'α' 440 880 20 inf)])
+> pbrown 'α' 0 9 1 5 == toP [4,4,5,4,3]
+
+> audition (pbind [(K_dur,0.065)
+>                 ,(K_freq,pbrown 'α' 440 880 20 inf)])
+-}
 pbrown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> Int -> P n
 pbrown e l r s n = ptake n (toP (P.brown e l r s))
 
-{-|
-SC3 sample and hold pattern.  For true values in the control
-pattern, step the value pattern, else hold the previous value.
+{-| Pclutch.  SC3 sample and hold pattern.  For true values in the
+control pattern, step the value pattern, else hold the previous value.
 
 > > c = Pseq([1,0,1,0,0,1,1],inf);
 > > p = Pclutch(Pser([1,2,3,4,5],8),c);
@@ -914,7 +910,7 @@ gives the number of times to repeat the entire list.
 
 There is an 'inf' value for the repeats variable.
 
-> ptake 3 (pdrop 1000000 (pseq [1,2,3] inf)) == toP [2,3,1]
+> ptake 3 (pdrop (10^5) (pseq [1,2,3] inf)) == toP [2,3,1]
 
 Unlike the SC3 Pseq, `pseq` does not have an offset argument to give a
 starting offset into the list.
@@ -1198,6 +1194,17 @@ pwrap = P.fwrap
 pxrand :: Enum e => e -> [P a] -> Int -> P a
 pxrand e a n = toP (P.xrand e (map unP a) n)
 
+-- * Variant SC3 patterns
+
+-- | Lifted /implicitly repeating/ 'P.pbrown''.
+--
+-- > pbrown' 'α' 1 700 (pseq [1,20] inf) 4 == toP [415,419,420,428]
+pbrown' :: (Enum e,Random n,Num n,Ord n) =>
+           e -> P n -> P n -> P n -> Int -> P n
+pbrown' e l r s n =
+    let f = liftP3_repeat (P.brown' e)
+    in ptake n (f l r s)
+
 -- * Non-SC3 patterns
 
 -- | Type specialised 'P.fbool'.
@@ -1274,7 +1281,7 @@ instance Audible P_Event where
     play = E.e_play . E.Event_Seq . unP
 
 {-|
-Add a value to an existing key, or set the key if it doesn't exist.
+Padd.  Add a value to an existing key, or set the key if it doesn't exist.
 
 > > p = Padd(\freq,801,Pbind(\freq,Pseq([100],1)));
 > > p.asStream.all(()) == [('freq':901)]
