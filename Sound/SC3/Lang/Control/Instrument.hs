@@ -31,7 +31,7 @@ i_repeat i =
       Instr_Def d sr -> i : repeat (Instr_Ref (synthdefName d) sr)
       Instr_Ref _ _ -> repeat i
 
--- | 'Instr' of 'defaultSynthdef'.
+-- | 'Instr' of 'defaultSynthdef', ie. 'def' of 'Synthdef'.
 defaultInstr :: Instr
 defaultInstr = Instr_Def def True
 

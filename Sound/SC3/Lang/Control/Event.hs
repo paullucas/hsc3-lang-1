@@ -500,9 +500,9 @@ e_edit' k f e =
 -- 'D.fwd' to calculate start times.
 e_merge' :: (Time,[Event]) -> (Time,[Event]) -> [(Time,Event)]
 e_merge' (pt,p) (qt,q) =
-    let fwd = D.fwd . e_dur Nothing
-        p_st = map (+ pt) (0 : scanl1 (+) (map fwd p))
-        q_st = map (+ qt) (0 : scanl1 (+) (map fwd q))
+    let f = D.fwd . e_dur Nothing
+        p_st = map (+ pt) (0 : scanl1 (+) (map f p))
+        q_st = map (+ qt) (0 : scanl1 (+) (map f q))
     in t_merge (zip p_st p) (zip q_st q)
 
 -- | Insert /fwd/ 'Key's into a time-stamped 'Event' sequence.

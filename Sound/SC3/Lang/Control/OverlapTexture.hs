@@ -86,7 +86,7 @@ gen_synth k g =
 
 -- | Generate an /event/ pattern from 'OverlapTexture' control
 -- parameters and a continuous signal.
-overlapTextureP :: OverlapTexture -> UGen -> P_Event
+overlapTextureP :: OverlapTexture -> UGen -> P Event
 overlapTextureP k g =
     let s = gen_synth (overlapTexture_env k) g
         (l,d) = overlapTexture_dt k
@@ -116,7 +116,7 @@ post_process_s nc f =
     in synthdef nm u
 
 -- | Audition /event/ pattern with specified post-processing function.
-post_process_a :: (Transport m) => P_Event -> Int -> (UGen -> UGen) -> m ()
+post_process_a :: (Transport m) => P Event -> Int -> (UGen -> UGen) -> m ()
 post_process_a p nc f = do
   let s = post_process_s nc f
   _ <- async (d_recv s)
@@ -134,7 +134,7 @@ overlapTextureU_pp k u nc f = do
 
 -- | Generate an /event/ pattern from 'XFadeTexture' control
 -- parameters and a continuous signal.
-xfadeTextureP :: XFadeTexture -> UGen -> P_Event
+xfadeTextureP :: XFadeTexture -> UGen -> P Event
 xfadeTextureP k g =
     let s = gen_synth (xfadeTexture_env k) g
         (l,d) = xfadeTexture_dt k
@@ -163,7 +163,7 @@ type USTF st = (st -> (UGen,st))
 -- | Variant of 'overlapTextureP' where the continuous signal for each
 -- /event/ is derived from a state transform function seeded with
 -- given initial state.
-overlapTextureP_st :: OverlapTexture -> USTF st -> st -> P_Event
+overlapTextureP_st :: OverlapTexture -> USTF st -> st -> P Event
 overlapTextureP_st k u i_st =
     let (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
