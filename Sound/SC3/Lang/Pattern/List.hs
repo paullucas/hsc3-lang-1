@@ -28,7 +28,7 @@ fbool :: (Ord a,Num a,Functor f) => f a -> f Bool
 fbool = fmap (> 0)
 
 -- | SC3 pattern to fold values to lie within range (as opposed to
--- wrap and clip).  This is /not/ related to the "Data.Foldable".
+-- wrap and clip).  This is /not/ related to "Data.Foldable".
 --
 -- > ffold [10,11,12,-6,-7,-8] (-7) 11 == [10,11,10,-6,-7,-6]
 --
@@ -39,15 +39,17 @@ fbool = fmap (> 0)
 ffold :: (Functor f,Num a,Ord a) => f a -> a -> a -> f a
 ffold p i j = fmap (\n -> S.fold_ n i j) p
 
--- | SC3 pattern to constrain the range of output values by wrapping.
+-- | SC3 pattern to constrain the range of output values by wrapping,
+-- the primitive is 'S.genericWrap'.
 --
--- > fwrap (geom 200 1.07 26) 200 1000
+-- > let p = fmap round (fwrap (geom 200 1.2 10) 200 1000)
+-- > in p == [200,240,288,346,415,498,597,717,860,231]
 fwrap :: (Functor f,Ord a,Num a) => f a -> a -> a -> f a
 fwrap xs l r = fmap (S.genericWrap l r) xs
 
 -- * Data.List variants
 
--- | Inverse of ':'.
+-- | Inverse of 'Data.List.:'.
 --
 -- > map uncons [[],1:[]] == [(Nothing,[]),(Just 1,[])]
 uncons :: [a] -> (Maybe a,[a])
@@ -120,12 +122,12 @@ transpose_st l =
          Just h' -> h' : transpose_st l'
          Nothing -> []
 
--- * Data.Maybe variants.
+-- * Data.Maybe variants
 
 -- | Variant of 'catMaybes' that returns 'Nothing' unless /all/
 -- elements are 'Just'.
 --
--- > map all_just [[Nothing,Just 1],map Just [0,1]] == [Nothing,Just [0,1]]
+-- > map all_just [[Nothing,Just 1],[Just 0,Just 1]] == [Nothing,Just [0,1]]
 all_just :: [Maybe a] -> Maybe [a]
 all_just =
     let rec r l =
@@ -137,7 +139,7 @@ all_just =
 
 -- * Data.Monoid variants
 
--- | 'mconcat' of 'L.repeat'.
+-- | 'mconcat' of 'repeat', for lists this is 'cycle'.
 --
 -- > [1,2,3,1,2] `isPrefixOf` take 5 (mcycle [1,2,3])
 mcycle :: Monoid a => a -> a
@@ -173,6 +175,7 @@ countpre =
 --
 -- > hold [] == []
 -- > hold [1..5] == [1,1,1,1,1]
+-- > hold [1,undefined] == [1,1]
 hold :: [a] -> [a]
 hold l =
     case l of
@@ -191,7 +194,7 @@ interleave2 p q =
       (_,[]) -> p
       (x:xs,y:ys) -> x : y : interleave2 xs ys
 
--- | N-ary variant of 'interleave2'.
+-- | N-ary variant of 'interleave2', ie. 'concat' of 'transpose'.
 --
 -- > interleave [whitei 'α' 0 4 3,whitei 'β' 5 9 3] == [3,7,0,8,1,6]
 -- > [1..9] `isPrefixOf` interleave [[1,4..],[2,5..],[3,6..]]
