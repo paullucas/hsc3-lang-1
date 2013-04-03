@@ -19,8 +19,8 @@
 -- (Pstretch), `ptpar` (Ptpar).  `pedit`, `pinstr`, `pmce2`, `psynth`,
 -- `punion`.
 --
--- Variants on SC3 patterns: `pbrown`', `prand'`, `pseq1`, `pseqn`,
--- `pseqr`, `pwhite'`, `pwhitei`,
+-- SC3 variant patterns: `pbrown`', `prand'`, `prorate'`, `pseq1`,
+-- `pseqn`, `pser1`, `pseqr`, `pwhite'`, `pwhitei`.
 --
 -- SC3 collection patterns: `pfold`
 --
@@ -1155,17 +1155,6 @@ on each list traversal.  Compare to `pswitch1`.
 pseq1 :: [P a] -> Int -> P a
 pseq1 a i = join (ptake i (pflop a))
 
--- | A variant of 'pseq' that passes a new seed at each invocation,
--- see also 'pfuncn'.
---
--- > pseqr (\e -> [pshuf e [1,2,3,4] 1]) 2 == toP [2,3,4,1,4,1,2,3]
---
--- > let {d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4
--- >                       ,pseq [0,1,2,3,4,5,6,7] 1]) inf}
--- > in audition (pbind [(K_degree,d),(K_dur,0.15)])
-pseqr :: (Int -> [P a]) -> Int -> P a
-pseqr f n = mconcat (L.concatMap f [1 .. n])
-
 -- | A variant of 'pseq' to aid translating a common SC3 idiom where a
 -- finite random pattern is included in a @Pseq@ list.  In the SC3
 -- case, at each iteration a new computation is run.  This idiom does
@@ -1193,6 +1182,17 @@ pseqn n q =
                   else let (i,j) = unzip (zipWith psplitAt n p)
                        in mconcat i <> rec j (c - 1)
     in rec (map pcycle q)
+
+-- | A variant of 'pseq' that passes a new seed at each invocation,
+-- see also 'pfuncn'.
+--
+-- > pseqr (\e -> [pshuf e [1,2,3,4] 1]) 2 == toP [2,3,4,1,4,1,2,3]
+--
+-- > let {d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4
+-- >                       ,pseq [0,1,2,3,4,5,6,7] 1]) inf}
+-- > in audition (pbind [(K_degree,d),(K_dur,0.15)])
+pseqr :: (Int -> [P a]) -> Int -> P a
+pseqr f n = mconcat (L.concatMap f [1 .. n])
 
 -- | Variant of 'pser' that consumes sub-patterns one element per
 -- iteration.
@@ -1495,6 +1495,7 @@ pedit k f = fmap (e_edit' k f)
 -- | Pattern of start times of events at event pattern.
 --
 -- > p_time (pbind [(K_dur,toP [1,2,3,2,1])]) == toP [0,1,3,6,8,9]
+-- > p_time (pbind [(K_dur,pseries 0.5 0.5 5)]) == toP [0,0.5,1.5,3,5,7.5]
 p_time :: P Event -> P Time
 p_time =  pscanl (+) 0 . fmap (fwd . e_dur Nothing)
 
