@@ -8,6 +8,11 @@
 -- > :set -XOverloadedStrings
 -- > "string" :: Datum
 --
+-- 'Datum' are 'EqE'
+--
+-- > Int32 5 /=* Int32 6 == Int32 1
+-- > Double 5 ==* Double 5 == Double 1
+--
 -- 'Datum' are 'Num'
 --
 -- > 5 :: Datum
@@ -36,6 +41,11 @@
 --
 -- > round (Double 1.4) == 1
 --
+-- 'Datum' are 'RealFracE'
+--
+-- > roundE (Double 1.4) == Double 1
+-- > ceilingE (Double 1.4) == Double 2
+--
 -- 'Datum' are 'RealFloat'
 --
 -- > isNaN (sqrt (negate (Int32 1))) == True
@@ -43,7 +53,12 @@
 -- 'Datum' are 'Ord'
 --
 -- > Double 7.5 > Int32 7
--- > String "because" > String "again"
+-- > string "because" > string "again"
+--
+-- 'Datum' are 'OrdE'
+--
+-- > Int32 7 >* Int32 7 == Int32 0
+-- > Double 7.5 >* Int32 7 == Double 1
 --
 -- 'Datum' are 'Enum'
 --
@@ -61,6 +76,7 @@ import Data.Int {- base -}
 import Data.Ratio {- base -}
 import Data.String {- base -}
 import Sound.OSC {- hosc -}
+import Sound.SC3 {- hsc3 -}
 import System.Random {- random -}
 
 -- * Lifting
@@ -178,6 +194,10 @@ atD3 fi fh ff fd d1 d2 d3 =
 instance IsString Datum where
     fromString = ASCII_String . C.pack
 
+instance EqE Datum where
+    (==*) = liftD2 (==*) (==*) (==*) (==*)
+    (/=*) = liftD2 (/=*) (/=*) (/=*) (/=*)
+
 instance Num Datum where
     negate = liftD negate negate negate negate
     (+) = liftD2 (+) (+) (+) (+)
@@ -230,6 +250,12 @@ instance RealFrac Datum where
   ceiling = atD' ceiling
   floor = atD' floor
 
+instance RealFracE Datum where
+  truncateE = liftD undefined undefined truncateE truncateE
+  roundE = liftD undefined undefined roundE roundE
+  ceilingE = liftD undefined undefined ceilingE ceilingE
+  floorE = liftD undefined undefined floorE floorE
+
 instance RealFloat Datum where
     floatRadix = atD' floatRadix
     floatDigits = atD' floatDigits
@@ -253,6 +279,12 @@ instance Ord Datum where
           (ASCII_String i,ASCII_String j) -> compare i j
           (TimeStamp i,TimeStamp j) -> compare i j
           _ -> error "Datum.compare"
+
+instance OrdE Datum where
+    (>*) = liftD2 (>*) (>*) (>*) (>*)
+    (>=*) = liftD2 (>=*) (>=*) (>=*) (>=*)
+    (<*) = liftD2 (<*) (<*) (<*) (<*)
+    (<=*) = liftD2 (<=*) (<=*) (<=*) (<=*)
 
 instance Enum Datum where
     fromEnum = atD fromEnum fromEnum fromEnum fromEnum

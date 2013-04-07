@@ -371,10 +371,13 @@ integrate :: (Num a) => [a] -> [a]
 integrate = scanl1 (+)
 
 -- | @SequenceableCollection.differentiate@ is the pairwise difference
--- between elements.
+-- between elements, with an implicit @0@ at the start.
 --
 -- > > [3,4,1,1].differentiate == [3,1,-3,0]
 -- > differentiate [3,4,1,1] == [3,1,-3,0]
+--
+-- > > [0,3,1].differentiate == [0,3,-2]
+-- > differentiate [0,3,1] == [0,3,-2]
 differentiate :: (Num a) => [a] -> [a]
 differentiate l = zipWith (-) l (0:l)
 
