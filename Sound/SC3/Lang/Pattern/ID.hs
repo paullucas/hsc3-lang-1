@@ -301,10 +301,19 @@ punzip p = let (i,j) = unzip (unP p) in (toP i,toP j)
 inf :: Int
 inf = maxBound
 
--- | Constant /NaN/ (not a number) value for use as a rest indicator
--- at a frequency model input (not at a @rest@ key).
---
--- > isNaN nan == True
+{-| Constant /NaN/ (not a number) value.
+
+> isNaN nan == True
+
+A frequency value of NaN indicates a rest. This constant value can be
+used as a rest indicator at a frequency model input (not at a @rest@
+key).
+
+> audition (pbind [(K_dur,pseq [0.1,0.7] inf)
+>                 ,(K_legato,0.2)
+>                 ,(K_degree,pseq [0,2,return nan] inf)])
+
+-}
 nan :: Floating a => a
 nan = sqrt (-1)
 
@@ -483,6 +492,7 @@ psuedo-brownian motion.
 
 > audition (pbind [(K_dur,0.065)
 >                 ,(K_freq,pbrown 'α' 440 880 20 inf)])
+
 -}
 pbrown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> Int -> P n
 pbrown e l r s n = ptake n (toP (P.brown e l r s))
@@ -518,6 +528,7 @@ first true value.
 >                          (pbool (abs (pdiff d) >* 0)))
 >          ,(K_legato,0.3)]}
 > in audition (pbind p)
+
 -}
 pclutch :: P a -> P Bool -> P a
 pclutch p q =
@@ -1183,14 +1194,24 @@ pseqn n q =
                        in mconcat i <> rec j (c - 1)
     in rec (map pcycle q)
 
--- | A variant of 'pseq' that passes a new seed at each invocation,
--- see also 'pfuncn'.
---
--- > pseqr (\e -> [pshuf e [1,2,3,4] 1]) 2 == toP [2,3,4,1,4,1,2,3]
---
--- > let {d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4
--- >                       ,pseq [0,1,2,3,4,5,6,7] 1]) inf}
--- > in audition (pbind [(K_degree,d),(K_dur,0.15)])
+{-|
+
+A variant of 'pseq' that passes a new seed at each invocation,
+see also 'pfuncn'.
+
+> > pseqr (\e -> [pshuf e [1,2,3,4] 1]) 2 == toP [2,3,4,1,4,1,2,3]
+
+> let {d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4
+>                       ,pseq [0,1,2,3,4,5,6,7] 1]) inf}
+> in audition (pbind [(K_degree,d),(K_dur,0.15)])
+
+> > Pbind(\dur,0.2,
+> >       \midinote,Pseq([Pshuf(#[60,61,62,63,64,65,66,67],3)],inf)).play
+
+> let m = pseqr (\e -> [pshuf e [60,61,62,63,64,65,66,67] 3]) inf
+> in audition (pbind [(K_dur,0.2),(K_midinote,m)])
+
+-}
 pseqr :: (Int -> [P a]) -> Int -> P a
 pseqr f n = mconcat (L.concatMap f [1 .. n])
 
@@ -1306,39 +1327,223 @@ Padd.  Add a value to an existing key, or set the key if it doesn't exist.
 padd :: P_Binding -> P Event -> P Event
 padd (k,p) = pzipWith (\i j -> e_edit k 0 (+ i) j) p
 
--- | Pbind.  SC3 pattern to assign keys to a set of value patterns
--- making an 'Event' pattern.  A finite binding stops the 'Event'
--- pattern.
---
--- > > p = Pbind(\x,Pseq([1,2,3],1),\y,Pseed(Pn(100,1),Prand([4,5,6],inf)));
--- > > p.asStream.all(()) == [('y':4,'x':1),('y':6,'x':2),('y':4,'x':3)]
---
--- > :set -XOverloadedStrings
---
--- > let p = pbind [(K_param "x",prand 'α' [100,300,200] inf)
--- >               ,(K_param "y",pseq [1,2,3] 1)]
--- > in pkey (K_param "x") p == toP [200,200,300]
---
--- > ptake 2 (pbind [(K_param "x",pwhitei 'α' 0 9 inf)
--- >                ,(K_param "y",pseq [1,2,3] inf)])
---
--- > > Pbind(\freq,Prand([300,500,231.2,399.2],inf),
--- > >       \dur,0.1).play;
---
--- > audition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
--- >                 ,(K_dur,0.1)])
---
--- > > Pbind(\freq, Prand([300,500,231.2,399.2],inf),
--- > >       \dur,Prand([0.1,0.3],inf)).play;
---
--- > audition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
--- >                 ,(K_dur,prand 'β' [0.1,0.3] inf)])
---
--- > > Pbind(\freq,Prand([1,1.2,2,2.5,3,4],inf) * 200,
--- > >       \dur,0.1).play;
---
--- > audition (pbind [(K_freq,prand 'α' [1,1.2,2,2.5,3,4] inf * 200)
--- >                 ,(K_dur,0.1)])
+{-| Pbind.  SC3 pattern to assign keys to a set of 'Field' patterns
+making an 'Event' pattern.
+
+Each input pattern is assigned to key in the resulting event pattern.
+
+There are a set of reserved keys that have particular roles in the
+pattern library.
+
+> > p = Pbind(\x,Pseq([1,2,3],1),\y,Pseed(Pn(100,1),Prand([4,5,6],inf)));
+> > p.asStream.all(()) == [('y':4,'x':1),('y':6,'x':2),('y':4,'x':3)]
+
+> let p = pbind [(K_param "x",prand 'α' [100,300,200] inf)
+>               ,(K_param "y",pseq [1,2,3] 1)]
+> in pkey (K_param "x") p == toP [200,200,300]
+
+'K_param' can be elided if /OverloadedStrings/ are in place.
+
+> :set -XOverloadedStrings
+
+> ptake 2 (pbind [("x",pwhitei 'α' 0 9 inf)
+>                ,("y",pseq [1,2,3] inf)])
+
+'Event's implement variations on the @SC3@ 'Dur' and
+'Sound.SC3.Lang.Control.Pitch.Pitch' models.
+
+> > Pbind(\freq,Prand([300,500,231.2,399.2],inf),
+> >       \dur,0.1).play;
+
+> audition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
+>                 ,(K_dur,0.1)])
+
+> > Pbind(\freq, Prand([300,500,231.2,399.2],inf),
+> >       \dur,Prand([0.1,0.3],inf)).play;
+
+> audition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
+>                 ,(K_dur,prand 'β' [0.1,0.3] inf)])
+
+> > Pbind(\freq,Prand([1,1.2,2,2.5,3,4],inf) * 200,
+> >       \dur,0.1).play;
+
+> audition (pbind [(K_freq,prand 'α' [1,1.2,2,2.5,3,4] inf * 200)
+>                 ,(K_dur,0.1)])
+
+> audition (pbind [(K_freq,pseq [440,550,660,770] 2)
+>                 ,(K_dur,pseq [0.1,0.15,0.1] inf)
+>                 ,(K_amp,pseq [0.1,0.05] inf)
+>                 ,(K_param "pan",pseq [-1,0,1] inf)])
+
+A finite binding stops the `Event` pattern.
+
+> > Pbind(\freq,Prand([300,500,231.2,399.2],inf),
+> >       \dur,Pseq([0.1,0.2],3)).play;
+
+> audition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
+>                 ,(K_dur,pseq [0.1,0.2] 3)])
+
+> > Pbind(\freq,Prand([300,500,231.2,399.2],inf),
+> >       \dur,Prand([0.1,0.3],inf)).play
+
+All infinite inputs:
+
+> audition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
+>                 ,(K_dur,prand 'β' [0.1,0.3] inf)])
+
+Implicit /field/ patterns is this context are infinite.
+
+> audition (pbind [(K_freq,prand 'α' [1,1.2,2,2.5,3,4] inf * 200)
+>                 ,(K_dur,0.1)])
+
+> let test = let {freq = control KR "freq" 440
+>                ;amp = control KR "amp" 0.1
+>                ;nharms = control KR "nharms" 10
+>                ;pan = control KR "pan" 0
+>                ;gate = control KR "gate" 1
+>                ;s = blip AR freq nharms * amp
+>                ;e = linen gate 0.01 0.6 0.4 RemoveSynth
+>                ;o = offsetOut 0 (pan2 s pan e)}
+>            in synthdef "test" o
+
+> audition (pbind [(K_instr,psynth test)
+>                 ,(K_freq,prand 'α' [1,1.2,2,2.5,3,4] inf * 200)
+>                 ,(K_dur,0.1)])
+
+> audition (pbind [(K_instr,psynth test)
+>                 ,(K_param "nharms",pseq [4,10,40] inf)
+>                 ,(K_dur,pseq [1,1,2,1] inf / 10)
+>                 ,(K_freq,pn (pseries 1 1 16 * 50) 4)
+>                 ,(K_sustain,pseq [1/10,0.5,1,2] inf)])
+
+> let acid = let {freq = control KR "freq" 1000
+>                ;gate = control KR "gate" 1
+>                ;pan = control KR "pan" 0
+>                ;cut = control KR "cut" 4000
+>                ;res = control KR "res" 0.8
+>                ;amp = control KR "amp" 1
+>                ;s = rlpf (pulse AR freq 0.05) cut res
+>                ;d = envLinen 0.01 1 0.3 1
+>                ;e = envGen KR gate amp 0 1 RemoveSynth d
+>                ;o = out 0 (pan2 s pan e)}
+>            in synthdef "acid" o
+
+> > Pbind(\instrument,\acid,
+> >       \dur,Pseq([0.25,0.5,0.25],4),
+> >       \root,-24,
+> >       \degree,Pseq([0,3,5,7,9,11,5,1],inf),
+> >       \pan,Pfunc({1.0.rand2}),
+> >       \cut,Pxrand([1000,500,2000,300],inf),
+> >       \rez,Pfunc({0.7.rand +0.3}),
+> >       \amp,0.2).play
+
+> audition (pbind [(K_instr,psynth acid)
+>                 ,(K_dur,pseq [0.25,0.5,0.25] 4)
+>                 ,(K_root,-24)
+>                 ,(K_degree,pseq [0,3,5,7,9,11,5,1] inf)
+>                 ,(K_param "pan",pwhite 'α' (-1.0) 1.0 inf)
+>                 ,(K_param "cut",pxrand 'β' [1000,500,2000,300] inf)
+>                 ,(K_param "res",pwhite 'γ' 0.3 1.0 inf)
+>                 ,(K_amp,0.2)])
+
+> > Pseq([Pbind(\instrument,\acid,
+> >             \dur,Pseq([0.25,0.5,0.25],4),
+> >             \root,-24,
+> >             \degree,Pseq([0,3,5,7,9,11,5,1],inf),
+> >             \pan,Pfunc({1.0.rand2}),
+> >             \cut,Pxrand([1000,500,2000,300],inf),
+> >             \rez,Pfunc({0.7.rand + 0.3}),
+> >             \amp,0.2),
+> >       Pbind(\instrument,\acid,
+> >             \dur,Pseq([0.25],6),
+> >             \root,-24,
+> >             \degree,Pseq([18,17,11,9],inf),
+> >             \pan,Pfunc({1.0.rand2}),
+> >             \cut,1500,
+> >             \rez,Pfunc({0.7.rand + 0.3}),
+> >             \amp,0.16)],inf).play
+
+> audition (pseq [pbind [(K_instr,psynth acid)
+>                       ,(K_dur,pseq [0.25,0.5,0.25] 4)
+>                       ,(K_root,-24)
+>                       ,(K_degree,pseq [0,3,5,7,9,11,5,1] inf)
+>                       ,(K_param "pan",pwhite 'α' (-1.0) 1.0 inf)
+>                       ,(K_param "cut",pxrand 'β' [1000,500,2000,300] inf)
+>                       ,(K_param "res",pwhite 'γ' 0.3 1.0 inf)
+>                       ,(K_amp,0.2)]
+>                ,pbind [(K_instr,psynth acid)
+>                       ,(K_dur,pn 0.25 6)
+>                       ,(K_root,-24)
+>                       ,(K_degree,pser [18,17,11,9] inf)
+>                       ,(K_param "pan",pwhite 'δ' (-1.0) 1.0 inf)
+>                       ,(K_param "cut",1500)
+>                       ,(K_param "res",pwhite 'ε' 0.3 1.0 inf)
+>                       ,(K_amp,0.16)]] inf)
+
+> > Pbind(\instrument, \acid,
+> >       \dur, Pseq([0.25,0.5,0.25], inf),
+> >       \root, [-24,-17],
+> >       \degree, Pseq([0,3,5,7,9,11,5,1], inf),
+> >       \pan, Pfunc({1.0.rand2}),
+> >       \cut, Pxrand([1000,500,2000,300], inf),
+> >       \rez, Pfunc({0.7.rand +0.3}),
+> >       \amp, 0.2).play;
+
+> audition (pbind [(K_instr,psynth acid)
+>                 ,(K_dur,pseq [0.25,0.5,0.25] inf)
+>                 ,(K_root,pmce2 (-24) (-17))
+>                 ,(K_degree,pseq [0,3,5,7,9,11,5,1] inf)
+>                 ,(K_param "pan",pwhite 'α' (-1.0) 1.0 inf)
+>                 ,(K_param "cut",pxrand 'β' [1000,500,2000,300] inf)
+>                 ,(K_param "res",pwhite 'γ' 0.3 1.0 inf)
+>                 ,(K_amp,0.2)])
+
+A persistent synthesis node with /freq/ and /amp/ controls.
+
+> import Sound.SC3.ID
+
+> let {freq = control KR "freq" 440
+>     ;amp = control KR "amp" 0.6
+>     ;n = pinkNoise 'α' AR * amp}
+> in audition (out 0 (pan2 (moogFF n freq 2 0) 0 1))
+
+A pattern to set /freq/ and /amp/ controls at the most recently
+instantiated synthesis node.
+
+> :set -XOverloadedStrings
+
+> audition (pbind [(K_type,prepeat "n_set")
+>                 ,(K_id,(-1))
+>                 ,(K_freq,pwhite 'α' 100 1000 inf)
+>                 ,(K_dur,0.2)
+>                 ,(K_amp,toP [1,0.99 .. 0.1])])
+
+> let berlinb =
+>   let {k = control KR
+>       ;o = k "out" 0
+>       ;f = k "freq" 80
+>       ;a = k "amp" 0.01
+>       ;p = k "pan" 0
+>       ;g = k "gate" 1
+>       ;env = decay2 g 0.05 8 * 0.0003
+>       ;syn = rlpf (lfPulse AR f 0 (sinOsc KR 0.12 (mce2 0 (pi/2)) * 0.48 + 0.5))
+>                   (f * (sinOsc KR 0.21 0 * 18 + 20))
+>                   0.07
+>       ;syn_env = syn * env
+>       ;kil = detectSilence (mceChannel 0 syn_env) 0.1 0.2 RemoveSynth}
+>   in mrg2 (out o (a * mix (panAz 4 syn_env (mce2 p (p + 1)) 1 2 0.5))) kil
+
+> audition (ppar [pbind [(K_degree,pseq [0,1,2,4,6,3,4,8] inf)
+>                       ,(K_dur,0.5)
+>                       ,(K_octave,3)
+>                       ,(K_instr,psynth (synthdef "berlinb" berlinb))]
+>                ,pbind [(K_degree,pseq [0,1,2,4,6,3,4,8] inf)
+>                       ,(K_dur,0.5)
+>                       ,(K_octave,pmce2 2 1)
+>                       ,(K_param "pan",pwhite 'a' (-1) 1 inf)
+>                       ,(K_instr,psynth (synthdef "berlinb" berlinb))]])
+
+-}
 pbind :: P_Bind -> P Event
 pbind xs =
     let xs' = fmap (\(k,v) -> pzip (undecided k) v) xs
@@ -1386,13 +1591,38 @@ pmono b =
 pmul :: P_Binding -> P Event -> P Event
 pmul (k,p) = pzipWith (\i j -> e_edit k 1 (* i) j) p
 
--- | Ppar.  Variant of 'ptpar' with zero start times.
---
--- > let {a = pbind [(K_param "a",pseq [1,2,3] inf)]
--- >     ;b = pbind [(K_param "b",pseq [4,5,6] inf)]
--- >     ;r = toP [e_from_list [(K_param "a",1),(K_fwd',0)]
--- >              ,e_from_list [(K_param "b",4),(K_fwd',1)]]}
--- > in ptake 2 (ppar [a,b]) == r
+{-| Ppar.  Variant of 'ptpar' with zero start times.
+
+The result of `pmerge` can be merged again, `ppar` merges a list of
+patterns.
+
+> let {a = pbind [(K_param "a",pseq [1,2,3] inf)]
+>     ;b = pbind [(K_param "b",pseq [4,5,6] inf)]
+>     ;r = toP [e_from_list [(K_param "a",1),(K_fwd',0)]
+>              ,e_from_list [(K_param "b",4),(K_fwd',1)]]}
+> in ptake 2 (ppar [a,b]) == r
+
+> let {p = pbind [(K_dur,0.2),(K_midinote,pseq [62,65,69,72] inf)]
+>     ;q = pbind [(K_dur,0.4),(K_midinote,pseq [50,45] inf)]
+>     ;r = pbind [(K_dur,0.6),(K_midinote,pseq [76,79,81] inf)]}
+> in audition (ppar [p,q,r])
+
+Multiple nested `ppar` patterns.
+
+> let {a u = pbind [(K_dur,0.2),(K_param "pan",0.5),(K_midinote,pseq u 1)]
+>     ;b l = pbind [(K_dur,0.4),(K_param "pan",-0.5),(K_midinote,pseq l 1)]
+>     ;f u l = ppar [a u,b l]
+>     ;h = pbind [(K_dur,prand 'α' [0.2,0.4,0.6] inf)
+>                ,(K_midinote,prand 'β' [72,74,76,77,79,81] inf)
+>                ,(K_db,-26)
+>                ,(K_legato,1.1)]
+>     ;m = pseq [pbind [(K_dur,3.2),(K_freq,return nan)]
+>               ,prand 'γ' [f [60,64,67,64] [48,43]
+>                          ,f [62,65,69,65] [50,45]
+>                          ,f [64,67,71,67] [52,47]] 12] inf}
+> in audition (ppar [h,m])
+
+-}
 ppar :: [P Event] -> P Event
 ppar l = ptpar (zip (repeat 0) l)
 
@@ -1406,8 +1636,28 @@ ppar l = ptpar (zip (repeat 0) l)
 pstretch :: P Field -> P Event -> P Event
 pstretch p = pmul (K_stretch,p)
 
--- | Ptpar.  Merge a set of 'Event' patterns each with indicated
+{-| Ptpar.  Merge a set of 'Event' patterns each with indicated
 -- start 'Time'.
+
+`ptpar` is a variant of `ppar` which allows non-equal start times.
+
+> let {f d p n = pbind [(K_dur,d),(K_param "pan",p),(K_midinote,n)]
+>     ;a = f 0.2 (-1) (pseries 60 1 15)
+>     ;b = f 0.15 0 (pseries 58 2 15)
+>     ;c = f 0.1 1 (pseries 46 3 15)}
+> in audition (ptpar [(0,a),(1,b),(2,c)])
+
+> let {d = pseq [pgeom 0.05 1.1 24,pgeom 0.5 0.909 24] 2
+>     ;f n a p = pbind [(K_dur,d)
+>                      ,(K_db,a)
+>                      ,(K_param "pan",p)
+>                      ,(K_midinote,pseq [n,n-4] inf)]}
+> in audition (ptpar [(0,f 53 (-20) (-0.9))
+>                    ,(2,f 60 (-23) (-0.3))
+>                    ,(4,f 67 (-26) 0.3)
+>                    ,(6,f 74 (-29) 0.9)])
+
+-}
 ptpar :: [(Time,P Event)] -> P Event
 ptpar l =
     case l of
@@ -1422,17 +1672,22 @@ ptpar l =
 -- sent to the server before processing the event, which has timing
 -- implications.  The pattern constructed here uses the 'Synthdef' for
 -- the first element, and the subsequently the /name/.
+--
+-- > audition (pbind [(K_instr,pinstr' defaultInstr)
+-- >                 ,(K_degree,toP [0,2,4,7])
+-- >                 ,(K_dur,0.25)])
 pinstr' :: Instr -> P Field
 pinstr' i = toP (map F_Instr (i_repeat i))
 
 {-| 'Instr' pattern from instrument /name/.  See also `psynth` (where
-the _sine_ instrument below is defined).
+the /sine/ instrument below is defined).
 
 > let {si = return (F_Instr (Instr_Ref "sine" True))
 >     ;di = return (F_Instr (Instr_Ref "default" True))
 >     ;i = pseq [si,si,di] inf
 >     ;p = pbind [(K_instr,i),(K_degree,pseq [0,2,4,7] inf),(K_dur,0.25)]}
 > in audition p
+
 -}
 pinstr :: String -> P Field
 pinstr s = pinstr' (Instr_Ref s True)
@@ -1440,7 +1695,7 @@ pinstr s = pinstr' (Instr_Ref s True)
 {-| `Synthdef`s can be used directly as an instrument using `psynth`.
 The default synthdef is at 'Data.Default.def'.
 
-> let sineInstrument =
+> let sineSynth =
 >   let {f = control KR "freq" 440
 >       ;g = control KR "gate" 1
 >       ;a = control KR "amp" 0.1
@@ -1449,9 +1704,10 @@ The default synthdef is at 'Data.Default.def'.
 >       ;o = out 0 (sinOsc AR f 0 * e)}
 >   in synthdef "sine" o
 
-> audition (pbind [(K_instr,psynth sineInstrument)
+> audition (pbind [(K_instr,psynth sineSynth)
 >                 ,(K_degree,toP [0,2,4,7])
 >                 ,(K_dur,0.25)])
+
 -}
 psynth :: Synthdef -> P Field
 psynth s = pinstr' (Instr_Def s True)
@@ -1471,16 +1727,31 @@ pmce2 p = pzipWith (\m n -> F_Vector [m,n]) p
 pmce3 :: P Field -> P Field -> P Field -> P Field
 pmce3 p q = pzipWith3 (\m n o -> F_Vector [m,n,o]) p q
 
--- | Remove one layer of MCE expansion at an /event/ pattern.  The
--- pattern will be expanded only to the width of the initial input.
--- Holes are filled with rests.
---
--- > let {a = pseq [65,69,74] inf
--- >     ;b = pseq [60,64,67,72,76] inf
--- >     ;c = pseq [pmce3 72 76 79,pmce2 a b] 1}
--- > in audition (p_un_mce (pbind [(K_midinote,c)
--- >                              ,(K_param "pan",pmce2 (-1) 1)
--- >                              ,(K_dur,1 `pcons` prepeat 0.15)]))
+{-|
+
+Remove one layer of MCE expansion at an /event/ pattern.  The
+pattern will be expanded only to the width of the initial input.
+Holes are filled with rests.
+
+> let {a = pseq [65,69,74] inf
+>     ;b = pseq [60,64,67,72,76] inf
+>     ;c = pseq [pmce3 72 76 79,pmce2 a b] 1}
+> in audition (p_un_mce (pbind [(K_midinote,c)
+>                              ,(K_param "pan",pmce2 (-1) 1)
+>                              ,(K_dur,1 `pcons` prepeat 0.15)]))
+
+`p_un_mce` translates via `ppar`.  This allows `dur` related fields to
+be MCE values.  The underlying event processor also implements one
+layer of MCE expansion.
+
+> audition (p_un_mce
+>           (pbind [(K_dur,pmce2 0.25 0.2525)
+>                  ,(K_legato,pmce2 0.25 2.5)
+>                  ,(K_freq,pmce2 (pseq [300,400,500] inf)
+>                                 (pseq [302,402,502,202] inf))
+>                  ,(K_param "pan",pmce2 (-0.5) 0.5)]))
+
+-}
 p_un_mce :: P Event -> P Event
 p_un_mce p =
     let l' = P.transpose_fw_def' e_rest (map e_un_mce' (unP p))
@@ -1506,7 +1777,15 @@ p_time =  pscanl (+) 0 . fmap (fwd . e_dur Nothing)
 pkey_m :: Key -> P Event -> P (Maybe Field)
 pkey_m k = fmap (e_get k)
 
--- | Variant of 'ptmerge' with zero start times.
+{-| Variant of 'ptmerge' with zero start times.
+
+`pmerge` merges two event streams, adding /fwd'/ entries as required.
+
+> let {p = pbind [(K_dur,0.2),(K_midinote,pseq [62,65,69,72] inf)]
+>     ;q = pbind [(K_dur,0.4),(K_midinote,pseq [50,45] inf)]}
+> in audition (pmerge p q)
+
+-}
 pmerge :: P Event -> P Event -> P Event
 pmerge p q = ptmerge (0,p) (0,q)
 
@@ -1624,7 +1903,20 @@ ptraverse = T.traverse
 
 -- * NRT
 
--- | Transform an /event/ pattern into a /non-real time/ SC3 score.
+{-| Transform an /event/ pattern into a /non-real time/ SC3 score.
+
+> let n = pNRT (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
+>                     ,(K_dur,pseq [0.1,0.2] 3)])
+> audition n
+> mapM_ (putStrLn . bundlePP) (nrt_bundles n)
+
+Infinite 'NRT' scores are productive for 'audition'ing.
+
+> let n' = pNRT (pbind [(K_dur,0.25),(K_freq,pseq [300,600,900] inf)])
+> audition n'
+> mapM_ (putStrLn . bundlePP) (take 9 (nrt_bundles n'))
+
+-}
 pNRT :: P Event -> NRT
 pNRT = e_nrt . Event_Seq . unP
 
