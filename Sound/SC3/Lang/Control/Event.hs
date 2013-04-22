@@ -295,9 +295,14 @@ k_reserved = [K_freq,K_midinote,K_note
              ,K_amp
              ,K_instr,K_id,K_type,K_latency,K_rest]
 
--- | Is 'Key' /not/ 'k_reserved'.
+k_vector :: [Key]
+k_vector = [K_scale]
+
+-- | Is 'Key' /not/ 'k_reserved', and /not/ 'k_vector'.
+--
+-- > k_is_parameter (K_param "pan",0) == True
 k_is_parameter :: (Key,a) -> Bool
-k_is_parameter (k,_) = k `notElem` k_reserved
+k_is_parameter (k,_) = k `notElem` (k_reserved ++ k_vector)
 
 -- * Event
 
@@ -376,8 +381,16 @@ e_get_array :: Key -> Event -> Maybe [Double]
 e_get_array k = fmap (map (f_double_err (k_name k)) . f_vector) . e_get k
 
 -- | Type specialised 'e_get_ix'.
+--
+-- > let e = e_from_list [(K_scale,f_array [0,2])]
+-- > in e_get_array_ix Nothing K_scale e == Just [0,2]
+--
+-- > let e = e_from_list [(K_scale,f_ref (f_array [0,2]))]
+-- > in e_get_array_ix (Just 0) K_scale e == Just [0,2]
 e_get_array_ix :: Maybe Int -> Key -> Event -> Maybe [Double]
-e_get_array_ix n k = fmap (map (f_double_err (k_name k)) . f_vector) . e_get_ix n k
+e_get_array_ix n k =
+    fmap (map (f_double_err (k_name k)) . f_vector) .
+    e_get_ix n k
 
 -- | 'Event' /type/.
 --
@@ -472,7 +485,8 @@ e_latency = fromMaybe 0.1 . e_get_double K_latency
 
 -- | Extract non-'reserved' 'Keys' from 'Event'.
 --
--- > e_parameters Nothing (e_from_list [(K_freq,1),(K_param "p",1)]) == [("p",1)]
+-- > let e = e_from_list [(K_freq,1),(K_param "p",1),(K_scale,f_ref (f_array [0,3,7]))]
+-- > in e_parameters Nothing e == [("p",1)]
 e_parameters :: Maybe Int -> Event -> [(String,Double)]
 e_parameters n =
     map (\(k,v) -> (k_name k,f_double_err_ix (k_name k) n v)) .
