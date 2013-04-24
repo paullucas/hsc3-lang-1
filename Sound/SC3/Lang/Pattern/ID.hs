@@ -1300,10 +1300,7 @@ instance Audible (P Event) where
     play = e_play . Event_Seq . unP
 
 -- | Synonym for ('Key','P Field').
-type P_Binding = (Key,P Field)
-
--- | Synonym for ['P_Binding'], ie. 'pbind' input type.
-type P_Bind = [P_Binding]
+type P_Bind = (Key,P Field)
 
 {-|
 Padd.  Add a value to an existing key, or set the key if it doesn't exist.
@@ -1324,7 +1321,7 @@ Padd.  Add a value to an existing key, or set the key if it doesn't exist.
 >     ;t n = padd (K_mtranspose,n) p}
 > in audition (pseq [p,t 1,t 2] inf)
 -}
-padd :: P_Binding -> P Event -> P Event
+padd :: P_Bind -> P Event -> P Event
 padd (k,p) = pzipWith (\i j -> e_edit k 0 (+ i) j) p
 
 {-| Pbind.  SC3 pattern to assign keys to a set of 'Field' patterns
@@ -1544,11 +1541,19 @@ instantiated synthesis node.
 >                       ,(K_instr,psynth (synthdef "berlinb" berlinb))]])
 
 -}
-pbind :: P_Bind -> P Event
+pbind :: [P_Bind] -> P Event
 pbind xs =
     let xs' = fmap (\(k,v) -> pzip (undecided k) v) xs
         xs'' = ptranspose_st_repeat xs'
     in fmap e_from_list xs''
+
+-- | Operator to lift 'F_Value' pattern to 'P_Bind' tuple.
+--
+-- > let {r = True `pcons` preplicate 3 False :: P Bool}
+-- > in pbind [K_rest <| r] == pbind [(K_rest,pseq [1,0,0,0] 1)]
+(<|) :: F_Value v => Key -> P v -> P_Bind
+(<|) k p = (k,fmap toF p)
+infixl 3 <|
 
 -- | Pkey.  SC3 pattern to read 'Key' at 'Event' pattern.  Note
 -- however that in haskell is usually more appropriate to name the
@@ -1578,7 +1583,7 @@ pkey k = fmap (fromJust . e_get k)
 -- >         ,(K_amp,pwrand 'β' [0.05,0.2] [0.7,0.3] inf)
 -- >         ,(K_dur,0.25)]
 -- > in audition (pmono p)
-pmono :: P_Bind -> P Event
+pmono :: [P_Bind] -> P Event
 pmono b =
     let ty = fmap F_String ("s_new" `pcons` prepeat "n_set")
     in pbind ((K_type,ty) : b)
@@ -1588,7 +1593,7 @@ pmono b =
 --
 -- > let p = pbind [(K_dur,0.15),(K_freq,prand 'α' [440,550,660] 6)]
 -- > in audition (pseq [p,pmul (K_freq,2) p,pmul (K_freq,0.5) p] 2)
-pmul :: P_Binding -> P Event -> P Event
+pmul :: P_Bind -> P Event -> P Event
 pmul (k,p) = pzipWith (\i j -> e_edit k 1 (* i) j) p
 
 {-| Ppar.  Variant of 'ptpar' with zero start times.
@@ -1790,7 +1795,7 @@ pmerge :: P Event -> P Event -> P Event
 pmerge p q = ptmerge (0,p) (0,q)
 
 -- | Variant that does not insert key.
-pmul' :: P_Binding -> P Event -> P Event
+pmul' :: P_Bind -> P Event -> P Event
 pmul' (k,p) = pzipWith (\i j -> e_edit' k (* i) j) p
 
 -- | Merge two 'Event' patterns with indicated start 'Time's.
@@ -1803,7 +1808,7 @@ punion :: P Event -> P Event -> P Event
 punion = pzipWith (<>)
 
 -- | 'punion' of 'pbind' of 'return', ie. @p_with (K_Instr,psynth s)@.
-p_with :: P_Binding -> P Event -> P Event
+p_with :: P_Bind -> P Event -> P Event
 p_with = punion . pbind . return
 
 -- * Aliases

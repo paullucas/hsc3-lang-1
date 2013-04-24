@@ -34,6 +34,20 @@ data Field = F_Double {f_double :: Double}
            | F_Instr {f_instr :: I.Instr}
              deriving (Eq,Show)
 
+-- | Set of types that can be lifted to 'Field'.
+class F_Value a where toF :: a -> Field
+instance F_Value Bool where toF = F_Double . fromIntegral . fromEnum
+instance F_Value Int where toF = F_Double . fromIntegral
+instance F_Value Double where toF = F_Double
+instance F_Value I.Instr where toF = F_Instr
+instance F_Value Field where toF = id
+
+-- | Numeric 'F_Value' types.
+class F_Value a => F_Num a where
+instance F_Num Int
+instance F_Num Double
+instance F_Num Field
+
 -- | Maybe variant of 'f_double'.
 f_double_m :: Field -> Maybe Double
 f_double_m f = case f of {F_Double n -> Just n;_ -> Nothing;}
