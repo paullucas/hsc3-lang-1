@@ -1,4 +1,3 @@
-{-# Language MultiParamTypeClasses,FlexibleInstances #-}
 -- | The @SC3@ duration model.
 module Sound.SC3.Lang.Control.Duration where
 
@@ -16,56 +15,41 @@ import Data.Maybe {- base -}
 --
 -- @fwd@ is the interval from the start of the current event to the
 -- start of the next /parallel/ event.
-class Durational d n where
-    occ :: d -> n
-    delta :: d -> n
+class Durational d where
+    occ :: d -> Double
+    delta :: d -> Double
     delta = occ
-    fwd :: d -> n
+    fwd :: d -> Double
     fwd = occ
 
 -- * Dur
 
 -- | Variant of the @SC3@ 'Duration' model.
 --
--- > fdur_delta (defaultDur {dur = 2,stretch = 2}) == 4
--- > fdur_occ defaultDur == 0.8
+-- > delta (defaultDur {dur = 2,stretch = 2}) == 4
+-- > occ defaultDur == 0.8
 -- > let d = defaultDur {fwd' = Just 0} in (delta d,fwd d) == (1,0)
-data Dur n =
-    Dur {tempo :: n -- ^ Tempo (in pulses per minute)
-        ,dur :: n -- ^ Duration (in pulses)
-        ,stretch :: n -- ^ Stretch multiplier
-        ,legato :: n -- ^ Legato multipler
-        ,sustain' :: Maybe n -- ^ Sustain time
-        ,delta' :: Maybe n -- ^ Delta time
-        ,lag :: n -- ^ Lag value
-        ,fwd' :: Maybe n -- ^ Possible non-sequential delta time field
+data Dur =
+    Dur {tempo :: Double -- ^ Tempo (in pulses per minute)
+        ,dur :: Double -- ^ Duration (in pulses)
+        ,stretch :: Double -- ^ Stretch multiplier
+        ,legato :: Double -- ^ Legato multipler
+        ,sustain' :: Maybe Double -- ^ Sustain time
+        ,delta' :: Maybe Double -- ^ Delta time
+        ,lag :: Double -- ^ Lag value
+        ,fwd' :: Maybe Double -- ^ Possible non-sequential delta time field
         }
     deriving (Eq,Show)
 
-dur_occ :: Fractional a => Dur a -> a
-dur_occ d = fromMaybe (dur_delta d * legato d) (sustain' d)
-
-dur_delta :: Fractional a => Dur a -> a
-dur_delta d = fromMaybe (dur d * stretch d * (60 / tempo d)) (delta' d)
-
-dur_fwd :: Fractional b => Dur b -> b
-dur_fwd d = maybe (dur_delta d) (* stretch d) (fwd' d)
-
-fdur_occ :: Dur Float -> Float
-fdur_occ = dur_occ
-
-fdur_delta :: Dur Float -> Float
-fdur_delta = dur_delta
-
-instance Fractional n => Durational (Dur n) n where
-    occ = dur_occ
-    delta = dur_delta
-    fwd = dur_fwd
+instance Durational Dur where
+    occ d = fromMaybe (delta d * legato d) (sustain' d)
+    delta d = fromMaybe (dur d * stretch d * (60 / tempo d)) (delta' d)
+    fwd d = maybe (delta d) (* stretch d) (fwd' d)
 
 -- | Default 'Dur' value, equal to one second.
 --
 -- > delta defaultDur == 1
-defaultDur :: Fractional n => Dur n
+defaultDur :: Dur
 defaultDur =
     Dur {tempo = 60
         ,dur = 1
@@ -82,10 +66,10 @@ defaultDur =
 type T8 n = (n,n,n,n,n,n,n,n)
 
 -- | 'Dur' represented as an eight-tuple of optional values.
-type OptDur n = T8 (Maybe n)
+type OptDur = T8 (Maybe Double)
 
 -- | Translate 'OptDur' to 'Dur'.
-optDur :: Fractional n => OptDur n -> Dur n
+optDur :: OptDur -> Dur
 optDur (t,d,s,l,s',d',l',f) =
     Dur {tempo = fromMaybe 60 t
         ,dur = fromMaybe 1 d

@@ -1,4 +1,3 @@
-{-# Language MultiParamTypeClasses,FlexibleInstances #-}
 -- | @SC3@ pitch model implementation.
 module Sound.SC3.Lang.Control.Pitch where
 
@@ -9,11 +8,11 @@ import Sound.SC3.Lang.Math
 
 -- | 'Pitched' values, minimal definition is 'midinote'.
 --
--- > midinote (defaultPitch {degree = 5}) == 69::Double
+-- > midinote (defaultPitch {degree = 5}) == 69
 -- > freq (defaultPitch {degree = 5,detune = 10}) == 440 + 10
-class Floating n => Pitched p n where
-    midinote :: p -> n
-    freq :: p -> n
+class Pitched p where
+    midinote :: p -> Double
+    freq :: p -> Double
     freq = midicps . midinote
 
 -- * Pitch
@@ -60,20 +59,20 @@ class Floating n => Pitched p n where
 -- >     ;r = zipWith edit_octave q [0,-1,0,1,0]
 -- >     ;f = map midinote}
 -- > in (f q,f r) == ([60,64,67,65,69],[60,52,67,77,69])
-data Pitch n = Pitch {mtranspose :: n
-                     ,gtranspose :: n
-                     ,ctranspose :: n
-                     ,octave :: n
-                     ,root :: n
-                     ,scale :: [n]
-                     ,degree :: n
-                     ,stepsPerOctave :: n
-                     ,detune :: n
-                     ,harmonic :: n
-                     ,freq' :: Maybe n
-                     ,midinote' :: Maybe n
-                     ,note' :: Maybe n
-                     }
+data Pitch = Pitch {mtranspose :: Double
+                   ,gtranspose :: Double
+                   ,ctranspose :: Double
+                   ,octave :: Double
+                   ,root :: Double
+                   ,scale :: [Double]
+                   ,degree :: Double
+                   ,stepsPerOctave :: Double
+                   ,detune :: Double
+                   ,harmonic :: Double
+                   ,freq' :: Maybe Double
+                   ,midinote' :: Maybe Double
+                   ,note' :: Maybe Double
+                   }
            deriving (Eq,Show)
 
 -- | A default 'Pitch' value of middle C given as degree @0@ of a C
@@ -82,7 +81,7 @@ data Pitch n = Pitch {mtranspose :: n
 -- > let {p = defaultPitch
 -- >     ;r = ([0,2,4,5,7,9,11],12,0,5,0)}
 -- > in (scale p,stepsPerOctave p,root p,octave p,degree p) == r
-defaultPitch :: Num n => Pitch n
+defaultPitch :: Pitch
 defaultPitch =
     Pitch {mtranspose = 0
           ,gtranspose = 0
@@ -102,13 +101,13 @@ defaultPitch =
 -- | Calculate /note/ field.
 --
 -- > note (defaultPitch {degree = 5}) == 9
-note :: RealFrac n => Pitch n -> n
+note :: Pitch -> Double
 note p =
     let f e = let d = degree e + mtranspose e
               in degreeToKey (scale e) (stepsPerOctave e) d
     in fromMaybe (f p) (note' p)
 
-instance (RealFrac n,Floating n) => Pitched (Pitch n) n where
+instance Pitched Pitch where
     midinote p =
         let f e = let n = note e + gtranspose e + root e
                   in (n / stepsPerOctave e + octave e) * 12
@@ -123,10 +122,10 @@ instance (RealFrac n,Floating n) => Pitched (Pitch n) n where
 type T616 a b c = (a,a,a,a,a,a,b,c,c,c,c,c,c)
 
 -- | 'Pitch' represented as tuple of optional values.
-type OptPitch n = T616 (Maybe n) (Maybe [n]) (Maybe n)
+type OptPitch = T616 (Maybe Double) (Maybe [Double]) (Maybe Double)
 
 -- | Transform 'OptPitch' to 'Pitch'.
-optPitch :: Num n => OptPitch n -> Pitch n
+optPitch :: OptPitch -> Pitch
 optPitch (mt,gt,ct,o,r,d,s,s',d',h,f,m,n) =
     Pitch {mtranspose = fromMaybe 0 mt
           ,gtranspose = fromMaybe 0 gt
