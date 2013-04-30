@@ -131,15 +131,3 @@ d_lookup d w = M.lookup (map toUpper w) d
 d_lookup' :: CMU_Dict -> String -> Either String ARPABET
 d_lookup' d w = maybe (Left w) Right (d_lookup d w)
 
--- | Simplify word by deleting leading and trailing punctuation,
--- retains internal punctuation.
---
--- > w_simplify "she'd" == "she'd"
--- > w_simplify "still," == "still"
--- > w_simplify "leavin'" == "leavin'"
-w_simplify :: String -> String
-w_simplify w =
-    let f = dropWhile (not . isLetter)
-        g = dropWhile (not . (\c -> c == '\'' || isLetter c))
-    in reverse (g (reverse (f w)))
-
