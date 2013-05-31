@@ -1,7 +1,12 @@
--- | <http://www.speech.cs.cmu.edu/cgi-bin/cmudict>
+-- | Arpabet phoneme definitions and CMU dictionary functions.
+--
+-- <http://www.speech.cs.cmu.edu/cgi-bin/cmudict>
+-- <http://en.wikipedia.org/wiki/Arpabet>
 module Sound.SC3.Lang.Data.CMUdict where
 
 import Data.Char {- base -}
+import Data.Maybe {- base -}
+import Data.List {- base -}
 import qualified Data.Map as M {- containers -}
 
 -- | Stress indicators, placed at the stressed syllabic vowel.
@@ -11,13 +16,13 @@ data Stress = No_stress | Primary_stress | Secondary_stress
 -- | Arpabet phonemes as used at CMU dictionary.
 data Phoneme
     -- Vowels (Monophthongs)
-    = AO | AA | IY | UW | EH | IH | UH | AH | AE
+    = AO | AA | IY | UW | EH | IH | UH | AH | AX | AE
     -- Vowels (Diphthongs)
     | EY | AY | OW | AW | OY
     -- Vowels (R-colored)
-    | ER
+    | ER | AXR
     -- Semivowels
-    | Y | W
+    | Y | W | Q
     -- Consonants (Stops)
     | P | B | T | D | K | G
     -- Consonants (Affricates)
@@ -27,9 +32,9 @@ data Phoneme
     -- Consonants (Aspirate)
     | HH
     -- Nasals
-    | M | N | NG
+    | M | EM | N | EN | NG | ENG
     -- Liquids
-    | L | R
+    | L | EL | R | DX | NX
       deriving (Eq,Ord,Enum,Bounded,Read,Show)
 
 -- | 'Phoneme' with stress if given.
@@ -54,56 +59,37 @@ parse_syllable w =
       _ -> (read w,Nothing)
 
 -- | Classification of 'Phoneme's.
-data Phoneme_Class = Vowel | Semivowel
+data Phoneme_Class = Monophthong | Diphthong | R_Coloured
+                   | Semivowel
                    | Stop | Affricate | Fricative | Aspirate
                    | Nasal
                    | Liquid
                      deriving (Eq,Ord,Enum,Bounded,Read,Show)
 
 -- | Classification table for 'Phoneme'.
+arpabet_classification_table :: [(Phoneme_Class,[Phoneme])]
+arpabet_classification_table =
+    [(Monophthong,[AO,AA,IY,UW,EH,IH,UH,AH,AX,AE])
+    ,(Diphthong,[EY,AY,OW,AW,OY])
+    ,(R_Coloured,[ER,AXR])
+    ,(Semivowel,[Y,W,Q])
+    ,(Stop,[P,B,T,D,K,G])
+    ,(Affricate,[CH,JH])
+    ,(Fricative,[F,V,TH,DH,S,Z,SH,ZH])
+    ,(Aspirate,[HH])
+    ,(Nasal,[M,EM,N,EN,NG,ENG])
+    ,(Liquid,[L,EL,R,DX,NX])]
+
+-- | Consult 'arpabet_classification_table'.
 --
--- > lookup HH arpabet_classification == Just Aspirate
-arpabet_classification :: [(Phoneme,Phoneme_Class)]
-arpabet_classification =
-    [(AA,Vowel)
-    ,(AE,Vowel)
-    ,(AH,Vowel)
-    ,(AO,Vowel)
-    ,(AW,Vowel)
-    ,(AY,Vowel)
-    ,(B,Stop)
-    ,(CH,Affricate)
-    ,(D,Stop)
-    ,(DH,Fricative)
-    ,(EH,Vowel)
-    ,(ER,Vowel)
-    ,(EY,Vowel)
-    ,(F,Fricative)
-    ,(G,Stop)
-    ,(HH,Aspirate)
-    ,(IH,Vowel)
-    ,(IY,Vowel)
-    ,(JH,Affricate)
-    ,(K,Stop)
-    ,(L,Liquid)
-    ,(M,Nasal)
-    ,(N,Nasal)
-    ,(NG,Nasal)
-    ,(OW,Vowel)
-    ,(OY,Vowel)
-    ,(P,Stop)
-    ,(R,Liquid)
-    ,(S,Fricative)
-    ,(SH,Fricative)
-    ,(T,Stop)
-    ,(TH,Fricative)
-    ,(UH,Vowel)
-    ,(UW,Vowel)
-    ,(V,Fricative)
-    ,(W,Semivowel)
-    ,(Y,Semivowel)
-    ,(Z,Fricative)
-    ,(ZH,Fricative)]
+-- > arpabet_classification HH == Aspirate
+-- > map arpabet_classification [minBound .. maxBound]
+arpabet_classification :: Phoneme -> Phoneme_Class
+arpabet_classification p =
+    let f (_,l) = p `elem` l
+    in fromMaybe (error "arpabet_classification") $
+       fmap fst $
+       find f arpabet_classification_table
 
 -- | Load CMU dictionary from file.
 --
@@ -131,3 +117,86 @@ d_lookup d w = M.lookup (map toUpper w) d
 d_lookup' :: CMU_Dict -> String -> Either String ARPABET
 d_lookup' d w = maybe (Left w) Right (d_lookup d w)
 
+-- * IPA
+
+-- | Table mapping /Arpabet/ phonemes to /IPA/ strings.
+--
+-- > length arpabet_ipa_table == 48
+arpabet_ipa_table :: [(Phoneme,Either String [(Stress,String)])]
+arpabet_ipa_table =
+    -- Vowels (Monophthongs)
+    [(AO,Left "ɔ")
+    ,(AA,Left "ɑ")
+    ,(IY,Left "i")
+    ,(UW,Left "u")
+    ,(EH,Left "ɛ")
+    ,(IH,Left "ɪ")
+    ,(UH,Left "ʊ")
+    ,(AH,Right [(Primary_stress,"ʌ"),(No_stress,"ə")])
+    ,(AX,Left "ə")
+    ,(AE,Left "æ")
+    -- Vowels (Diphthongs)
+    ,(EY,Left "eɪ")
+    ,(AY,Left "aɪ")
+    ,(OW,Left "oʊ")
+    ,(AW,Left "aʊ")
+    ,(OY,Left "ɔɪ")
+    -- Vowels (R-colored)
+    ,(ER,Left "ɝ")
+    ,(AXR,Left "ɚ")
+    -- Semivowels
+    ,(Y,Left "j")
+    ,(W,Left "w")
+    ,(Q,Left "ʔ")
+    -- Consonants (Stops)
+    ,(P,Left "p")
+    ,(B,Left "b")
+    ,(T,Left "t")
+    ,(D,Left "d")
+    ,(K,Left "k")
+    ,(G,Left "ɡ")
+    -- Consonants (Affricates)
+    ,(CH,Left "tʃ")
+    ,(JH,Left "dʒ")
+    -- Consonants (Fricatives)
+    ,(F,Left "f")
+    ,(V,Left "v")
+    ,(TH,Left "θ")
+    ,(DH,Left "ð")
+    ,(S,Left "s")
+    ,(Z,Left "z")
+    ,(SH,Left "ʃ")
+    ,(ZH,Left "ʒ")
+    -- Consonants (Aspirate)
+    ,(HH,Left "h")
+    -- Nasals
+    ,(M,Left "m")
+    ,(EM,Left "m̩")
+    ,(N,Left "n")
+    ,(EN,Left "n̩")
+    ,(NG,Left "ŋ")
+    ,(ENG,Left "ŋ̍")
+    -- Liquids
+    ,(L,Left "ɫ")
+    ,(EL,Left "ɫ̩")
+    ,(R,Left "ɹ")
+    ,(DX,Left "ɾ")
+    ,(NX,Left "ɾ̃")
+    ]
+
+-- | Consult 'arpabet_ipa_table'.
+--
+-- > map (phoneme_ipa (Just Primary_stress)) [minBound .. maxBound]
+phoneme_ipa :: Maybe Stress -> Phoneme -> String
+phoneme_ipa s =
+    either id (fromMaybe (error "phoneme_ipa: no stressed phoneme") .
+               lookup (fromMaybe (error "phoneme_ipa: no stress") s)) .
+    fromMaybe (error "phoneme_ipa: no phoneme") .
+    flip lookup arpabet_ipa_table
+
+-- | Consult 'arpabet_ipa_table'.
+--
+-- > let r = map parse_syllable (words "R EY1 N ER0 D")
+-- > in arpabet_ipa r == "ɹeɪnɝd"
+arpabet_ipa :: ARPABET -> String
+arpabet_ipa = concatMap (\(p,s) -> phoneme_ipa s p)
