@@ -1,16 +1,11 @@
--- | For a single input controller, key events always arrive in
--- sequence (ie. on->off), ie. for any key on message we can allocate
--- an ID and associate it with the key, an off message can retrieve
--- the ID given the key.
+-- | Trivial midi functions.
 module Sound.SC3.Lang.Control.Midi where
 
-import qualified Control.Exception as E {- base -}
-import Control.Monad {- base -}
-import Control.Monad.IO.Class {- transformers -}
-import Control.Monad.Trans.State {- transformers -}
+import Control.Exception {- base -}
 import Data.Bits {- base -}
 import qualified Data.ByteString.Lazy as B {- bytestring -}
 import qualified Data.Map as M {- containers -}
+import Data.Maybe {- base -}
 import Sound.OSC.FD {- hosc -}
 
 -- * Bits
@@ -129,58 +124,66 @@ parse_m m =
 -- | @SC3@ node identifiers are integers.
 type Node_Id = Int
 
--- | Map of allocated 'Node_Id's.
-data K a = K (M.Map (a,a) Node_Id) Node_Id
+-- | Map of allocated 'Node_Id's.  For a single input controller, key
+-- events always arrive in sequence (ie. on->off), ie. for any key on
+-- message we can allocate an ID and associate it with the key, an off
+-- message can retrieve the ID given the key.
+data KY a = KY (M.Map a Node_Id) Node_Id
 
--- | 'StateT' of 'K' specialised to 'Int'.
-type KT = StateT (K Int) IO
+-- | Initialise 'KY' with starting 'Node_Id'.
+ky_init :: Node_Id -> KY a
+ky_init = KY M.empty
 
--- | Initialise 'K' with starting 'Node_Id'.
-k_init :: Node_Id -> K a
-k_init = K M.empty
+-- | 'KY' 'Node_Id' allocator.
+ky_alloc :: Ord a => KY a -> a -> (KY a,Node_Id)
+ky_alloc (KY m i) n = (KY (M.insert n i m) (i + 1),i)
 
--- | 'K' 'Node_Id' allocator.
-k_alloc :: (Int,Int) -> KT Node_Id
-k_alloc n = do
-  (K m i) <- get
-  put (K (M.insert n i m) (i + 1))
-  return i
+-- | 'KY' 'Node_Id' removal.
+ky_free :: Ord a => KY a -> a -> (KY a,Node_Id)
+ky_free (KY m i) n =
+    let r = m M.! n
+    in (KY (M.delete n m) i,r)
 
--- | 'K' 'Node_Id' retrieval.
-k_get :: (Int,Int) -> KT Node_Id
-k_get n = do
-  (K m _) <- get
-  return (m M.! n)
+-- | Lookup 'Node_Id'.
+ky_get :: Ord a => KY a -> a -> Node_Id
+ky_get (KY m _) n = m M.! n
 
--- * IO
+-- | All 'Node_Id'.
+ky_all :: KY a -> [Node_Id]
+ky_all (KY m _) = M.foldl (flip (:)) [] m
 
--- | The 'Midi_Receiver' is passed a 'Midi_Message' and a 'Node_Id'.
--- For 'Note_On' and 'Note_Off' messages the 'Node_Id' is positive,
--- for all other message it is @-1@.
-type Midi_Receiver m n = Midi_Message n -> Int -> m ()
+-- * IO (midi-osc)
 
--- | Parse incoming midi messages, do 'K' allocation, and run
--- 'Midi_Receiver'.
-midi_act :: Midi_Receiver IO Int -> Message -> StateT (K Int) IO ()
-midi_act f o = do
+type Midi_Init_f st = (UDP -> IO st)
+
+-- | 'Midi_Recv_f' is passed the @SC3@ connection, the user state, a
+-- 'Midi_Message' and, for 'Note_On' and 'Note_Off' messages, a
+-- 'Node_Id'.
+type Midi_Recv_f st = UDP -> st -> Midi_Message Int -> IO st
+
+-- | Parse incoming midi messages and run 'Midi_Receiver'.
+midi_act :: Midi_Recv_f st -> UDP -> st -> Message -> IO st
+midi_act recv_f fd st o = do
     let m = parse_m o
-    n <- case m of
-           Note_Off ch k _ -> k_get (ch,k)
-           Note_On ch k _ -> k_alloc (ch,k)
-           _ -> return (-1)
-    liftIO (f m n)
+    st' <- recv_f fd st m
+    return st'
 
--- | Run midi system, handles 'E.AsyncException's.
-start_midi :: (UDP -> Midi_Receiver IO Int) -> IO ()
-start_midi receiver = do
-  s_fd <- openUDP "127.0.0.1" 57110 -- midi-osc
+-- | Connect to @midi-osc@ and @sc3@, run initialiser, and then
+-- receiver for each incoming message.
+run_midi :: Midi_Init_f st -> Midi_Recv_f st -> IO ()
+run_midi init_f recv_f = do
   m_fd <- openUDP "127.0.0.1" 57150 -- midi-osc
+  s_fd <- openUDP "127.0.0.1" 57110 -- scsynth
   sendMessage m_fd (Message "/receive" [Int32 0xffff])
-  let step = liftIO (recvMessages m_fd) >>=
-             midi_act (receiver s_fd) . head
-      ex e = print ("start_midi",show (e::E.AsyncException)) >>
-             close m_fd >>
-             close s_fd
-      runs = void (runStateT (forever step) (k_init 1000))
-  E.catch runs ex
-  return ()
+  init_st <- init_f s_fd
+  finally
+    (iterateM_ init_st (\st -> recvMessage m_fd >>=
+                               midi_act recv_f s_fd st . fromJust))
+    (sendMessage m_fd (Message "/receive" [Int32 (-1)]))
+
+-- * Monad
+
+iterateM_ :: (Monad m) => st -> (st -> m st) -> m ()
+iterateM_ st f = do
+  st' <- f st
+  iterateM_ st' f
