@@ -3,9 +3,10 @@
 -- becomes @m i j c@.
 module Sound.SC3.Lang.Collection where
 
-import qualified Data.List.Split as S {- split -}
+import qualified Data.List.Split as L {- split -}
 import Data.List as L {- base -}
 import Data.Maybe {- base -}
+import qualified Sound.SC3 as S {- hsc3 -}
 
 -- * Collection
 
@@ -412,7 +413,7 @@ separate f l =
 -- > > [1,2,3,4,5,6,7,8].clump(3) == [[1,2,3],[4,5,6],[7,8]]
 -- > clump 3 [1,2,3,4,5,6,7,8] == [[1,2,3],[4,5,6],[7,8]]
 clump :: Int -> [a] -> [[a]]
-clump = S.chunksOf
+clump = L.chunksOf
 
 -- | @SequenceableCollection.clumps@ is a synonym for
 -- 'Data.List.Split.splitPlaces'.
@@ -427,6 +428,35 @@ clumps m s =
     in case m of
          [] -> []
          _ -> f (cycle m) s
+
+-- | @SequenceableCollection.blendAt@ returns a linearly interpolated
+-- value between the two closest indices.  Inverse operation is
+-- 'indexInBetween'.
+--
+-- > > [2,5,6].blendAt(0.4) == 3.2
+--
+-- > blendAt 0 [2,5,6] == 2
+-- > blendAt 0.4 [2,5,6] == 3.2
+blendAt :: RealFrac a => a -> [a] -> a
+blendAt ix c =
+    let m = floor ix
+        m' = fromIntegral m
+    in blend (absdif ix m') (clipAt m c) (clipAt (m + 1) c)
+
+-- | @SequenceableCollection.resamp1@ returns a new collection of the
+-- desired length, with values resampled evenly-spaced from the
+-- receiver with linear interpolation.
+--
+-- > > [1,2,3,4].resamp1(12)
+-- > > [1,2,3,4].resamp1(3) == [1,2.5,4]
+--
+-- > resamp1 12 [1,2,3,4]
+-- > resamp1 3 [1,2,3,4] == [1,2.5,4]
+resamp1 :: (Enum n,RealFrac n) => Int -> [n] -> [n]
+resamp1 n c =
+    let n' = fromIntegral n
+        f = (fromIntegral (length c) - 1) / (n' - 1)
+    in map (\x -> blendAt (x * f) c) [0 .. n' - 1]
 
 -- * List and Array
 
@@ -489,6 +519,37 @@ normalizeSum :: (Fractional a) => [a] -> [a]
 normalizeSum l =
     let n = sum l
     in map (/ n) l
+
+-- | @ArrayedCollection.normalize@ returns a new Array with the receiver
+-- items normalized between min and max.
+--
+-- > > [1,2,3].normalize == [0,0.5,1]
+-- > > [1,2,3].normalize(-20,10) == [-20,-5,10]
+--
+-- > normalize 0 1 [1,2,3] == [0,0.5,1]
+-- > normalize (-20) 10 [1,2,3] == [-20,-5,10]
+normalize :: (Fractional b, Ord b) => b -> b -> [b] -> [b]
+normalize l r c =
+    let cl = minimum c
+        cr = maximum c
+    in map (\e -> S.linlin e cl cr l r) c
+
+-- | @ArrayedCollection.asRandomTable@ returns an integral table that
+-- can be used to generate random numbers with a specified
+-- distribution.
+--
+-- > > [1,0,1,0,1,0,1].asRandomTable(256).plot
+-- > > ((0..100) ++ (100..50) / 100).asRandomTable.plot
+--
+-- > import Sound.SC3.Plot
+-- > plotTable [asRandomTable 256 [1,0,1,0,1,0,1]]
+-- > plotTable [asRandomTable 256 (map (/ 100) ([0..100] ++ [100,99..50]))]
+asRandomTable :: (Enum a, RealFrac a) => Int -> [a] -> [a]
+asRandomTable n c =
+    let n' = fromIntegral n
+        a = integrate (resamp1 n c)
+        b = normalize 0 (n' - 1) a
+    in map (\i -> indexInBetween i b / n') [0 .. n' - 1]
 
 -- | @List.slide@ is an identity window function with subsequences of
 -- length /w/ and stride of /n/.
@@ -636,3 +697,27 @@ to_wavetable :: Num a => [a] -> [a]
 to_wavetable =
     let f (e0,e1) = (2 * e0 - e1,e1 - e0)
     in t2_concat . map f . t2_overlap . (++ [0])
+
+-- * Required
+
+-- | /z/ ranges from 0 (for /i/) to 1 (for /j/).
+--
+-- > > 1.5.blend(2.0,0.50) == 1.75
+-- > > 1.5.blend(2.0,0.75) == 1.875
+--
+-- > blend 0.50 1.5 2 == 1.75
+-- > blend 0.75 1.5 2 == 1.875
+blend :: Num a => a -> a -> a -> a
+blend z i j = i + (z * (j - i))
+
+-- | Variant of '(!!)' but values for index greater than the size of
+-- the collection will be clipped to the last index.
+clipAt :: Int -> [a] -> a
+clipAt ix c =
+    if ix > length c - 1
+    then L.last c
+    else c !! ix
+
+-- | 'abs' of '(-)'.
+absdif :: Num a => a -> a -> a
+absdif i j = abs (j - i)
