@@ -697,7 +697,7 @@ e_bundle_seq st =
 -- | Transform (productively) an 'Event_Seq' into an 'NRT' score.
 --
 -- > let {n1 = nrt_bundles (e_nrt (Event_Seq (replicate 5 mempty)))
--- >     ;n2 = take 10 (nrt_bundles (e_nrt (Event_Seq (repeat mempty))))}
+-- >     ;n2 = take 11 (nrt_bundles (e_nrt (Event_Seq (repeat mempty))))}
 -- > in n1 == n2
 e_nrt :: Event_Seq -> NRT
 e_nrt =
@@ -706,7 +706,8 @@ e_nrt =
               [] -> r
               (o,c):l' -> let (c',r') = span (<= o) (insert o (insert c r))
                           in c' ++ rec r' l'
-    in NRT . rec [] . e_bundle_seq 0
+        g0 = Bundle 0 [g_new [(1,AddToTail,0)]]
+    in NRT . (g0 :) . rec [] . e_bundle_seq 0
 
 -- | Audition 'Event_Seq'.
 e_play :: Transport m => Event_Seq -> m ()

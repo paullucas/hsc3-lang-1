@@ -1,6 +1,7 @@
 -- | 'RandomGen' based @sclang@ random number functions.
 module Sound.SC3.Lang.Random.Gen where
 
+import qualified Data.DList as DL {- dlist -}
 import Data.Maybe {- base  -}
 import System.Random {- random -}
 import System.Random.Shuffle {- random-shuffle -}
@@ -12,14 +13,39 @@ import qualified Sound.SC3.Lang.Math as M
 rand :: (RandomGen g,Random n,Num n) => n -> g -> (n,g)
 rand n = randomR (0,n)
 
--- | Construct variant of /f/ generating /k/ values.
-kvariant :: Int -> (g->(a,g)) -> g->([a],g)
-kvariant k f =
+-- | State modifying variant of 'iterate'.  Lifts random generator
+-- functions to infinte lists.
+--
+-- > let r = [3,1,7,0,12,1,6,4,12,11,7,4]
+-- > in take 12 (r_iterate (rand 12) (mkStdGen 0)) == r
+r_iterate :: (t -> (a, t)) -> t -> [a]
+r_iterate f g = let (r,g') = f g in r : r_iterate f g'
+
+-- | Function underlying both 'kvariant' and 'kvariant''.
+mk_kvariant :: r -> (t -> r -> r) -> (r -> r') -> Int -> (g -> (t,g)) -> g -> (r',g)
+mk_kvariant k_nil k_join un_k k f =
     let go x i g = case i of
-                     0 -> (x,g)
+                     0 -> (un_k x,g)
                      _ -> let (y,g') = f g
-                          in go (y:x) (i - 1) g'
-    in go [] k
+                          in go (k_join y x) (i - 1) g'
+    in go k_nil k
+
+-- | Construct variant of /f/ generating /k/ values.  Note that the
+-- result is the reverse of the initial sequence given by 'r_iterate'.
+--
+-- > let r = [3,1,7,0,12,1,6,4,12,11,7,4]
+-- > in fst (kvariant 12 (rand 12) (mkStdGen 0)) == reverse r
+kvariant :: Int -> (g->(a,g)) -> g->([a],g)
+kvariant = mk_kvariant [] (:) id
+
+-- | Variant of 'kvariant' that generates sequence in the same order
+-- as 'r_iterate'.  There is perhaps a slight overhead from using a
+-- difference list.
+--
+-- > let r = [3,1,7,0,12,1,6,4,12,11,7,4]
+-- > in fst (kvariant' 12 (rand 12) (mkStdGen 0)) == r
+kvariant' :: Int -> (g->(a,g)) -> g->([a],g)
+kvariant' = mk_kvariant DL.empty (flip DL.snoc) DL.toList
 
 -- | Variant of 'rand' generating /k/ values.
 --
@@ -88,8 +114,21 @@ scramble k g =
 
 -- | @SequenceableCollection.wchoose@ selects an element from a list
 -- given a list of weights which sum to @1@.
+--
+-- > kvariant 10 (wchoose "abcd" (C.normalizeSum [8,4,2,1])) (mkStdGen 0)
 wchoose :: (RandomGen g,Random a,Ord a,Fractional a) => [b] -> [a] -> g -> (b,g)
 wchoose l w g =
   let (i,g') = randomR (0.0,1.0) g
       n = fromMaybe (error "wchoose: windex") (C.windex w i)
   in (l !! n,g')
+
+-- | Variant that applies 'C.normalizeSum' to weights.
+--
+-- > let r = "dcbbacaadd"
+-- > in r == fst (kvariant 10 (wchoose_N "abcd" [8,4,2,1]) (mkStdGen 0))
+wchoose_N :: (Fractional a,Ord a,RandomGen g,Random a) => [b] -> [a] -> g -> (b, g)
+wchoose_N l w = wchoose l (C.normalizeSum w)
+
+-- | 'kvariant' of 'wchoose_N'.
+nwchoose_N :: (Fractional a,Ord a,RandomGen g,Random a) => Int -> [b] -> [a] -> g -> ([b], g)
+nwchoose_N n l = kvariant n . wchoose_N l

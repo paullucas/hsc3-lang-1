@@ -23,6 +23,7 @@ Library
                    bytestring,
                    containers,
                    data-default,
+                   dlist,
                    hmatrix-special,
                    hosc == 0.15.*,
                    hsc3 == 0.15.*,
