@@ -3,7 +3,9 @@ module Sound.SC3.Lang.Random.Monad where
 
 import Control.Monad {- base -}
 import Control.Monad.Random {- MonadRandom -}
+import Data.Maybe {- base  -}
 
+import qualified Sound.SC3.Lang.Collection as C
 import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'getRandomR' in (0,/n/).
@@ -51,6 +53,15 @@ choose l = do
   i <- rand (length l - 1)
   return (l !! i)
 
+wchoose :: (RandomGen g,Fractional t,Ord t,Random t) => [a] -> [t] -> Rand g a
+wchoose l w = do
+  i <- rrand 0.0 1.0
+  let n = fromMaybe (error "wchoose: windex") (C.windex w i)
+  return (l !! n)
+
+wchoose_N :: (RandomGen g,Fractional t,Ord t,Random t) => [a] -> [t] -> Rand g a
+wchoose_N l w = wchoose l (C.normalizeSum w)
+
 -- | Variant of 'choose' generating /k/ values.
 --
 -- > evalRand (nchoose 4 [3..9]) (mkStdGen 1) == [5,8,9,6]
@@ -73,3 +84,4 @@ exprand l r = do
 -- > in evalRand r (mkStdGen 1) == [22,21,13]
 nexprand :: (Floating n,Random n,RandomGen g) => Int -> n -> n -> Rand g [n]
 nexprand k l = replicateM k . exprand l
+

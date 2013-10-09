@@ -277,8 +277,10 @@ indexIn e l =
     in maybe (size l - 1) f (indexOfGreaterThan e l)
 
 -- | @SequenceableCollection.indexInBetween@ is the linearly
--- interpolated fractional index.
+-- interpolated fractional index.  Collection must be sorted. The
+-- inverse operation is 'blendAt'.
 --
+-- > > [2,3,5,6].indexInBetween(5.2) == 2.2
 -- > indexInBetween 5.2 [2,3,5,6] == 2.2
 indexInBetween :: (Ord a,Fractional a) => a -> [a] -> a
 indexInBetween e l =
