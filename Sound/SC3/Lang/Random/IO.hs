@@ -4,6 +4,7 @@ module Sound.SC3.Lang.Random.IO where
 import Control.Monad.IO.Class {- transformers -}
 import System.Random {- random -}
 
+import Sound.SC3.Lang.Core
 import Sound.SC3.Lang.Random.Gen as R
 
 -- | 'liftIO' of 'randomRIO'.
@@ -24,7 +25,7 @@ randomG = liftIO . getStdRandom
 
 -- | Variant of 'rand2' generating /k/ values.
 nrand2 :: (Random a, Num a) => Int -> a -> IO [a]
-nrand2 k = randomG . R.nrand2 k
+nrand2 = randomG .: R.nrand2
 
 -- | @SimpleNumber.rrand@ is 'curry' 'randomRIO'.
 rrand :: (MonadIO m,Random n) => n -> n -> m n
@@ -32,7 +33,7 @@ rrand l r = randomM (l,r)
 
 -- | Variant of 'rrand' generating /k/ values.
 nrrand :: (MonadIO m,Random a, Num a) => Int -> a -> a -> m [a]
-nrrand k l = randomG . R.nrrand k l
+nrrand = randomG .:: R.nrrand
 
 -- | @SequenceableCollection.choose@ selects an element at random.
 choose :: MonadIO m => [a] -> m a
@@ -41,7 +42,7 @@ choose = randomG . R.choose
 -- | @SimpleNumber.exprand@ generates exponentially distributed random
 -- number in the given interval.
 exprand :: (MonadIO m,Floating n,Random n) => n -> n -> m n
-exprand l = randomG . R.exprand l
+exprand = randomG .: R.exprand
 
 -- | @SimpleNumber.coin@ is 'True' at given probability, which is in
 -- range (0,1).
@@ -55,5 +56,5 @@ scramble = randomG . R.scramble
 -- | @SequenceableCollection.wchoose@ selects an element from a list
 -- given a list of weights which sum to @1@.
 wchoose :: (MonadIO m,Random a,Ord a,Fractional a) => [b] -> [a] -> m b
-wchoose l = randomG . R.wchoose l
+wchoose = randomG .: R.wchoose
 

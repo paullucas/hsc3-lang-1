@@ -14,6 +14,7 @@ import Sound.SC3 {- hsc3 -}
 
 import Sound.SC3.Lang.Control.Event
 import Sound.SC3.Lang.Control.Instrument
+import Sound.SC3.Lang.Core
 import Sound.SC3.Lang.Pattern.ID
 
 -- | Make an 'envGen' 'UGen' with 'envLinen'' structure with given
@@ -104,7 +105,7 @@ overlapTextureP k g =
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in overlapTextureU (3,1,6,9) u
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
-overlapTextureU k = audition . overlapTextureP k
+overlapTextureU = audition .: overlapTextureP
 
 -- | Generate 'Synthdef' from a signal processing function over the
 -- indicated number of channels.
@@ -149,7 +150,7 @@ xfadeTextureP k g =
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in xfadeTextureU (1,3,6) u
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
-xfadeTextureU k = audition . xfadeTextureP k
+xfadeTextureU = audition .: xfadeTextureP
 
 -- | Variant of 'xfadeTextureU' with post-processing stage.
 xfadeTextureU_pp :: XFadeTexture -> UGen -> Int -> PPF -> IO ()
@@ -176,7 +177,7 @@ overlapTextureP_st k u i_st =
 
 -- | Audition pattern given by 'overlapTextureP_st'.
 overlapTextureS :: OverlapTexture -> USTF st -> st -> IO ()
-overlapTextureS k u = audition . overlapTextureP_st k u
+overlapTextureS = audition .:: overlapTextureP_st
 
 -- | Variant of 'overlapTextureS' with post-processing stage.
 overlapTextureS_pp :: OverlapTexture -> USTF st -> st -> Int -> PPF  -> IO ()

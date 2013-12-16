@@ -7,6 +7,7 @@ import System.Random {- random -}
 import System.Random.Shuffle {- random-shuffle -}
 
 import qualified Sound.SC3.Lang.Collection as C
+import Sound.SC3.Lang.Core
 import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'randomR' in (0,/n/).
@@ -67,7 +68,7 @@ rrand = curry randomR
 
 -- | Variant of 'rrand' generating /k/ values.
 nrrand :: (RandomGen g,Random a,Num a) => Int -> a -> a -> g -> ([a],g)
-nrrand k l = kvariant k . rrand l
+nrrand k = kvariant k .: rrand
 
 -- | @SequenceableCollection.choose@ selects an element at random.
 choose :: RandomGen g => [a] -> g -> (a,g)
@@ -89,7 +90,7 @@ exprand l r g =
 -- | Variant of 'exprand' generating /k/ values.
 nexprand :: (Floating n,Random n,RandomGen g) =>
             Int -> n -> n -> g -> ([n],g)
-nexprand k l = kvariant k . exprand l
+nexprand k = kvariant k .: exprand
 
 -- | @SimpleNumber.coin@ is 'True' at given probability, which is in
 -- range (0,1).
@@ -131,4 +132,4 @@ wchoose_N l w = wchoose l (C.normalizeSum w)
 
 -- | 'kvariant' of 'wchoose_N'.
 nwchoose_N :: (Fractional a,Ord a,RandomGen g,Random a) => Int -> [b] -> [a] -> g -> ([b], g)
-nwchoose_N n l = kvariant n . wchoose_N l
+nwchoose_N n = kvariant n .: wchoose_N

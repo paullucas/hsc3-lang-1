@@ -9,6 +9,7 @@ import qualified Sound.SC3 as S {- hsc3 -}
 import System.Random {- random -}
 
 import qualified Sound.SC3.Lang.Collection as C
+import Sound.SC3.Lang.Core
 import qualified Sound.SC3.Lang.Math as M
 import qualified Sound.SC3.Lang.Random.Gen as R
 
@@ -248,12 +249,12 @@ brown e l r s = brown' e (repeat l) (repeat r) (repeat s)
 -- >     ;d = [0.5,1,2,0.25,0.25]}
 -- > in durStutter s d == [0.5,1.0,2.0,0.25,0.25]
 durStutter :: Fractional a => [Int] -> [a] -> [a]
-durStutter p =
+durStutter =
     let f s d = case s of
                 0 -> []
                 1 -> [d]
                 _ -> replicate s (d / fromIntegral s)
-    in concat . zipWith f p
+    in concat .: zipWith f
 
 -- | Pexprand.  SC3 pattern of random values that follow a exponential
 -- distribution.
@@ -315,7 +316,7 @@ slide a n j s i wr =
 -- > stutter [1,2,3] [4,5,6] == [4,5,5,6,6,6]
 -- > stutter (repeat 2) [4,5,6] == [4,4,5,5,6,6]
 stutter :: [Int] -> [a] -> [a]
-stutter ns = concat . zipWith replicate ns
+stutter = concat .: zipWith replicate
 
 -- | Pswitch.  SC3 pattern to select elements from a list of patterns
 -- by a pattern of indices.
@@ -428,13 +429,13 @@ rorate_n' :: Num a => a -> a -> [a]
 rorate_n' p i = [i * p,i * (1 - p)]
 
 rorate_n :: Num a => [a] -> [a] -> [a]
-rorate_n p = concat . zipWith rorate_n' p
+rorate_n = concat .: zipWith rorate_n'
 
 rorate_l' :: Num a => [a] -> a -> [a]
 rorate_l' p i = map (* i) p
 
 rorate_l :: Num a => [[a]] -> [a] -> [a]
-rorate_l p = concat . zipWith rorate_l' p
+rorate_l = concat .: zipWith rorate_l'
 
 -- | 'white' with pattern inputs.
 --
@@ -456,7 +457,7 @@ whitei' = white
 --
 -- > whitei 'α' 1 9 5 == [5,1,7,7,8]
 whitei :: (Random n,S.RealFracE n,Enum e) => e -> n -> n -> Int -> [n]
-whitei e l r = fmap S.floorE . white e l r
+whitei = fmap S.floorE .::: white
 
 -- | Underlying 'wrand'.
 wrand' :: (Enum e,Fractional n,Ord n,Random n) => e -> [[a]] -> [n] -> [[a]]

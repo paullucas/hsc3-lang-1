@@ -45,6 +45,7 @@ Library
                    Sound.SC3.Lang.Control.Midi
                    Sound.SC3.Lang.Control.Pitch
                    Sound.SC3.Lang.Control.OverlapTexture
+                   Sound.SC3.Lang.Core
                    Sound.SC3.Lang.Data.CMUdict
                    Sound.SC3.Lang.Data.Modal
                    Sound.SC3.Lang.Data.Vowel

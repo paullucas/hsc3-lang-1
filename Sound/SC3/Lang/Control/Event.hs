@@ -11,6 +11,7 @@ import Sound.SC3 {- hsc3 -}
 import System.Random {- base -}
 
 import qualified Sound.SC3.Lang.Collection as C
+import Sound.SC3.Lang.Core
 import qualified Sound.SC3.Lang.Control.Duration as D
 import qualified Sound.SC3.Lang.Control.Instrument as I
 import qualified Sound.SC3.Lang.Control.Pitch as P
@@ -228,7 +229,7 @@ instance RealFloat Field where
     floatDigits = f_atf floatDigits
     floatRange = f_atf floatRange
     decodeFloat = f_atf decodeFloat
-    encodeFloat i = F_Double . encodeFloat i
+    encodeFloat = F_Double .: encodeFloat
     exponent = f_atf exponent
     significand = f_uop significand
     scaleFloat i = f_uop (scaleFloat i)
@@ -248,9 +249,9 @@ instance Ord Field where
 instance Enum Field where
     fromEnum = f_atf fromEnum
     enumFrom = f_atf (map F_Double . enumFrom)
-    enumFromThen = f_atf2 (\a -> map F_Double . enumFromThen a)
-    enumFromTo = f_atf2 (\a -> map F_Double . enumFromTo a)
-    enumFromThenTo = f_atf3 (\a b -> map F_Double . enumFromThenTo a b)
+    enumFromThen = f_atf2 (map F_Double .: enumFromThen)
+    enumFromTo = f_atf2 (map F_Double .: enumFromTo)
+    enumFromThenTo = f_atf3 (map F_Double .:: enumFromThenTo)
     toEnum = F_Double . fromIntegral
 
 instance Random Field where

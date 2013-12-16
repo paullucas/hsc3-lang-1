@@ -45,6 +45,7 @@ import Sound.SC3 {- hsc3 -}
 import System.Random {- random -}
 
 import qualified Sound.SC3.Lang.Collection as C
+import Sound.SC3.Lang.Core
 import Sound.SC3.Lang.Control.Duration
 import Sound.SC3.Lang.Control.Event
 import Sound.SC3.Lang.Control.Instrument
@@ -359,7 +360,7 @@ psplitPlaces' = liftP2 S.splitPlaces
 --
 -- > psplitPlaces (toP [1,2,3]) (toP ['a'..]) == toP (map toP ["a","bc","def"])
 psplitPlaces :: P Int -> P a -> P (P a)
-psplitPlaces n = fmap toP . psplitPlaces' n
+psplitPlaces = fmap toP .: psplitPlaces'
 
 -- | Pattern variant of 'P.take_inf', see also 'pfinval'.
 --
@@ -846,7 +847,7 @@ threaded non-locally.
 
 -}
 prand :: Enum e => e -> [P a] -> Int -> P a
-prand e a = join . prand' e a
+prand = join .:: prand'
 
 -- | Preject.  SC3 pattern to rejects values for which the predicate
 -- is true.  reject f is equal to filter (not . f).
@@ -897,7 +898,7 @@ preject f = liftP (filter (not . f))
 -- > audition (pbind [(K_degree,pfold (pseries 4 1 inf) (-7) 11)
 -- >                 ,(K_dur,prorate (fmap Left 0.6) 0.25)])
 prorate :: Num a => P (Either a [a]) -> P a -> P a
-prorate p = pjoin_repeat . pzipWith prorate' p
+prorate = pjoin_repeat .: pzipWith prorate'
 
 -- | Pselect.  See 'pfilter'.
 --
@@ -997,7 +998,7 @@ pshuf e a =
 -- >                 ,(K_dur,pseq [0.05,0.05,0.1] inf)
 -- >                 ,(K_sustain,0.15)])
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
-pslide a n j s i = toP . P.slide a n j s i
+pslide = toP .::::: P.slide
 
 -- | Pstutter.  SC3 /implicitly repeating/ pattern to repeat each
 -- element of a pattern /n/ times.
@@ -1075,7 +1076,7 @@ ptuple p = pseq [ptranspose_st_repeat p]
 -- > in audition (pbind [(K_freq,pwhite' 'α' l h * 20 + 800)
 -- >                    ,(K_dur,0.25)])
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
-pwhite e l r = toP . P.white e l r
+pwhite = toP .::: P.white
 
 -- | Pwrand.  Lifted 'P.wrand'.
 --
@@ -1234,7 +1235,7 @@ pwhite' e = liftP2_repeat (P.white' e)
 --
 -- > audition (pbind [(K_degree,pwhitei 'α' 0 8 inf),(K_dur,0.15)])
 pwhitei :: (RealFracE n,Random n,Enum e) => e -> n -> n -> Int -> P n
-pwhitei e l r =  toP . P.whitei e l r
+pwhitei =  toP .::: P.whitei
 
 -- * Non-SC3 Patterns
 
@@ -1244,7 +1245,7 @@ pbool = P.fbool
 
 -- | 'mconcat' of 'replicate'.
 pconcatReplicate :: Int -> P a -> P a
-pconcatReplicate i = mconcat . replicate i
+pconcatReplicate = mconcat .: replicate
 
 -- | Lifted 'P.countpost'.
 pcountpost :: P Bool -> P Int

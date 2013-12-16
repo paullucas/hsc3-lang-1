@@ -6,6 +6,7 @@ import Control.Monad.Random {- MonadRandom -}
 import Data.Maybe {- base  -}
 
 import qualified Sound.SC3.Lang.Collection as C
+import Sound.SC3.Lang.Core
 import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'getRandomR' in (0,/n/).
@@ -43,7 +44,7 @@ rrand l r = getRandomR (l,r)
 --
 -- > evalRand (nrrand 4 3 9) (mkStdGen 1) == [5,8,9,6]
 nrrand :: (RandomGen g,Random n,Num n) => Int -> n -> n -> Rand g [n]
-nrrand k l = replicateM k . rrand l
+nrrand k = replicateM k .: rrand
 
 -- | @SequenceableCollection.choose@ selects an element at random.
 --
@@ -83,5 +84,5 @@ exprand l r = do
 -- > let r = nexprand 3 10 100 >>= return . map floor
 -- > in evalRand r (mkStdGen 1) == [22,21,13]
 nexprand :: (Floating n,Random n,RandomGen g) => Int -> n -> n -> Rand g [n]
-nexprand k l = replicateM k . exprand l
+nexprand k = replicateM k .: exprand
 

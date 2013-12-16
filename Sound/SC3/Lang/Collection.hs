@@ -8,6 +8,8 @@ import Data.List as L {- base -}
 import Data.Maybe {- base -}
 import qualified Sound.SC3 as S {- hsc3 -}
 
+import Sound.SC3.Lang.Core
+
 -- * Collection
 
 -- | @Collection.*fill@ is 'map' over indices to /n/.
@@ -78,21 +80,21 @@ inject i f = foldl f i
 --
 -- > any' (\i _ -> even i) [1,2,3,4] == True
 any' :: Integral i => (a -> i -> Bool) -> [a] -> Bool
-any' f = isJust . detect f
+any' = isJust .: detect
 
 -- | @Collection.every@ is 'True' if /f/ applies at all elements.
 --
 -- > every (\i _ -> even i) [1,2,3,4] == False
 every :: Integral i => (a -> i -> Bool) -> [a] -> Bool
 every f =
-    let g e = not . f e
+    let g = not .: f
     in not . any' g
 
--- | @Collection.count@ is 'length' '.' 'select'.
+-- | @Collection.count@ is 'length' of 'select'.
 --
 -- > count (\i _ -> even i) [1,2,3,4] == 2
 count :: Integral i => (a -> i -> Bool) -> [a] -> i
-count f = genericLength . select f
+count = genericLength .: select
 
 -- | @Collection.occurencesOf@ is an '==' variant of 'count'.
 --
@@ -101,23 +103,23 @@ count f = genericLength . select f
 occurencesOf :: (Integral i,Eq a) => a -> [a] -> i
 occurencesOf k = count (\e _ -> e == k)
 
--- | @Collection.sum@ is 'sum' '.' 'collect'.
+-- | @Collection.sum@ is 'sum' of 'collect'.
 --
 -- > sum' (ignoringIndex (* 2)) [1,2,3,4] == 20
 sum' :: (Num a,Integral i) => (b -> i -> a) -> [b] -> a
-sum' f = sum . collect f
+sum' = sum .: collect
 
--- | @Collection.maxItem@ is 'maximum' '.' 'collect'.
+-- | @Collection.maxItem@ is 'maximum' of 'collect'.
 --
 -- > maxItem (ignoringIndex (* 2)) [1,2,3,4] == 8
 maxItem :: (Ord b,Integral i) => (a -> i -> b) -> [a] -> b
-maxItem f = maximum . collect f
+maxItem = maximum .: collect
 
 -- | @Collection.minItem@ is 'maximum' '.' 'collect'.
 --
 -- > minItem (ignoringIndex (* 2)) [1,2,3,4] == 2
 minItem :: (Integral i,Ord b) => (a -> i -> b) -> [a] -> b
-minItem f = minimum . collect f
+minItem = minimum .: collect
 
 -- | Variant of 'zipWith' that cycles the shorter input.
 --
@@ -251,7 +253,7 @@ indexOf = flip elemIndex
 
 -- | 'fromJust' variant of 'indexOf'.
 indexOf' :: Eq a => [a] -> a -> Int
-indexOf' l = fromJust . indexOf l
+indexOf' = fromJust .: indexOf
 
 -- | @SequenceableCollection.indexOfEqual@ is just 'indexOf'.
 indexOfEqual :: Eq a => [a] -> a -> Maybe Int
@@ -723,3 +725,37 @@ clipAt ix c =
 -- | 'abs' of '(-)'.
 absdif :: Num a => a -> a -> a
 absdif i j = abs (j - i)
+
+-- * Variants
+
+-- | Variant where all inputs are lists and the result is not
+-- catentated.  Does not generate partial windows.
+--
+-- > let r = ["abc","bc","def","ef","ghi","hi"]
+-- > in slide1 (cycle [3,2]) (cycle [1,2]) ['a'..'i'] == r
+--
+-- > let r = ["abc","bc","bcd","cd","cde","de"]
+-- > in slide1 (cycle [3,2]) (cycle [1,0]) ['a'..'e'] == r
+slide1 :: Integral i => [i] -> [i] -> [a] -> [[a]]
+slide1 w n l =
+    case (w,n,l) of
+      (w0:w',n0:n',_) -> case genericTakeMaybe w0 l of
+                           Nothing -> []
+                           Just r -> let l' = genericDrop n0 l
+                                     in r : slide1 w' n' l'
+      _ -> []
+
+-- | 'concat' of 'slide1'.
+slide2 :: Integral i => [i] -> [i] -> [a] -> [a]
+slide2 = concat .:: slide1
+
+-- | Variant where stutter input is a list and the result is not
+-- catentated.
+--
+-- > stutter1 [2,1,2] [1,2,3] == [[1,1],[2],[3,3]]
+stutter1 :: Integral i => [i] -> [a] -> [[a]]
+stutter1 = zipWith genericReplicate
+
+-- | 'concat' of 'stutter1'.
+stutter2 :: Integral i => [i] -> [a] -> [a]
+stutter2 = concat .: stutter1
