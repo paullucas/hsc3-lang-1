@@ -32,13 +32,16 @@ Library
                    split,
                    random,
                    random-shuffle,
-                   transformers
+                   transformers,
+                   vector
   GHC-Options:     -Wall -fwarn-tabs
   Exposed-modules: Sound.SC3.Lang.Collection
+                   Sound.SC3.Lang.Collection.Array
                    Sound.SC3.Lang.Collection.Extension
                    Sound.SC3.Lang.Collection.Numerical.Extending
                    Sound.SC3.Lang.Collection.Numerical.Truncating
                    Sound.SC3.Lang.Collection.Universal.Datum
+                   Sound.SC3.Lang.Collection.Vector
                    Sound.SC3.Lang.Control.Duration
                    Sound.SC3.Lang.Control.Event
                    Sound.SC3.Lang.Control.Instrument

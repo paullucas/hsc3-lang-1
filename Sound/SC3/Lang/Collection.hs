@@ -433,6 +433,13 @@ clumps m s =
          [] -> []
          _ -> f (cycle m) s
 
+-- | 'blendAt' with @clip@ function as argument.
+blendAtBy :: (Integral i,RealFrac n) => (i -> t -> n) -> n -> t -> n
+blendAtBy f ix c =
+    let m = floor ix
+        m' = fromIntegral m
+    in blend (absdif ix m') (f m c) (f (m + 1) c)
+
 -- | @SequenceableCollection.blendAt@ returns a linearly interpolated
 -- value between the two closest indices.  Inverse operation is
 -- 'indexInBetween'.
@@ -442,10 +449,16 @@ clumps m s =
 -- > blendAt 0 [2,5,6] == 2
 -- > blendAt 0.4 [2,5,6] == 3.2
 blendAt :: RealFrac a => a -> [a] -> a
-blendAt ix c =
-    let m = floor ix
-        m' = fromIntegral m
-    in blend (absdif ix m') (clipAt m c) (clipAt (m + 1) c)
+blendAt = blendAtBy clipAt
+
+-- | Resampling function, /n/ is destination length, /r/ is source
+-- length, /f/ is the indexing function, /c/ is the collection.
+resamp1_gen :: (Integral i,RealFrac n) => i -> i -> (i -> t -> n) -> t -> i -> n
+resamp1_gen n r f c =
+    let n' = fromIntegral n
+        fwd = (fromIntegral r - 1) / (n' - 1)
+        gen i = blendAtBy f (fromIntegral i * fwd) c
+    in gen
 
 -- | @SequenceableCollection.resamp1@ returns a new collection of the
 -- desired length, with values resampled evenly-spaced from the
@@ -458,9 +471,8 @@ blendAt ix c =
 -- > resamp1 3 [1,2,3,4] == [1,2.5,4]
 resamp1 :: (Enum n,RealFrac n) => Int -> [n] -> [n]
 resamp1 n c =
-    let n' = fromIntegral n
-        f = (fromIntegral (length c) - 1) / (n' - 1)
-    in map (\x -> blendAt (x * f) c) [0 .. n' - 1]
+    let gen = resamp1_gen n (length c) clipAt c
+    in map gen [0 .. n - 1]
 
 -- * List and Array
 
