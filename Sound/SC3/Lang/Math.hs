@@ -28,7 +28,7 @@ dbamp = (10 **) .  (* 0.05)
 -- > > (0..5).collect({|i| i.degreeToKey([0,1,5,9,11],12)}) == [0,1,5,9,11,12]
 -- > map (degreeToKey [0,1,5,9,11] 12) [0..5] == [0,1,5,9,11,12]
 --
--- > degreeToKey [0,2,4,5,7,9,11] 12 5 == 9
+-- > map (degreeToKey [0,2,4,5,7,9,11] 12) [5,6,7,8] == [9,11,12,14]
 degreeToKey :: (RealFrac a) => [a] -> a -> a -> a
 degreeToKey s n d =
     let l = length s

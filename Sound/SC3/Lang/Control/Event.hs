@@ -712,12 +712,7 @@ e_nrt =
 
 -- | Audition 'Event_Seq'.
 e_play :: Transport m => Event_Seq -> m ()
-e_play l = do
-  let f t (p,q) = pauseThreadUntil (bundleTime p - 0.1) >>
-                  run_bundle t p >>
-                  sendBundle q
-  st <- time
-  mapM_ (f st) (e_bundle_seq st l)
+e_play = play . e_nrt
 
 instance Audible Event_Seq where play = e_play
 

@@ -107,21 +107,29 @@ data P a = P {unP_either :: Either a [a]}
 undecided :: a -> P a
 undecided a = P (Left a)
 
--- | The basic list to pattern function, inverse is 'unP'.
---
--- > unP (toP "str") == "str"
---
--- > audition (pbind [(K_degree,pxrand 'α' [0,1,5,7] inf)
--- >                 ,(K_dur,toP [0.1,0.2,0.1])])
---
--- > > Pbind(\degree,(Pxrand([0,1,5,7],inf))
--- > >      ,\dur,Pseq([0.1,0.2,0.1],1)).play
---
--- The pattern above is finite, `toP` can sometimes be replaced with
--- `pseq`.
---
--- > audition (pbind [(K_degree,pxrand 'α' [0,1,5,7] inf)
--- >                 ,(K_dur,pseq [0.1,0.2,0.1] inf)])
+{- | The basic list to pattern function, inverse is 'unP'.
+
+> unP (toP "str") == "str"
+
+There is a @default@ sound, given by 'defaultSynthdef' from "Sound.SC3".
+
+> audition defaultSynthdef
+
+If no instrument is specified we hear the default.
+
+> audition (pbind [(K_degree,pxrand 'α' [0,1,5,7] inf)
+>                 ,(K_dur,toP [0.1,0.2,0.1])])
+
+> > Pbind(\degree,(Pxrand([0,1,5,7],inf))
+> >      ,\dur,Pseq([0.1,0.2,0.1],1)).play
+
+The pattern above is finite, `toP` can sometimes be replaced with
+`pseq`.
+
+> audition (pbind [(K_degree,pxrand 'α' [0,1,5,7] inf)
+>                 ,(K_dur,pseq [0.1,0.2,0.1] inf)])
+
+-}
 toP :: [a] -> P a
 toP = P . Right
 
@@ -465,18 +473,20 @@ pflop' l = toP (C.flop (map unP l))
 pflop :: [P a] -> P (P a)
 pflop = fmap toP . pflop'
 
--- | Type specialised 'P.ffold'.
---
--- > pfold (toP [10,11,12,-6,-7,-8]) (-7) 11 == toP [10,11,10,-6,-7,-6]
---
--- > audition (pbind [(K_degree,pfold (pseries 4 1 inf) (-7) 11)
--- >                 ,(K_dur,0.0625)])
---
--- The underlying primitive is then `fold_` function.
---
--- > let f = fmap (\n -> fold_ n (-7) 11)
--- > in audition (pbind [(K_degree,f (pseries 4 1 inf))
--- >                    ,(K_dur,0.0625)])
+{- | Type specialised 'P.ffold'.
+
+> pfold (toP [10,11,12,-6,-7,-8]) (-7) 11 == toP [10,11,10,-6,-7,-6]
+
+> audition (pbind [(K_degree,pfold (pseries 4 1 inf) (-7) 11)
+>                 ,(K_dur,0.0625)])
+
+The underlying primitive is then `fold_` function.
+
+> let f = fmap (\n -> fold_ n (-7) 11)
+> in audition (pbind [(K_degree,f (pseries 4 1 inf))
+>                    ,(K_dur,0.0625)])
+
+-}
 pfold :: (RealFrac n) => P n -> n -> n -> P n
 pfold = P.ffold
 
@@ -546,23 +556,25 @@ pclutch p q =
 pcollect :: (a -> b) -> P a -> P b
 pcollect = fmap
 
--- | Pconst.  SC3 pattern to constrain the sum of a numerical pattern.
--- Is equal to /p/ until the accumulated sum is within /t/ of /n/.  At
--- that point, the difference between the specified sum and the
--- accumulated sum concludes the pattern.
---
--- > > p = Pconst(10,Pseed(Pn(1000,1),Prand([1,2,0.5,0.1],inf),0.001));
--- > > p.asStream.all == [0.5,0.1,0.5,1,2,2,0.5,1,0.5,1,0.9]
---
--- > let p = pconst 10 (prand 'α' [1,2,0.5,0.1] inf) 0.001
--- > in (p,Data.Foldable.sum p)
---
--- > > Pbind(\degree,Pseq([-7,Pwhite(0,11,inf)],1),
--- > >       \dur,Pconst(4,Pwhite(1,4,inf) * 0.25)).play
---
--- > let p = [(K_degree,pcons (-7) (pwhitei 'α' 0 11 inf))
--- >         ,(K_dur,pconst 4 (pwhite 'β' 1 4 inf * 0.25) 0.001)]
--- > in audition (pbind p)
+{- | Pconst.  SC3 pattern to constrain the sum of a numerical pattern.
+Is equal to /p/ until the accumulated sum is within /t/ of /n/.  At
+that point, the difference between the specified sum and the
+accumulated sum concludes the pattern.
+
+> > p = Pconst(10,Pseed(Pn(1000,1),Prand([1,2,0.5,0.1],inf),0.001));
+> > p.asStream.all == [0.5,0.1,0.5,1,2,2,0.5,1,0.5,1,0.9]
+
+> let p = pconst 10 (prand 'α' [1,2,0.5,0.1] inf) 0.001
+> in (p,Data.Foldable.sum p)
+
+> > Pbind(\degree,Pseq([-7,Pwhite(0,11,inf)],1),
+> >       \dur,Pconst(4,Pwhite(1,4,inf) * 0.25)).play
+
+> let p = [(K_degree,pcons (-7) (pwhitei 'α' 0 11 inf))
+>         ,(K_dur,pconst 4 (pwhite 'β' 1 4 inf * 0.25) 0.001)]
+> in audition (pbind p)
+
+-}
 pconst :: (Ord a,Num a) => a -> P a -> a -> P a
 pconst n p t =
     let f _ [] = []
@@ -632,31 +644,33 @@ pdiff p = ptail p - p
 pdrop :: Int -> P a -> P a
 pdrop n = liftP (drop n)
 
--- | PdurStutter.  Lifted 'P.durStutter'.
---
--- > > s = Pseq(#[1,1,1,1,1,2,2,2,2,2,0,1,3,4,0],inf);
--- > > d = Pseq(#[0.5,1,2,0.25,0.25],1);
--- > > PdurStutter(s,d).asStream.all == [0.5,1,2,0.25,0.25]
---
--- > let {s = pseq [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0] inf
--- >     ;d = pseq [0.5,1,2,0.25,0.25] 1}
--- > in pdurStutter s d == toP [0.5,1.0,2.0,0.25,0.25]
---
--- Applied to duration.
---
--- > > d = PdurStutter(Pseq(#[1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4],inf),
--- > >                 Pseq(#[0.5,1,2,0.25,0.25],inf));
--- > > Pbind(\freq,440,\dur,d).play
---
--- > let {s = pseq [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4] inf
--- >     ;d = pseq [0.5,1,2,0.25,0.25] inf}
--- > in audition (pbind [(K_freq,440),(K_dur,pdurStutter s d)])
---
--- Applied to frequency.
---
--- > let {s = pseq [1,1,1,1,1,2,2,2,2,2,3,3,3,3,4,4,0,4,4] inf
--- >     ;d = pseq [0,2,3,5,7,9,10] inf + 80}
--- > in audition (pbind [(K_midinote,pdurStutter s d),(K_dur,0.15)])
+{- | PdurStutter.  Lifted 'P.durStutter'.
+
+> > s = Pseq(#[1,1,1,1,1,2,2,2,2,2,0,1,3,4,0],inf);
+> > d = Pseq(#[0.5,1,2,0.25,0.25],1);
+> > PdurStutter(s,d).asStream.all == [0.5,1,2,0.25,0.25]
+
+> let {s = pseq [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0] inf
+>     ;d = pseq [0.5,1,2,0.25,0.25] 1}
+> in pdurStutter s d == toP [0.5,1.0,2.0,0.25,0.25]
+
+Applied to duration.
+
+> > d = PdurStutter(Pseq(#[1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4],inf),
+> >                 Pseq(#[0.5,1,2,0.25,0.25],inf));
+> > Pbind(\freq,440,\dur,d).play
+
+> let {s = pseq [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4] inf
+>     ;d = pseq [0.5,1,2,0.25,0.25] inf}
+> in audition (pbind [(K_freq,440),(K_dur,pdurStutter s d)])
+
+Applied to frequency.
+
+> let {s = pseq [1,1,1,1,1,2,2,2,2,2,3,3,3,3,4,4,0,4,4] inf
+>     ;d = pseq [0,2,3,5,7,9,10] inf + 80}
+> in audition (pbind [(K_midinote,pdurStutter s d),(K_dur,0.15)])
+
+-}
 pdurStutter :: Fractional a => P Int -> P a -> P a
 pdurStutter = liftP2 P.durStutter
 
