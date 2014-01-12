@@ -715,32 +715,34 @@ Of course in this case there is a pattern equivalent.
 pfuncn :: Enum e => e -> (StdGen -> (n,StdGen)) -> Int -> P n
 pfuncn e f n = toP (P.funcn e f n)
 
--- | Pgeom.  SC3 geometric series pattern.
---
--- > > Pgeom(3,6,5).asStream.all == [3,18,108,648,3888]
--- > pgeom 3 6 5 == toP [3,18,108,648,3888]
---
--- > > Pgeom(1,2,10).asStream.all == [1,2,4,8,16,32,64,128,256,512]
--- > pgeom 1 2 10 == toP [1,2,4,8,16,32,64,128,256,512]
---
--- Real numbers work as well.
---
--- > > p = Pgeom(1.0,1.1,6).collect({|i| (i * 100).floor});
--- > > p.asStream.all == [100,110,121,133,146,161];
---
--- > let p = fmap (floor . (* 100)) (pgeom 1.0 1.1 6)
--- > in p == toP [100,110,121,133,146,161]
---
--- > > Pbind(\degree,Pseries(-7,1,15),
--- > >       \dur,Pgeom(0.5,0.89140193218427,15)).play;
---
--- > audition (pbind [(K_degree,pseries (-7) 1 15)
--- >                 ,(K_dur,pgeom 0.5 0.89140193218427 15)])
---
--- There is a list variant.
---
--- > > 5.geom(3,6)
--- > C.geom 5 3 6 == [3,18,108,648,3888]
+{- | Pgeom.  SC3 geometric series pattern.
+
+> > Pgeom(3,6,5).asStream.all == [3,18,108,648,3888]
+> pgeom 3 6 5 == toP [3,18,108,648,3888]
+
+> > Pgeom(1,2,10).asStream.all == [1,2,4,8,16,32,64,128,256,512]
+> pgeom 1 2 10 == toP [1,2,4,8,16,32,64,128,256,512]
+
+Real numbers work as well.
+
+> > p = Pgeom(1.0,1.1,6).collect({|i| (i * 100).floor});
+> > p.asStream.all == [100,110,121,133,146,161];
+
+> let p = fmap (floor . (* 100)) (pgeom 1.0 1.1 6)
+> in p == toP [100,110,121,133,146,161]
+
+> > Pbind(\degree,Pseries(-7,1,15),
+> >       \dur,Pgeom(0.5,0.89140193218427,15)).play;
+
+> audition (pbind [(K_degree,pseries (-7) 1 15)
+>                 ,(K_dur,pgeom 0.5 0.89140193218427 15)])
+
+There is a list variant.
+
+> > 5.geom(3,6)
+> C.geom 5 3 6 == [3,18,108,648,3888]
+
+-}
 pgeom :: (Num a) => a -> a -> Int -> P a
 pgeom i s n = toP (C.geom n i s)
 
@@ -799,24 +801,26 @@ place a n =
 pn :: P a -> Int -> P a
 pn p n = mconcat (replicate n p)
 
--- | Ppatlace.  SC3 /implicitly repeating/ pattern to lace input patterns.
---
--- > > p = Ppatlace([1,Pseq([2,3],2),4],5);
--- > > p.asStream.all == [1,2,4,1,3,4,1,2,4,1,3,4,1,4]
---
--- > ppatlace [1,pseq [2,3] 2,4] 5 == toP [1,2,4,1,3,4,1,2,4,1,3,4,1,4]
---
--- > > p = Ppatlace([1,Pseed(Pn(1000,1),Prand([2,3],inf))],5);
--- > > p.asStream.all == [1,3,1,3,1,3,1,2,1,2]
---
--- > ppatlace [1,prand 'α' [2,3] inf] 5 == toP [1,3,1,2,1,3,1,2,1,2]
---
--- > > Pbind(\degree,Ppatlace([Pseries(0,1,8),Pseries(2,1,7)],inf),
--- > >       \dur,0.25).play;
---
--- > let p = [(K_degree,ppatlace [pseries 0 1 8,pseries 2 1 7] inf)
--- >         ,(K_dur,0.125)]
--- > in audition (pbind p)
+{- | Ppatlace.  SC3 /implicitly repeating/ pattern to lace input patterns.
+
+> > p = Ppatlace([1,Pseq([2,3],2),4],5);
+> > p.asStream.all == [1,2,4,1,3,4,1,2,4,1,3,4,1,4]
+
+> ppatlace [1,pseq [2,3] 2,4] 5 == toP [1,2,4,1,3,4,1,2,4,1,3,4,1,4]
+
+> > p = Ppatlace([1,Pseed(Pn(1000,1),Prand([2,3],inf))],5);
+> > p.asStream.all == [1,3,1,3,1,3,1,2,1,2]
+
+> ppatlace [1,prand 'α' [2,3] inf] 5 == toP [1,3,1,2,1,3,1,2,1,2]
+
+> > Pbind(\degree,Ppatlace([Pseries(0,1,8),Pseries(2,1,7)],inf),
+> >       \dur,0.25).play;
+
+> let p = [(K_degree,ppatlace [pseries 0 1 8,pseries 2 1 7] inf)
+>         ,(K_dur,0.125)]
+> in audition (pbind p)
+
+-}
 ppatlace :: [P a] -> Int -> P a
 ppatlace a n =
     let a' = L.transpose (map unP_repeat a)
@@ -881,36 +885,38 @@ prand = join .:: prand'
 preject :: (a -> Bool) -> P a -> P a
 preject f = liftP (filter (not . f))
 
--- | Prorate.  SC3 /implicitly repeating/ sub-dividing pattern.
---
--- > > p = Prorate(Pseq([0.35,0.5,0.8]),1);
--- > > p.asStream.all == [0.35,0.65,0.5,0.5,0.8,0.2];
---
--- > let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) 1
--- > in fmap roundE (p * 100) == toP [35,65,50,50,80,20]
---
--- > > p = Prorate(Pseq([0.35,0.5,0.8]),Pseed(Pn(100,1),Prand([20,1],inf)));
--- > > p.asStream.all == [7,13,0.5,0.5,16,4]
---
--- > let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1))
--- >                 (prand 'α' [20,1] 3)
--- > in fmap roundE (p * 100) == toP [35,65,1000,1000,80,20]
---
--- > > l = [[1,2],[5,7],[4,8,9]].collect(_.normalizeSum);
--- > > Prorate(Pseq(l,1)).asStream.all
---
--- > let l = map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]]
--- > in prorate (toP l) 1
---
--- > > Pfinval(5,Prorate(0.6,0.5)).asStream.all == [0.3,0.2,0.3,0.2,0.3]
---
--- > pfinval 5 (prorate (fmap Left 0.6) 0.5) == toP [0.3,0.2,0.3,0.2,0.3]
---
--- > > Pbind(\degree,Pseries(4,1,inf).fold(-7,11),
--- > >       \dur,Prorate(0.6,0.5)).play
---
--- > audition (pbind [(K_degree,pfold (pseries 4 1 inf) (-7) 11)
--- >                 ,(K_dur,prorate (fmap Left 0.6) 0.25)])
+{- | Prorate.  SC3 /implicitly repeating/ sub-dividing pattern.
+
+> > p = Prorate(Pseq([0.35,0.5,0.8]),1);
+> > p.asStream.all == [0.35,0.65,0.5,0.5,0.8,0.2];
+
+> let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1)) 1
+> in fmap roundE (p * 100) == toP [35,65,50,50,80,20]
+
+> > p = Prorate(Pseq([0.35,0.5,0.8]),Pseed(Pn(100,1),Prand([20,1],inf)));
+> > p.asStream.all == [7,13,0.5,0.5,16,4]
+
+> let p = prorate (fmap Left (pseq [0.35,0.5,0.8] 1))
+>                 (prand 'α' [20,1] 3)
+> in fmap roundE (p * 100) == toP [35,65,1000,1000,80,20]
+
+> > l = [[1,2],[5,7],[4,8,9]].collect(_.normalizeSum);
+> > Prorate(Pseq(l,1)).asStream.all
+
+> let l = map (Right . C.normalizeSum) [[1,2],[5,7],[4,8,9]]
+> in prorate (toP l) 1
+
+> > Pfinval(5,Prorate(0.6,0.5)).asStream.all == [0.3,0.2,0.3,0.2,0.3]
+
+> pfinval 5 (prorate (fmap Left 0.6) 0.5) == toP [0.3,0.2,0.3,0.2,0.3]
+
+> > Pbind(\degree,Pseries(4,1,inf).fold(-7,11),
+> >       \dur,Prorate(0.6,0.5)).play
+
+> audition (pbind [(K_degree,pfold (pseries 4 1 inf) (-7) 11)
+>                 ,(K_dur,prorate (fmap Left 0.6) 0.25)])
+
+-}
 prorate :: Num a => P (Either a [a]) -> P a -> P a
 prorate = pjoin_repeat .: pzipWith prorate'
 
@@ -959,6 +965,7 @@ fifth and once transposed up a fourth.
 > let {a = pseq [60,62,63,65,67,63] 1
 >     ;b = pseq [a,a + 7,a + 5] inf}
 > in audition (pbind [(K_midinote,b),(K_dur,0.13)])
+
 -}
 pseq :: [P a] -> Int -> P a
 pseq a i =
@@ -983,64 +990,70 @@ pser a i = ptake i (pcycle (mconcat a))
 pseries :: (Num a) => a -> a -> Int -> P a
 pseries i s n = toP (C.series n i s)
 
--- | Pshuf.  SC3 pattern to return @n@ repetitions of a shuffled
+{- | Pshuf.  SC3 pattern to return @n@ repetitions of a shuffled
 -- sequence.
---
--- > > Pshuf([1,2,3,4],2).asStream.all
--- > pshuf 'α' [1,2,3,4] 2 == toP [2,4,3,1,2,4,3,1]
---
--- > > Pbind(\degree,Pshuf([0,1,2,4,5],inf),\dur,0.25).play
---
--- > audition (pbind [(K_degree,pshuf 'α' [0,1,2,4,5] inf)
--- >                 ,(K_dur,0.25)])
+
+> > Pshuf([1,2,3,4],2).asStream.all
+> pshuf 'α' [1,2,3,4] 2 == toP [2,4,3,1,2,4,3,1]
+
+> > Pbind(\degree,Pshuf([0,1,2,4,5],inf),\dur,0.25).play
+
+> audition (pbind [(K_degree,pshuf 'α' [0,1,2,4,5] inf)
+>                 ,(K_dur,0.25)])
+
+-}
 pshuf :: Enum e => e -> [a] -> Int -> P a
 pshuf e a =
     let (a',_) = R.scramble a (mkStdGen (fromEnum e))
     in pn (toP a')
 
--- | Pslide.  Lifted 'P.slide'.
---
--- > > Pslide([1,2,3,4],inf,3,1,0).asStream.all
--- > pslide [1,2,3,4] 4 3 1 0 True == toP [1,2,3,2,3,4,3,4,1,4,1,2]
--- > pslide [1,2,3,4,5] 3 3 (-1) 0 True == toP [1,2,3,5,1,2,4,5,1]
---
--- > > Pbind(\degree,Pslide((-6,-4 .. 12),8,3,1,0),
--- > >       \dur,Pseq(#[0.1,0.1,0.2],inf),
--- > >       \sustain,0.15).play
---
--- > audition (pbind [(K_degree,pslide [-6,-4 .. 12] 8 3 1 0 True)
--- >                 ,(K_dur,pseq [0.05,0.05,0.1] inf)
--- >                 ,(K_sustain,0.15)])
+{- | Pslide.  Lifted 'P.slide'.
+
+> > Pslide([1,2,3,4],inf,3,1,0).asStream.all
+> pslide [1,2,3,4] 4 3 1 0 True == toP [1,2,3,2,3,4,3,4,1,4,1,2]
+> pslide [1,2,3,4,5] 3 3 (-1) 0 True == toP [1,2,3,5,1,2,4,5,1]
+
+> > Pbind(\degree,Pslide((-6,-4 .. 12),8,3,1,0),
+> >       \dur,Pseq(#[0.1,0.1,0.2],inf),
+> >       \sustain,0.15).play
+
+> audition (pbind [(K_degree,pslide [-6,-4 .. 12] 8 3 1 0 True)
+>                 ,(K_dur,pseq [0.05,0.05,0.1] inf)
+>                 ,(K_sustain,0.15)])
+
+-}
 pslide :: [a] -> Int -> Int -> Int -> Int -> Bool -> P a
 pslide = toP .::::: P.slide
 
--- | Pstutter.  SC3 /implicitly repeating/ pattern to repeat each
+{- | Pstutter.  SC3 /implicitly repeating/ pattern to repeat each
 -- element of a pattern /n/ times.
---
--- > > Pstutter(2,Pseq([1,2,3],1)).asStream.all == [1,1,2,2,3,3]
--- > pstutter 2 (pseq [1,2,3] 1) == toP [1,1,2,2,3,3]
---
--- The count input may be a pattern.
---
--- > let {p = pseq [1,2] inf
--- >     ;q = pseq [1,2,3] 2}
--- > in pstutter p q == toP [1,2,2,3,1,1,2,3,3]
---
--- > pstutter (toP [1,2,3]) (toP [4,5,6]) == toP [4,5,5,6,6,6]
--- > pstutter 2 (toP [4,5,6]) == toP [4,4,5,5,6,6]
---
--- Stutter scale degree and duration with the same random sequence.
---
--- > > Pbind(\n,Pwhite(3,10,inf),
--- > >       \degree,Pstutter(Pkey(\n),Pwhite(-4,11,inf)),
--- > >       \dur,Pstutter(Pkey(\n),Pwhite(0.05,0.4,inf)),
--- > >       \legato,0.3).play
---
--- > let {n = pwhite 'α' 3 10 inf
--- >     ;p = [(K_degree,pstutter n (pwhitei 'β' (-4) 11 inf))
--- >          ,(K_dur,pstutter n (pwhite 'γ' 0.05 0.4 inf))
--- >          ,(K_legato,0.3)]}
--- > in audition (pbind p)
+
+> > Pstutter(2,Pseq([1,2,3],1)).asStream.all == [1,1,2,2,3,3]
+> pstutter 2 (pseq [1,2,3] 1) == toP [1,1,2,2,3,3]
+
+The count input may be a pattern.
+
+> let {p = pseq [1,2] inf
+>     ;q = pseq [1,2,3] 2}
+> in pstutter p q == toP [1,2,2,3,1,1,2,3,3]
+
+> pstutter (toP [1,2,3]) (toP [4,5,6]) == toP [4,5,5,6,6,6]
+> pstutter 2 (toP [4,5,6]) == toP [4,4,5,5,6,6]
+
+Stutter scale degree and duration with the same random sequence.
+
+> > Pbind(\n,Pwhite(3,10,inf),
+> >       \degree,Pstutter(Pkey(\n),Pwhite(-4,11,inf)),
+> >       \dur,Pstutter(Pkey(\n),Pwhite(0.05,0.4,inf)),
+> >       \legato,0.3).play
+
+> let {n = pwhite 'α' 3 10 inf
+>     ;p = [(K_degree,pstutter n (pwhitei 'β' (-4) 11 inf))
+>          ,(K_dur,pstutter n (pwhite 'γ' 0.05 0.4 inf))
+>          ,(K_legato,0.3)]}
+> in audition (pbind p)
+
+-}
 pstutter :: P Int -> P a -> P a
 pstutter = liftP2_repeat P.stutter
 
@@ -1078,38 +1091,42 @@ pswitch1 l = liftP (P.switch1 (map unP_repeat l))
 ptuple :: [P a] -> Int -> P [a]
 ptuple p = pseq [ptranspose_st_repeat p]
 
--- | Pwhite.  Lifted 'P.white'.
---
--- > pwhite 'α' 0 9 5 == toP [3,0,1,6,6]
--- > pwhite 'α' 0 9 5 - pwhite 'α' 0 9 5 == toP [0,0,0,0,0]
---
--- The pattern below is alternately lower and higher noise.
---
--- > let {l = pseq [0.0,9.0] inf
--- >     ;h = pseq [1.0,12.0] inf}
--- > in audition (pbind [(K_freq,pwhite' 'α' l h * 20 + 800)
--- >                    ,(K_dur,0.25)])
+{- | Pwhite.  Lifted 'P.white'.
+
+> pwhite 'α' 0 9 5 == toP [3,0,1,6,6]
+> pwhite 'α' 0 9 5 - pwhite 'α' 0 9 5 == toP [0,0,0,0,0]
+
+The pattern below is alternately lower and higher noise.
+
+> let {l = pseq [0.0,9.0] inf
+>     ;h = pseq [1.0,12.0] inf}
+> in audition (pbind [(K_freq,pwhite' 'α' l h * 20 + 800)
+>                    ,(K_dur,0.25)])
+
+-}
 pwhite :: (Random n,Enum e) => e -> n -> n -> Int -> P n
 pwhite = toP .::: P.white
 
--- | Pwrand.  Lifted 'P.wrand'.
---
--- > let w = C.normalizeSum [12,6,3]
--- > in pwrand 'α' [1,2,3] w 6 == toP [2,1,2,3,3,2]
---
--- > > r = Pwrand.new([1,2,Pseq([3,4],1)],[1,3,5].normalizeSum,6);
--- > > p = Pseed(Pn(100,1),r);
--- > > p.asStream.all == [2,3,4,1,3,4,3,4,2]
---
--- > let w = C.normalizeSum [1,3,5]
--- > in pwrand 'ζ' [1,2,pseq [3,4] 1] w 6 == toP [3,4,2,2,3,4,1,3,4]
---
--- > > Pbind(\degree,Pwrand((0..7),[4,1,3,1,3,2,1].normalizeSum,inf),
--- > >       \dur,0.25).play;
---
--- > let {w = C.normalizeSum [4,1,3,1,3,2,1]
--- >     ;d = pwrand 'α' (C.series 7 0 1) w inf}
--- > in audition (pbind [(K_degree,d),(K_dur,0.25)])
+{- | Pwrand.  Lifted 'P.wrand'.
+
+> let w = C.normalizeSum [12,6,3]
+> in pwrand 'α' [1,2,3] w 6 == toP [2,1,2,3,3,2]
+
+> > r = Pwrand.new([1,2,Pseq([3,4],1)],[1,3,5].normalizeSum,6);
+> > p = Pseed(Pn(100,1),r);
+> > p.asStream.all == [2,3,4,1,3,4,3,4,2]
+
+> let w = C.normalizeSum [1,3,5]
+> in pwrand 'ζ' [1,2,pseq [3,4] 1] w 6 == toP [3,4,2,2,3,4,1,3,4]
+
+> > Pbind(\degree,Pwrand((0..7),[4,1,3,1,3,2,1].normalizeSum,inf),
+> >       \dur,0.25).play;
+
+> let {w = C.normalizeSum [4,1,3,1,3,2,1]
+>     ;d = pwrand 'α' (C.series 7 0 1) w inf}
+> in audition (pbind [(K_degree,d),(K_dur,0.25)])
+
+-}
 pwrand :: (Enum e) => e -> [P a] -> [Double] -> Int -> P a
 pwrand e a w = toP . P.wrand e (map unP a) w
 
@@ -1177,6 +1194,7 @@ on each list traversal.  Compare to `pswitch1`.
 >                       (toP [74,75,77,79,81])
 >     ;n = pjoin (pseq1 [p,q,r] inf)}
 > in audition (pbind [(K_midinote,n),(K_dur,0.13)])
+
 -}
 pseq1 :: [P a] -> Int -> P a
 pseq1 a i = join (ptake i (pflop a))
@@ -1223,7 +1241,7 @@ see also 'pfuncn'.
 > > Pbind(\dur,0.2,
 > >       \midinote,Pseq([Pshuf(#[60,61,62,63,64,65,66,67],3)],inf)).play
 
-> let m = pseqr (\e -> [pshuf e [60,61,62,63,64,65,66,67] 3]) inf
+> let {m = pseqr (\e -> [pshuf e [60,61,62,63,64,65,66,67] 3]) inf}
 > in audition (pbind [(K_dur,0.2),(K_midinote,m)])
 
 -}
@@ -1335,6 +1353,7 @@ Padd.  Add a value to an existing key, or set the key if it doesn't exist.
 >     ;p = pbind [(K_dur,0.15),(K_degree,d)]
 >     ;t n = padd (K_mtranspose,n) p}
 > in audition (pseq [p,t 1,t 2] inf)
+
 -}
 padd :: P_Bind -> P Event -> P Event
 padd (k,p) = pzipWith (\i j -> e_edit k 0 (+ i) j) p
@@ -1570,34 +1589,38 @@ pbind xs =
 (<|) k p = (k,fmap toF p)
 infixl 3 <|
 
--- | Pkey.  SC3 pattern to read 'Key' at 'Event' pattern.  Note
+{- | Pkey.  SC3 pattern to read 'Key' at 'Event' pattern.  Note
 -- however that in haskell is usually more appropriate to name the
 -- pattern using /let/.
---
--- > pkey K_freq (pbind [(K_freq,return 440)]) == toP [440]
--- > pkey K_amp (pbind [(K_amp,toP [0,1])]) == toP [0,1]
---
--- > > Pbind(\degree,Pseq([Pseries(-7,1,14),Pseries(7,-1,14)],inf),
--- > >       \dur,0.25,
--- > >       \legato,Pkey(\degree).linexp(-7,7,2.0,0.05)).play
---
--- > let {d = pseq [pseries (-7) 1 14,pseries 7 (-1) 14] inf
--- >     ;l = fmap (Sound.SC3.Lang.Math.linexp (-7) 7 2 0.05) d}
--- > in audition (pbind [(K_degree,d)
--- >                    ,(K_dur,0.25)
--- >                    ,(K_legato,l)])
+
+> pkey K_freq (pbind [(K_freq,return 440)]) == toP [440]
+> pkey K_amp (pbind [(K_amp,toP [0,1])]) == toP [0,1]
+
+> > Pbind(\degree,Pseq([Pseries(-7,1,14),Pseries(7,-1,14)],inf),
+> >       \dur,0.25,
+> >       \legato,Pkey(\degree).linexp(-7,7,2.0,0.05)).play
+
+> let {d = pseq [pseries (-7) 1 14,pseries 7 (-1) 14] inf
+>     ;l = fmap (Sound.SC3.Lang.Math.linexp (-7) 7 2 0.05) d}
+> in audition (pbind [(K_degree,d)
+>                    ,(K_dur,0.25)
+>                    ,(K_legato,l)])
+
+-}
 pkey :: Key -> P Event -> P Field
 pkey k = fmap (fromJust . e_get k)
 
--- | Pmono.  SC3 pattern that is a variant of 'pbind' for controlling
+{- | Pmono.  SC3 pattern that is a variant of 'pbind' for controlling
 -- monophonic (persistent) synthesiser nodes.
---
--- > let p = [(K_instr,pinstr' (Instr_Ref "default" False))
--- >         ,(K_id,100)
--- >         ,(K_degree,pxrand 'α' [0,2,4,5,7,9,11] inf)
--- >         ,(K_amp,pwrand 'β' [0.05,0.2] [0.7,0.3] inf)
--- >         ,(K_dur,0.25)]
--- > in audition (pmono p)
+
+> let p = [(K_instr,pinstr' (Instr_Ref "default" False))
+>         ,(K_id,100)
+>         ,(K_degree,pxrand 'α' [0,2,4,5,7,9,11] inf)
+>         ,(K_amp,pwrand 'β' [0.05,0.2] [0.7,0.3] inf)
+>         ,(K_dur,0.25)]
+> in audition (pmono p)
+
+-}
 pmono :: [P_Bind] -> P Event
 pmono b =
     let ty = fmap F_String ("s_new" `pcons` prepeat "n_set")
