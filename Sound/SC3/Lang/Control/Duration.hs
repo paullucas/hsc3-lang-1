@@ -2,25 +2,36 @@
 module Sound.SC3.Lang.Control.Duration where
 
 import Data.Maybe {- base -}
+import Data.Ratio {- base -}
 
--- * Durational
+-- * Duration
 
--- | Values that have duration.
+-- | There are three parts to a duration:
 --
--- @occ@ is the interval from the start through to the end of the
--- current event, ie. the time span the event /occupies/.
+-- 'delta' is the /logical/ or /notated/ duration, the interval to the
+-- next /sequential/ time.
 --
--- @delta@ is the interval from the start of the current event to the
--- start of the next /sequential/ event.
+-- 'occ' is the /sounding/ duration, the interval that a value
+-- actually occupies in time.
 --
--- @fwd@ is the interval from the start of the current event to the
--- start of the next /parallel/ event.
-class Durational d where
-    occ :: d -> Double
+-- 'fwd' is the /forward/ duration, the actual interval to the
+-- suceeding value, which may be /parallel/.  Usually 'fwd' this is
+-- either 'delta' or @0@.
+class Duration d where
     delta :: d -> Double
-    delta = occ
+    occ :: d -> Double
+    occ = delta
     fwd :: d -> Double
-    fwd = occ
+    fwd = delta
+
+instance Duration Int where delta = fromIntegral
+instance Duration Integer where delta = fromIntegral
+instance Duration Float where delta = realToFrac
+instance Duration Double where delta = id
+instance Integral i => Duration (Ratio i) where delta = realToFrac
+
+duration :: Duration d => d -> (Double,Double,Double)
+duration d = (occ d,delta d,fwd d)
 
 -- * Dur
 
@@ -41,7 +52,7 @@ data Dur =
         }
     deriving (Eq,Show)
 
-instance Durational Dur where
+instance Duration Dur where
     occ d = fromMaybe (delta d * legato d) (sustain' d)
     delta d = fromMaybe (dur d * stretch d * (60 / tempo d)) (delta' d)
     fwd d = maybe (delta d) (* stretch d) (fwd' d)
