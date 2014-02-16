@@ -15,7 +15,7 @@
 -- (Pwrap), `pxrand` (Pxrand).
 --
 -- SC3 /event/ patterns: `padd` (Padd), `pbind` (Pbind), `pkey`
--- (PKey), `pmono` (Pmono), `pmul` (Pmul), `ppar` (Ppar), `pstretch`
+-- (Pkey), `pmono` (Pmono), `pmul` (Pmul), `ppar` (Ppar), `pstretch`
 -- (Pstretch), `ptpar` (Ptpar).  `pedit`, `pinstr`, `pmce2`, `psynth`,
 -- `punion`.
 --
@@ -100,7 +100,8 @@ data P a = P {unP_either :: Either a [a]}
 -- pattern instances for 'fromInteger' and 'fromRational' make
 -- 'undecided' patterns.  In general /horizontal/ functions (ie. '<>')
 -- resolve using 'return' and /vertical/ functions (ie. 'zip') resolve
--- using 'pure'.
+-- using 'pure'.  In the documentation functions that resolve using
+-- 'pure' are annotated as /implicitly repeating/.
 --
 -- > 1 <> toP [2,3] == return 1 <> toP [2,3]
 -- > toP [1,2] * 3  == toP [1,2] * pure 3

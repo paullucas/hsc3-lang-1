@@ -123,7 +123,7 @@ transpose_fw_def' def l =
 
 -- | A 'transpose' variant, halting when first hole appears.
 --
--- > trs [[1,2,3],[4,5,6],[7,8]] == [[1,4,7],[2,5,8]]
+-- > transpose_st [[1,2,3],[4,5,6],[7,8]] == [[1,4,7],[2,5,8]]
 transpose_st :: [[a]] -> [[a]]
 transpose_st l =
     let (h,l') = unzip (map uncons l)

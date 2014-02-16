@@ -8,15 +8,15 @@ import Data.Ratio {- base -}
 
 -- | There are three parts to a duration:
 --
--- 'delta' is the /logical/ or /notated/ duration, the interval to the
--- next /sequential/ time.
+-- 'delta' is the /logical/ or /notated/ duration.
 --
 -- 'occ' is the /sounding/ duration, the interval that a value
--- actually occupies in time.
+-- actually occupies in time.  If 'occ' '<' 'delta' there will be a
+-- /hole/, if 'occ' '>' 'delta' there will be an /overlap/.
 --
--- 'fwd' is the /forward/ duration, the actual interval to the
--- suceeding value, which may be /parallel/.  Usually 'fwd' this is
--- either 'delta' or @0@.
+-- 'fwd' is the /forward/ duration, the interval to the start time of
+-- the next value in the sequence, which may be /parallel/ to the
+-- current value.  Ordinarily 'fwd' this is either 'delta' or @0@.
 class Duration d where
     delta :: d -> Double
     occ :: d -> Double
@@ -30,6 +30,7 @@ instance Duration Float where delta = realToFrac
 instance Duration Double where delta = id
 instance Integral i => Duration (Ratio i) where delta = realToFrac
 
+-- | Composite of 'occ', 'delta', and 'fwd'.
 duration :: Duration d => d -> (Double,Double,Double)
 duration d = (occ d,delta d,fwd d)
 
