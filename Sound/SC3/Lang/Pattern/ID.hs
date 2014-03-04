@@ -74,11 +74,11 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 -- > 1 <> mempty <> 2 == toP [1,2]
 --
 -- Patterns are 'Applicative'.  The pattern instance is pointwise &
--- truncating, unlike the combinatorial instance for ordinary lists.
--- 'pure' lifts a value into an infinite pattern of itself, '<*>'
--- applies a pattern of functions to a pattern of values.  This is
--- distinct from the list instance which is monadic, ie. 'pure' is
--- 'return' and '<*>' is 'ap'.
+-- truncating, as for 'ZipList'.  'pure' lifts a value into an
+-- infinite pattern of itself, '<*>' applies a pattern of functions to
+-- a pattern of values.  This is distinct from the combinatorial
+-- instance for ordinary lists, ie. where 'pure' is 'return' and '<*>'
+-- is 'ap'.
 --
 -- > liftA2 (+) (toP [1,2]) (toP [3,4,5]) == toP [4,6]
 -- > liftA2 (+) [1,2] [3,4,5] == [4,5,6,5,6,7]
@@ -1331,7 +1331,7 @@ ptrigger p q =
 -- * SC3 Event Patterns
 
 instance Audible (P Event) where
-    play = e_play . Event_Seq . unP
+    play_id _ = e_play . Event_Seq . unP
 
 -- | Synonym for ('Key','P Field').
 type P_Bind = (Key,P Field)

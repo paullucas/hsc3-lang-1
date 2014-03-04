@@ -32,7 +32,7 @@ instance Integral i => Duration (Ratio i) where delta = realToFrac
 
 -- | Composite of 'occ', 'delta', and 'fwd'.
 duration :: Duration d => d -> (Double,Double,Double)
-duration d = (occ d,delta d,fwd d)
+duration d = (delta d,occ d,fwd d)
 
 -- * Dur
 
@@ -54,8 +54,8 @@ data Dur =
     deriving (Eq,Show)
 
 instance Duration Dur where
-    occ d = fromMaybe (delta d * legato d) (sustain' d)
     delta d = fromMaybe (dur d * stretch d * (60 / tempo d)) (delta' d)
+    occ d = fromMaybe (delta d * legato d) (sustain' d)
     fwd d = maybe (delta d) (* stretch d) (fwd' d)
 
 -- | Default 'Dur' value, equal to one second.
