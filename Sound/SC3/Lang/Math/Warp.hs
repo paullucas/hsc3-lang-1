@@ -2,6 +2,7 @@
 -- space /[l,r]/.
 module Sound.SC3.Lang.Math.Warp where
 
+import Numeric {- base -}
 import Sound.SC3.UGen.Math {- hsc3 -}
 
 import Sound.SC3.Lang.Math
@@ -121,8 +122,15 @@ warpCurve k l r d n =
             then b - ((e ** n) * a)
             else log ((b - n) / a) / k
 
--- | Select warp function by name.
-warpNamed :: (Eq a, Floating a) => String -> Maybe (a -> a -> Warp a)
+-- | Select warp function by name.  Numerical names are interpreted as
+-- /curve/ values for 'warpCurve'.
+--
+-- > let Just w = warpNamed "lin"
+-- > let Just w = warpNamed "-3"
+-- > let Just w = warpNamed "6"
+-- > plotTable1 (map (w 1 2 W_Map) [0,0.01 .. 1])
+warpNamed :: (Ord a,Eq a,RealFrac a,Floating a) =>
+             String -> Maybe (a -> a -> Warp a)
 warpNamed nm =
     case nm of
       "lin" -> Just warpLinear
@@ -131,4 +139,7 @@ warpNamed nm =
       "cos" -> Just warpCosine
       "amp" -> Just warpFader
       "db" -> Just warpDbFader
-      _ -> Nothing
+      _ -> case readSigned readFloat nm of
+             [(c,"")] -> Just (warpCurve c)
+             _ -> Nothing
+
