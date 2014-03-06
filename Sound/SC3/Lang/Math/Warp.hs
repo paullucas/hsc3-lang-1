@@ -2,6 +2,8 @@
 -- space /[l,r]/.
 module Sound.SC3.Lang.Math.Warp where
 
+import Sound.SC3.UGen.Math {- hsc3 -}
+
 import Sound.SC3.Lang.Math
 
 -- | Warp direction.  'W_Map' is forward, 'W_Unmap' is reverse.
@@ -39,6 +41,9 @@ warpLinear l r d n =
 -- > > [0,0.5,1].collect{|n| w.map(n)} == [1,pow(2,0.5),2]
 --
 -- > map (warpExponential 1 2 W_Map) [0,0.5,1] == [1,2 ** 0.5,2]
+--
+-- > import Sound.SC3.Plot
+-- > plotTable1 (map (warpExponential 1 2 W_Map) [0,0.01 .. 1])
 warpExponential :: (Floating a) => a -> a -> Warp a
 warpExponential l r d n =
     let z = r / l
@@ -52,6 +57,8 @@ warpExponential l r d n =
 -- > > [0,0.25,0.5,0.75,1].collect{|n| w.map(n)}
 --
 -- > map (warpCosine 1 2 W_Map) [0,0.25,0.5,0.75,1]
+--
+-- > plotTable1 (map (warpCosine 1 2 W_Map) [0,0.01 .. 1])
 warpCosine :: (Floating a) => a -> a -> Warp a
 warpCosine l r d n =
     let w = warpLinear 0 (r - l) d
@@ -62,6 +69,8 @@ warpCosine l r d n =
 -- | Sine warp
 --
 -- > map (warpSine 1 2 W_Map) [0,0.25,0.5,0.75,1]
+--
+-- > plotTable1 (map (warpSine 1 2 W_Map) [0,0.01 .. 1])
 warpSine :: (Floating a) => a -> a -> Warp a
 warpSine l r d n =
     let w = warpLinear 0 (r - l) d
@@ -69,26 +78,38 @@ warpSine l r d n =
        then w (sin (pi * 0.5 * n))
        else asin (w n) / (pi / 2)
 
--- | Fader warp.  Left and right values are implicitly zero and one.
+-- | Fader warp.  Left and right values are ordinarily zero and one.
 --
--- > map (warpFader W_Map) [0,0.5,1] == [0,0.25,1]
-warpFader :: Floating a => Warp a
-warpFader d n = if d == W_Map then n * n else sqrt n
+-- > map (warpFader 0 1 W_Map) [0,0.5,1] == [0,0.25,1]
+--
+-- > plotTable1 (map (warpFader 0 1 W_Map) [0,0.01 .. 1])
+-- > plotTable1 (map (warpFader 0 2 W_Map) [0,0.01 .. 1])
+warpFader :: Floating a => a -> a -> Warp a
+warpFader l r d n =
+    let n' = if d == W_Map then n * n else sqrt n
+    in warpLinear l r d n'
 
--- | DB fader warp. Left and right values are implicitly negative
+-- | DB fader warp. Left and right values are ordinarily negative
 -- infinity and zero.  An input of @0@ gives @-180@.
 --
 -- > map (round . warpDbFader W_Map) [0,0.5,1] == [-180,-12,0]
-warpDbFader :: (Eq a,Floating a) => Warp a
-warpDbFader d n =
+--
+-- > plotTable1 (map (warpDbFader (-60) 0 W_Map) [0,0.01 .. 1])
+-- > plotTable1 (map (warpDbFader 0 60 W_Unmap) [0 .. 60])
+warpDbFader :: (Eq a,Floating a) => a -> a -> Warp a
+warpDbFader l r d n =
     if d == W_Map
-    then if n == 0 then -180 else ampdb (n * n)
-    else sqrt (dbamp n)
+    then let n' = if n == 0 then -180 else ampdb (n * n)
+         in linlin n' (-180) 0 l r
+    else sqrt (dbamp (linlin n l r (-180) 0))
 
 -- | A curve warp given by a real /n/.
 --
 -- > w_map (warpCurve (-3) 1 2) 0.25 == 1.5552791692202022
 -- > w_map (warpCurve (-3) 1 2) 0.50 == 1.8175744761936437
+--
+-- > plotTable1 (map (warpCurve (-3) 1 2 W_Map) [0,0.01 .. 1])
+-- > plotTable1 (map (warpCurve 9 1 2 W_Map) [0,0.01 .. 1])
 warpCurve :: (Ord a,Floating a) => a -> a -> a -> Warp a
 warpCurve k l r d n =
     let e = exp k
@@ -99,3 +120,15 @@ warpCurve k l r d n =
        else if d == W_Map
             then b - ((e ** n) * a)
             else log ((b - n) / a) / k
+
+-- | Select warp function by name.
+warpNamed :: (Eq a, Floating a) => String -> Maybe (a -> a -> Warp a)
+warpNamed nm =
+    case nm of
+      "lin" -> Just warpLinear
+      "exp" -> Just warpExponential
+      "sin" -> Just warpSine
+      "cos" -> Just warpCosine
+      "amp" -> Just warpFader
+      "db" -> Just warpDbFader
+      _ -> Nothing

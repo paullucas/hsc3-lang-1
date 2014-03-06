@@ -30,7 +30,14 @@ instance Duration Float where delta = realToFrac
 instance Duration Double where delta = id
 instance Integral i => Duration (Ratio i) where delta = realToFrac
 
--- | Composite of 'occ', 'delta', and 'fwd'.
+{- FlexibleInstances
+instance Real i => Duration (i,i,i) where
+    delta (i,_,_) = realToFrac i
+    occ (_,i,_) = realToFrac i
+    fwd (_,_,i) = realToFrac i
+-}
+
+-- | Composite of 'delta', 'occ', and 'fwd'.
 duration :: Duration d => d -> (Double,Double,Double)
 duration d = (delta d,occ d,fwd d)
 
