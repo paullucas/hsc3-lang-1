@@ -714,7 +714,7 @@ e_nrt =
 e_play :: Transport m => Event_Seq -> m ()
 e_play = play . e_nrt
 
-instance Audible Event_Seq where play_id _ = e_play
+instance Audible Event_Seq where play_at _ = e_play
 
 -- * Aliases
 

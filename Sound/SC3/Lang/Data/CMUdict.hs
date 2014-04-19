@@ -14,6 +14,9 @@ data Stress = No_stress | Primary_stress | Secondary_stress
             deriving (Eq,Ord,Enum,Bounded,Read,Show)
 
 -- | Arpabet phonemes as used at CMU dictionary.
+--
+-- > [AO .. NX] == [minBound .. maxBound]
+-- > length [AO .. NX] == 48
 data Phoneme
     -- Vowels (Monophthongs)
     = AO | AA | IY | UW | EH | IH | UH | AH | AX | AE
@@ -189,7 +192,7 @@ arpabet_ipa_table =
 -- > map (phoneme_ipa (Just Primary_stress)) [minBound .. maxBound]
 phoneme_ipa :: Maybe Stress -> Phoneme -> String
 phoneme_ipa s =
-    either id (fromMaybe (error "phoneme_ipa: no stressed phoneme") .
+    either id (fromMaybe (error (show ("phoneme_ipa: no stressed phoneme",s))) .
                lookup (fromMaybe (error "phoneme_ipa: no stress") s)) .
     fromMaybe (error "phoneme_ipa: no phoneme") .
     flip lookup arpabet_ipa_table

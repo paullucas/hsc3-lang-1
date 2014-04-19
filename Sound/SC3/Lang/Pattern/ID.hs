@@ -1331,7 +1331,7 @@ ptrigger p q =
 -- * SC3 Event Patterns
 
 instance Audible (P Event) where
-    play_id _ = e_play . Event_Seq . unP
+    play_at _ = e_play . Event_Seq . unP
 
 -- | Synonym for ('Key','P Field').
 type P_Bind = (Key,P Field)
