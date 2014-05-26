@@ -5,7 +5,7 @@ Description:       Haskell library defining operations from the
                    SuperCollider language class library
 License:           GPL
 Category:          Sound
-Copyright:         (c) Rohan Drape, 2007-2013
+Copyright:         (c) Rohan Drape, 2007-2014
 Author:            Rohan Drape
 Maintainer:        rd@slavepianos.org
 Stability:         Experimental
@@ -46,6 +46,7 @@ Library
                    Sound.SC3.Lang.Control.Event
                    Sound.SC3.Lang.Control.Instrument
                    Sound.SC3.Lang.Control.Midi
+                   Sound.SC3.Lang.Control.Midi.ST
                    Sound.SC3.Lang.Control.Pitch
                    Sound.SC3.Lang.Control.OverlapTexture
                    Sound.SC3.Lang.Core
