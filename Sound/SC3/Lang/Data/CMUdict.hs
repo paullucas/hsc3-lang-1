@@ -7,6 +7,7 @@ module Sound.SC3.Lang.Data.CMUdict where
 import Data.Char {- base -}
 import Data.Maybe {- base -}
 import Data.List {- base -}
+import Data.List.Split {- split -}
 import qualified Data.Map as M {- containers -}
 
 -- | Stress indicators, placed at the stressed syllabic vowel.
@@ -40,26 +41,52 @@ data Phoneme
     | L | EL | R | DX | NX
       deriving (Eq,Ord,Enum,Bounded,Read,Show)
 
--- | 'Phoneme' with stress if given.
-type Syllable = (Phoneme,Maybe Stress)
+-- | 'Phoneme' with 'Stress', if given.
+type Phoneme_str = (Phoneme,Maybe Stress)
+
+-- | There is a variant CMU dictionary with syllable marks.
+-- <http://webdocs.cs.ualberta.ca/~kondrak/cmudict.html>
+type SYLLABLE = [Phoneme_str]
 
 -- | An ARPABET word.
-type ARPABET = [Syllable]
+type ARPABET = [Phoneme_str]
+
+-- | An ARPABET word, with syllables.
+type ARPABET_syl = [SYLLABLE]
+
+-- | Parameterised CMU dictionary.
+type CMU_Dict_ty a = M.Map String a
 
 -- | The CMU dictionary.
-type CMU_Dict = M.Map String ARPABET
+type CMU_Dict = CMU_Dict_ty ARPABET
 
--- | Parse 'Syllable'
+-- | The syllabic CMU dictionary.
+type CMU_Dict_syl = CMU_Dict_ty ARPABET_syl
+
+-- | Parse 'Phoneme_str'
 --
--- > parse_syllable "EY1" == (EY,Just Primary_stress)
--- > parse_syllable "R" == (R,Nothing)
-parse_syllable :: String -> Syllable
-parse_syllable w =
+-- > parse_phoneme_str "EY1" == (EY,Just Primary_stress)
+-- > parse_phoneme_str "R" == (R,Nothing)
+parse_phoneme_str :: String -> Phoneme_str
+parse_phoneme_str w =
     case reverse w of
       '0':w' -> (read (reverse w'),Just No_stress)
       '1':w' -> (read (reverse w'),Just Primary_stress)
       '2':w' -> (read (reverse w'),Just Secondary_stress)
       _ -> (read w,Nothing)
+
+parse_arpabet :: String -> (String,ARPABET)
+parse_arpabet e =
+    case words e of
+      w:p -> (w,map parse_phoneme_str p)
+      _ -> error "parse_arpabet"
+
+parse_arpabet_syl :: String -> (String,ARPABET_syl)
+parse_arpabet_syl e =
+    case words e of
+      w:p -> let p' = wordsBy (== "-") p
+             in (w,map (map parse_phoneme_str) p')
+      _ -> error "parse_arpabet_syl"
 
 -- | Classification of 'Phoneme's.
 data Phoneme_Class = Monophthong | Diphthong | R_Coloured
@@ -94,30 +121,37 @@ arpabet_classification p =
        fmap fst $
        find f arpabet_classification_table
 
+cmudict_load_ty :: (String -> (String,a)) -> FilePath -> IO (CMU_Dict_ty a)
+cmudict_load_ty pf fn = do
+  s <- readFile fn
+  let is_comment w = case w of {';':_ -> True;_ -> False}
+      l = filter (not . is_comment) (lines s)
+  return (M.fromList (map pf l))
+
 -- | Load CMU dictionary from file.
 --
 -- > d <- cmudict_load "/home/rohan/data/cmudict/cmudict.0.7a"
 -- > M.size d == 133313
 cmudict_load :: FilePath -> IO CMU_Dict
-cmudict_load fn = do
-  s <- readFile fn
-  let is_comment w = case w of {';':_ -> True;_ -> False}
-      l = filter (not . is_comment) (lines s)
-      parse_e e = case words e of
-                    w:p -> (w,map parse_syllable p)
-                    _ -> undefined
-  return (M.fromList (map parse_e l))
+cmudict_load = cmudict_load_ty parse_arpabet
+
+-- | Load syllable CMU dictionary from file.
+--
+-- > d <- cmudict_syl_load "/home/rohan/data/cmudict/cmudict.0.6d.syl"
+-- > M.size d == 129463
+cmudict_syl_load :: FilePath -> IO CMU_Dict_syl
+cmudict_syl_load = cmudict_load_ty parse_arpabet_syl
 
 -- | Dictionary lookup.
 --
 -- > let r = [(R,Nothing),(EY,Just Primary_stress)
 -- >         ,(N,Nothing),(ER,Just No_stress),(D,Nothing)]
 -- > in d_lookup d "reynard" == Just r
-d_lookup :: CMU_Dict -> String -> Maybe ARPABET
+d_lookup :: CMU_Dict_ty a -> String -> Maybe a
 d_lookup d w = M.lookup (map toUpper w) d
 
 -- | Variant that retains query string if not in dictionary.
-d_lookup' :: CMU_Dict -> String -> Either String ARPABET
+d_lookup' :: CMU_Dict_ty a -> String -> Either String a
 d_lookup' d w = maybe (Left w) Right (d_lookup d w)
 
 -- * IPA
@@ -199,7 +233,7 @@ phoneme_ipa s =
 
 -- | Consult 'arpabet_ipa_table'.
 --
--- > let r = map parse_syllable (words "R EY1 N ER0 D")
+-- > let r = map parse_phoneme_str (words "R EY1 N ER0 D")
 -- > in arpabet_ipa r == "ɹeɪnɝd"
 arpabet_ipa :: ARPABET -> String
 arpabet_ipa = concatMap (\(p,s) -> phoneme_ipa s p)
