@@ -84,7 +84,10 @@ mouse_y = fmap (\(_,y,_) -> y) . ui_read
 mouse_button :: UI -> IO Bool
 mouse_button = fmap (\(_,_,b) -> b) . ui_read
 
--- > m <- mouse_st
+-- | Lazy I/O form.
+--
+-- > let f (c,st) = print (c,st) >> threadDelay 500000
+-- > mapM_ f  . zip ['a'..] =<< mouse_st
 mouse_st :: IO [ST]
 mouse_st = do
   ui <- ui_init 17
