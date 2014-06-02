@@ -4,6 +4,7 @@ import Control.Concurrent {- base -}
 import Control.Monad {- base -}
 import Data.Bits {- base -}
 import System.IO.Unsafe {- base -}
+import System.Mem.Weak {- base -}
 
 import Graphics.X11.Xlib {- X11 -}
 import Graphics.X11.Xlib.Extras {- X11 -}
@@ -63,13 +64,6 @@ ui_init msec = do
 ui_read :: UI -> IO ST
 ui_read (_,_,v) = readMVar v
 
-ui_get_contents :: UI -> IO [ST]
-ui_get_contents ui =
-    unsafeInterleaveIO $ do
-      x  <- ui_read ui
-      xs <- ui_get_contents ui
-      return (x : xs)
-
 ui_end :: UI -> IO ()
 ui_end (_,th,_) = killThread th
 
@@ -84,11 +78,21 @@ mouse_y = fmap (\(_,y,_) -> y) . ui_read
 mouse_button :: UI -> IO Bool
 mouse_button = fmap (\(_,_,b) -> b) . ui_read
 
+-- * Conversion
+
+io_get_contents :: IO st -> (st -> IO a) -> (st -> IO ()) -> IO [a]
+io_get_contents init_f read_f close_f = do
+  let act st = unsafeInterleaveIO $ do
+                 x  <- read_f st
+                 xs <- act st
+                 return (x : xs)
+  st <- init_f
+  addFinalizer st (print "io_get_contents: finalise" >> close_f st)
+  act st
+
 -- | Lazy I/O form.
 --
--- > let f (c,st) = print (c,st) >> threadDelay 500000
--- > mapM_ f  . zip ['a'..] =<< mouse_st
+-- > let f (c,st) = print (c,st) >> threadDelay 250000
+-- > in mapM_ f  . zip ['a'..'z'] =<< mouse_st
 mouse_st :: IO [ST]
-mouse_st = do
-  ui <- ui_init 17
-  ui_get_contents ui
+mouse_st = io_get_contents xq_init xq_read xq_close
