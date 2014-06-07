@@ -25,9 +25,12 @@ mk_env s t =
         p = envLinen' t s t 1 (c,c,c)
     in envGen KR 1 1 0 1 RemoveSynth p
 
+with_out_u :: UGen -> UGen -> UGen
+with_out_u g = out 0 . (*) g
+
 -- | Apply 'mk_env' envelope to input signal and write to output bus @0@.
 with_env_u :: UGen -> UGen -> UGen -> UGen
-with_env_u g a = out 0 . (*) g . mk_env a
+with_env_u g s = with_out_u g . mk_env s
 
 -- | Variant of 'with_env_u' where envelope parameters are lifted from
 -- 'Double' to 'UGen'.
@@ -77,19 +80,36 @@ xfadeTexture_env (s,t,_) = (s,t)
 xfadeTexture_dt :: XFadeTexture -> Texture_DT
 xfadeTexture_dt (s,t,_) = let r = t + s in ((r + t) / r,r)
 
--- | Generate 'Synthdef' from envelope parameters for 'with_env' and
--- a continuous signal.
-gen_synth :: (Double,Double) -> UGen -> Synthdef
+-- | Generate 'Synthdef', perhaps with envelope parameters for
+-- 'with_env', and a continuous signal.
+gen_synth :: Maybe (Double,Double) -> UGen -> Synthdef
 gen_synth k g =
   let n = show (hashUGen g)
-      g' = with_env k g
+      g' = maybe (out 0 g) (flip with_env g) k
   in synthdef n g'
+
+-- | Require envelope.
+gen_synth' :: (Double,Double) -> UGen -> Synthdef
+gen_synth' k = gen_synth (Just k)
+
+-- | Generate an /event/ pattern from 'OverlapTexture' control
+-- parameters and a continuous signal.
+spawnTextureP :: (Double,Int) -> UGen -> P Event
+spawnTextureP (t,c) g =
+    let s = gen_synth Nothing g
+    in pbind [(K_instr,pinstr' (Instr_Def s False))
+             ,(K_dur,pn (return (F_Double t)) c)
+             ,(K_legato,pure (F_Double 1))]
+
+-- | 'audition' 'spawnTextureP'.
+spawnTextureU :: (Double,Int) -> UGen -> IO ()
+spawnTextureU = audition .: spawnTextureP
 
 -- | Generate an /event/ pattern from 'OverlapTexture' control
 -- parameters and a continuous signal.
 overlapTextureP :: OverlapTexture -> UGen -> P Event
 overlapTextureP k g =
-    let s = gen_synth (overlapTexture_env k) g
+    let s = gen_synth' (overlapTexture_env k) g
         (l,d) = overlapTexture_dt k
         (_,_,_,c) = k
     in pbind [(K_instr,pinstr' (Instr_Def s False))
@@ -137,7 +157,7 @@ overlapTextureU_pp k u nc f = do
 -- parameters and a continuous signal.
 xfadeTextureP :: XFadeTexture -> UGen -> P Event
 xfadeTextureP k g =
-    let s = gen_synth (xfadeTexture_env k) g
+    let s = gen_synth' (xfadeTexture_env k) g
         (l,d) = xfadeTexture_dt k
         (_,_,c) = k
     in pbind [(K_instr,pinstr' (Instr_Def s False))
@@ -170,7 +190,7 @@ overlapTextureP_st k u i_st =
         (_,_,_,c) = k
         g = take c (unfoldr (Just . u) i_st)
         i = flip Instr_Def False
-        s = toP (map (i . gen_synth (overlapTexture_env k)) g)
+        s = toP (map (i . gen_synth' (overlapTexture_env k)) g)
     in pbind [(K_instr,fmap F_Instr s)
              ,(K_dur,pure (F_Double d))
              ,(K_legato,pure (F_Double l))]
