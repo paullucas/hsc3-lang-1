@@ -94,15 +94,15 @@ gen_synth' k = gen_synth (Just k)
 
 -- | Generate an /event/ pattern from 'OverlapTexture' control
 -- parameters and a continuous signal.
-spawnTextureP :: (Double,Int) -> UGen -> P Event
+spawnTextureP :: (Int -> Double,Int) -> UGen -> P Event
 spawnTextureP (t,c) g =
     let s = gen_synth Nothing g
     in pbind [(K_instr,pinstr' (Instr_Def s False))
-             ,(K_dur,pn (return (F_Double t)) c)
+             ,(K_dur,toP (map (F_Double . t) [0..c]))
              ,(K_legato,pure (F_Double 1))]
 
 -- | 'audition' 'spawnTextureP'.
-spawnTextureU :: (Double,Int) -> UGen -> IO ()
+spawnTextureU :: (Int -> Double,Int) -> UGen -> IO ()
 spawnTextureU = audition .: spawnTextureP
 
 -- | Generate an /event/ pattern from 'OverlapTexture' control
