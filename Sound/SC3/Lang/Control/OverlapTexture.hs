@@ -136,13 +136,16 @@ post_process_s nc f =
         nm = show (hashUGen u)
     in synthdef nm u
 
--- | Audition /event/ pattern with specified post-processing function.
-post_process_a :: (Transport m) => P Event -> Int -> (UGen -> UGen) -> m ()
-post_process_a p nc f = do
+-- | Run post-processing function.
+post_process :: (Transport m) => Int -> (UGen -> UGen) -> m ()
+post_process nc f = do
   let s = post_process_s nc f
   _ <- async (d_recv s)
   send (s_new0 (synthdefName s) (-1) AddToTail 2)
-  play p
+
+-- | Audition /event/ pattern with specified post-processing function.
+post_process_a :: (Transport m) => P Event -> Int -> (UGen -> UGen) -> m ()
+post_process_a p nc f = post_process nc f >> play p
 
 -- | Post processing function.
 type PPF = (UGen -> UGen)
