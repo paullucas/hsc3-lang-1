@@ -1151,7 +1151,7 @@ pxrand e a n = toP (P.xrand e (map unP a) n)
 pbrown' :: (Enum e,Random n,Num n,Ord n) =>
            e -> P n -> P n -> P n -> Int -> P n
 pbrown' e l r s n =
-    let f = liftP3_repeat (P.brown' e)
+    let f = liftP3_repeat (I.brown e)
     in ptake n (f l r s)
 
 -- | Un-joined variant of 'prand'.
