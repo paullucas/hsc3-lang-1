@@ -18,8 +18,8 @@ import Sound.SC3 {- hsc3 -}
 import Sound.SC3.Lang.Control.Duration
 import Sound.SC3.Lang.Control.Event
 import Sound.SC3.Lang.Control.Instrument
+import Sound.SC3.Lang.Core
 import Sound.SC3.Lang.Pattern.ID
-import qualified Sound.SC3.Lang.Pattern.List as P
 
 -- * SC3 Event Patterns
 
@@ -502,7 +502,7 @@ layer of MCE expansion.
 -}
 p_un_mce :: P Event -> P Event
 p_un_mce p =
-    let l' = P.transpose_fw_def' e_rest (map e_un_mce' (unP p))
+    let l' = transpose_fw_def' e_rest (map e_un_mce' (unP p))
     in toP (e_par (zip (repeat 0) l'))
 
 -- * Non-SC3 Event Patterns

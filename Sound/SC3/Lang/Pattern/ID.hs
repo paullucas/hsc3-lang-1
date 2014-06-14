@@ -361,7 +361,7 @@ psplitPlaces' = liftP2 S.splitPlaces
 psplitPlaces :: P Int -> P a -> P (P a)
 psplitPlaces = fmap toP .: psplitPlaces'
 
--- | Pattern variant of 'P.take_inf', see also 'pfinval'.
+-- | Pattern variant of 'take_inf', see also 'pfinval'.
 --
 -- > ptake 5 (pseq [1,2,3] 2) == toP [1,2,3,1,2]
 -- > ptake 5 (toP [1,2,3]) == toP [1,2,3]
@@ -373,15 +373,15 @@ psplitPlaces = fmap toP .: psplitPlaces'
 -- > ptake 5 (toP [1,2,3]) == toP [1,2,3]
 -- > pser [1,2,3] 5 == toP [1,2,3,1,2]
 ptake :: Int -> P a -> P a
-ptake n = liftP (P.take_inf n)
+ptake n = liftP (take_inf n)
 
--- | Type specialised 'P.mcycle'.
+-- | Type specialised 'mcycle'.
 --
 -- > ptake 5 (pcycle 1) == preplicate 5 1
 -- > ptake 5 (pcycle (pure 1)) == preplicate 5 1
 -- > ptake 5 (pcycle (return 1)) == preplicate 5 1
 pcycle :: P a -> P a
-pcycle = P.mcycle
+pcycle = mcycle
 
 -- | Type specialised 'mfilter'.  Aliased to `pselect`.  See also
 -- `preject`.
@@ -443,9 +443,9 @@ ptail = pdrop 1
 ptranspose :: [P a] -> P [a]
 ptranspose l = toP (L.transpose (map unP l))
 
--- | An /implicitly repeating/ pattern variant of 'P.transpose_st'.
+-- | An /implicitly repeating/ pattern variant of 'transpose_st'.
 ptranspose_st_repeat :: [P a] -> P [a]
-ptranspose_st_repeat l = toP (P.transpose_st (map unP_repeat l))
+ptranspose_st_repeat l = toP (transpose_st (map unP_repeat l))
 
 -- * SC3 Collection Patterns
 
@@ -765,7 +765,7 @@ pif = liftP3_repeat P.if_demand
 -- > place [[1],[2,5],[3,6..]] 4 == toP [1,2,3,1,5,6,1,2,9,1,5,12]
 place :: [[a]] -> Int -> P a
 place a n =
-    let f = toP . concat . P.take_inf n . L.transpose . map cycle
+    let f = toP . concat . take_inf n . L.transpose . map cycle
     in f a
 
 -- | Pn.  SC3 pattern to repeat the enclosed pattern a number of
@@ -815,7 +815,7 @@ pn p n = mconcat (replicate n p)
 ppatlace :: [P a] -> Int -> P a
 ppatlace a n =
     let a' = L.transpose (map unP_repeat a)
-    in toP (L.concat (P.take_inf n a'))
+    in toP (L.concat (take_inf n a'))
 
 {-| Prand.  SC3 pattern to make n random selections from a list of
 patterns, the resulting pattern is flattened (joined).

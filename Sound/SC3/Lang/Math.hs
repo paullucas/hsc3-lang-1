@@ -64,6 +64,9 @@ linexp l r l' r' n =
 log10 :: Floating a => a -> a
 log10 = logBase 10
 
+octpc_to_midi :: Num a => (a,a) -> a
+octpc_to_midi (o,pc) = 60 + ((o - 4) * 12) + pc
+
 -- | @SimpleNumber.midicps@ translates from midi note number to cycles
 -- per second.
 --
@@ -71,6 +74,9 @@ log10 = logBase 10
 -- > map midicps [57,69] == [220,440]
 midicps :: (Floating a) => a -> a
 midicps a = 440.0 * (2.0 ** ((a - 69.0) * (1.0 / 12.0)))
+
+octpc_to_cps :: (Floating a) => (a,a) -> a
+octpc_to_cps = midicps . octpc_to_midi
 
 -- * UGen
 

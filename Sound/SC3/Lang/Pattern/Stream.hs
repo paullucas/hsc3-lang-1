@@ -104,19 +104,23 @@ white :: (Random n,Enum e) => e -> n -> n -> [n]
 white e l r = randomRs (l,r) (mkStdGen (fromEnum e))
 
 -- | Weighted selection of elements from a list.
+wrand_generic :: (Enum e,Fractional n,Ord n,Random n) => e -> [a] -> [n] -> [a]
+wrand_generic e a w =
+    let f g = let (r,g') = R.wchoose a w g
+              in r : f g'
+    in if length a /= length w
+       then error "wrand_generic: a/w must be of equal length"
+       else f (mkStdGen (fromEnum e))
+
+-- | Type restricted variant.
 --
 -- > import qualified Sound.SC3.Lang.Collection as C
 --
 -- > let {w = C.normalizeSum [1..5]
 -- >     ;r = wrand 'ζ' "wrand" w}
 -- > in take_until_forms_set "wrand" r == "dnanrdnaddrnrrndrrdw"
-wrand :: (Enum e,Fractional n,Ord n,Random n) => e -> [a] -> [n] -> [a]
-wrand e a w =
-    let f g = let (r,g') = R.wchoose a w g
-              in r : f g'
-    in if length a /= length w
-       then error "wrand: a/w must be of equal length"
-       else f (mkStdGen (fromEnum e))
+wrand :: Enum e => e -> [a] -> [Double] -> [a]
+wrand = wrand_generic
 
 -- | Select elements from /l/ in random sequence, but do not immediately repeat an element.
 --
