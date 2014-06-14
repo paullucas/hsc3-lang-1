@@ -1,0 +1,7 @@
+LINEAR: ![](sw/hsc3-lang/help/svg/random/linear.svg)
+EXPONENTIAL: ![](sw/hsc3-lang/help/svg/random/exponential.svg)
+CAUCHY: ![](sw/hsc3-lang/help/svg/random/cauchy.svg)
+HYPERBOLIC COSINE: ![](sw/hsc3-lang/help/svg/random/hyperbolic-cosine.svg)
+LOGISTIC: ![](sw/hsc3-lang/help/svg/random/logistic.svg)
+ARC SINE: ![](sw/hsc3-lang/help/svg/random/arc-sine.svg)
+BETA: ![](sw/hsc3-lang/help/svg/random/beta.svg)

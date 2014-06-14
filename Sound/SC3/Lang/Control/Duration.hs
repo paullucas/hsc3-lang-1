@@ -16,7 +16,7 @@ import Data.Ratio {- base -}
 --
 -- 'fwd' is the /forward/ duration, the interval to the start time of
 -- the next value in the sequence, which may be /parallel/ to the
--- current value.  Ordinarily 'fwd' this is either 'delta' or @0@.
+-- current value.  Ordinarily 'fwd' is either 'delta' or @0@.
 class Duration d where
     delta :: d -> Double
     occ :: d -> Double

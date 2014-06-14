@@ -24,6 +24,8 @@ exponential delta u = (- (log u)) / delta
 
 -- | §4.3.5 (τ=1)
 --
+-- > h [map (cauchy 1.0) r]
+--
 -- > import Data.Maybe
 -- > let narrow z n = if n < -z || n > z then Nothing else Just n
 -- > h [mapMaybe (narrow 10 . cauchy 1.0) r]
@@ -63,10 +65,13 @@ arc_sine u =
 -- | §4.4.2 (Algorithm 15)
 --
 -- > let adj l = case l of {[] -> []; p:q:l' -> (p,q) : adj l'}
--- > h [mapMaybe (beta 0.5 0.5) (adj r)]
--- > h [mapMaybe (beta 0.25 0.25) (adj r)]
--- > h [mapMaybe (beta 0.75 0.5) (adj r)]
--- > h [mapMaybe (beta 0.5 0.75) (adj r)]
+-- > let r' = adj r
+-- > h [mapMaybe (beta 0.45 0.45) r'
+-- >   ,mapMaybe (beta 0.65 0.45) r'
+-- >   ,mapMaybe (beta 0.45 0.65) r']
+--
+-- > h [mapMaybe (beta 0.35 0.5) r'
+-- >   ,mapMaybe (beta 0.5 0.65) r']
 beta :: (Floating a,Ord a) => a -> a -> (a,a) -> Maybe a
 beta a b (u1,u2) =
     let ea = 1.0 / a
