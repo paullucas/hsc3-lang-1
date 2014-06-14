@@ -30,7 +30,7 @@ sbind_tseq grp nid (sy,tm,sus,pr) =
                       -- pr' may be finite, zipped here to halt if required...
                       f (t,g,k,_) = bundle (t + g) [n_set1 k "gate" 0]
                   in map f (zip4 tm sus' nid pr')
-             else if isNothing sus
+             else if isNothing sus || "sustain" `elem` sy_pr
                   then []
                   else error ("sbind_tseq: sus given but no gate parameter")
         pr_unused = (map fst pr \\ sy_pr) \\ ["dur","sustain"]
