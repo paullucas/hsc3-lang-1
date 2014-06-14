@@ -10,8 +10,7 @@ import System.Random {- random -}
 
 import qualified Sound.SC3.Lang.Collection as C
 import Sound.SC3.Lang.Core
-import qualified Sound.SC3.Lang.Math as M
-import qualified Sound.SC3.Lang.Random.Gen as R
+import qualified Sound.SC3.Lang.Pattern.Stream as I
 
 -- * Data.Bool variants
 
@@ -70,14 +69,6 @@ lindex l n =
            ([],_) -> Nothing
            (x:_,0) -> Just x
            (_:l',_) -> lindex l' (n - 1)
-
--- | List section with /wrapped/ indices.
---
--- > segment [0..4] 5 (3,5) == [3,4,0]
-segment :: [a] -> Int -> (Int,Int) -> [a]
-segment a k (l,r) =
-    let i = map (S.genericWrap 0 (k - 1)) [l .. r]
-    in map (a !!) i
 
 -- | If /n/ is 'maxBound' this is 'id', else it is 'take'.
 take_inf :: Int -> [a] -> [a]
@@ -210,15 +201,6 @@ interleave2 p q =
 interleave :: [[a]] -> [a]
 interleave = concat . transpose
 
--- | Remove successive duplicates.
---
--- > rsd (stutter (repeat 2) [1,2,3]) == [1,2,3]
--- > rsd [1,2,3,1,2,3] == [1,2,3,1,2,3]
-rsd :: (Eq a) => [a] -> [a]
-rsd =
-    let f (p,_) i = (Just i,if Just i == p then Nothing else Just i)
-    in mapMaybe snd . scanl f (Nothing,Nothing)
-
 -- | Pattern where the 'tr' pattern determines the rate at which
 -- values are read from the `x` pattern.  For each sucessive true
 -- value at 'tr' the output is a (`Just` e) of each succesive element at
@@ -238,7 +220,7 @@ trigger p q =
 --
 -- > [4,4,1,8,5] `isPrefixOf` brown 'α' 0 9 15
 brown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> [n]
-brown e l r s = brown' e (repeat l) (repeat r) (repeat s)
+brown e l r s = I.brown e (repeat l) (repeat r) (repeat s)
 
 -- | PdurStutter.  SC3 pattern to partition a value into /n/ equal
 -- subdivisions.  Subdivides each duration by each stutter and yields
@@ -261,7 +243,7 @@ durStutter =
 --
 -- > exprand 'α' 0.0001 1 10
 exprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> [a]
-exprand e l r n = fmap (M.exprange l r) (white e 0 1 n)
+exprand e l r n = take_inf n (I.exprand e l r)
 
 -- | Pfuncn.  Variant of the SC3 pattern that evaluates a closure at
 -- each step that has a 'StdGen' form.
@@ -287,10 +269,7 @@ if_demand p q r =
 --
 -- > rand' 'α' [1..9] 9 == [3,9,2,9,4,7,4,3,8]
 rand' :: Enum e => e -> [a] -> Int -> [a]
-rand' e a n =
-    let k = length a - 1
-        i = white e 0 k n
-    in map (a !!) i
+rand' e a n = take_inf n (I.rand e a)
 
 -- | Pseq.  'concat' of 'replicate' of 'concat'.
 --
@@ -303,13 +282,7 @@ seq' l n = concat (replicate n (concat l))
 -- > slide [1,2,3,4] 4 3 1 0 True == [1,2,3,2,3,4,3,4,1,4,1,2]
 -- > slide [1,2,3,4,5] 3 3 (-1) 0 True == [1,2,3,5,1,2,4,5,1]
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
-slide a n j s i wr =
-    let k = length a
-        l = enumFromThen i (i + s)
-        r = map (+ (j - 1)) l
-    in if wr
-       then concat (take n (map (segment a k) (zip l r)))
-       else error "slide: non-wrap variant not implemented"
+slide a n j s i wr = concat (take n (I.slide a j s i wr))
 
 -- | Pstutter.  Repeat each element of a pattern /n/ times.
 --
@@ -357,18 +330,18 @@ switch1 ps =
 -- > white 'α' 1 9 5  == [3,9,2,9,4]
 -- > let p = white 'α' 0.0 1.0 3 in zipWith (-) p p == [0,0,0]
 white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
-white e l r n = take_inf n (randomRs (l,r) (mkStdGen (fromEnum e)))
+white e l r n = take_inf n (I.white e l r)
 
 -- | Pwrand.  SC3 pattern to embed values randomly chosen from a list.
 -- Returns one item from the list at random for each repeat, the
 -- probability for each item is determined by a list of weights which
--- should sum to 1.0.
+-- should sum to 1.0 and must be equal in length to the selection list.
 --
 -- > let w = C.normalizeSum [1,3,5]
 -- > in wrand 'ζ' [[1],[2],[3,4]] w 6 == [3,4,2,2,3,4,1,3,4]
 wrand :: (Enum e,Fractional n,Ord n,Random n) =>
          e -> [[a]] -> [n] -> Int -> [a]
-wrand e a w n = concat (take_inf n (wrand' e a w))
+wrand e a w n = concat (take_inf n (I.wrand e a w))
 
 -- | Pxrand.  SC3 pattern that is like 'rand' but filters successive
 -- duplicates.
@@ -378,26 +351,6 @@ xrand :: Enum e => e -> [[a]] -> Int -> [a]
 xrand e a n = take_inf n (xrand' e a)
 
 -- * SC3 Variant Patterns
-
--- | Underlying 'brown''.
-brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
-brown_ (l,r,s) (n,g) =
-    let (i,g') = randomR (-s,s) g
-    in (S.foldToRange l r (n + i),g')
-
--- | Brown noise with list inputs.
---
--- > let l = brown' 'α' (repeat 1) (repeat 700) (cycle [1,20])
--- > in [415,419,420,428] `isPrefixOf` l
-brown' :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
-brown' e l_ r_ s_ =
-    let i = (randomR (head l_,head r_) (mkStdGen (fromEnum e)))
-        rec (n,g) z =
-            case z of
-              [] -> []
-              (l,r,s):z' -> let (n',g') = brown_ (l,r,s) (n,g)
-                            in n' : rec (n',g') z'
-    in rec i (zip3 l_ r_ s_)
 
 -- | Underlying 'if_demand'.
 if_rec :: ([Bool],[a],[a]) -> Maybe (a,([Bool],[a],[a]))
@@ -459,17 +412,6 @@ whitei' = white
 whitei :: (Random n,S.RealFracE n,Enum e) => e -> n -> n -> Int -> [n]
 whitei = fmap S.floorE .::: white
 
--- | Underlying 'wrand'.
-wrand' :: (Enum e,Fractional n,Ord n,Random n) => e -> [[a]] -> [n] -> [[a]]
-wrand' e a w =
-    let f g = let (r,g') = R.wchoose a w g
-              in r : f g'
-    in f (mkStdGen (fromEnum e))
-
 -- | Underlying 'xrand'.
 xrand' :: Enum e => e -> [[a]] -> [a]
-xrand' e a =
-    let k = length a - 1
-        f j g = let (i,g') = randomR (0,k) g
-                in if i == j then f j g' else (a !! i) ++ f i g'
-    in f (-1) (mkStdGen (fromEnum e))
+xrand' e = concat . I.xrand e

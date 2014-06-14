@@ -40,6 +40,7 @@ import qualified Sound.SC3.Lang.Collection as C
 import Sound.SC3.Lang.Core
 import qualified Sound.SC3.Lang.Math as M
 import qualified Sound.SC3.Lang.Pattern.List as P
+import qualified Sound.SC3.Lang.Pattern.Stream as I
 import qualified Sound.SC3.Lang.Random.Gen as R
 
 -- * P
@@ -1298,12 +1299,12 @@ pinterleave = toP . P.interleave . map unP
 pisPrefixOf :: Eq a => P a -> P a -> Bool
 pisPrefixOf p q = L.isPrefixOf (unP p) (unP q)
 
--- | Lifted 'P.rsd'.
+-- | Lifted 'I.rsd'.
 --
 -- > prsd (pstutter 2 (toP [1,2,3])) == toP [1,2,3]
 -- > prsd (pseq [1,2,3] 2) == toP [1,2,3,1,2,3]
 prsd :: (Eq a) => P a -> P a
-prsd = liftP P.rsd
+prsd = liftP I.rsd
 
 -- | Lifted 'P.trigger'.
 --
