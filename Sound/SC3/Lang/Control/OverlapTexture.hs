@@ -15,6 +15,7 @@ import Sound.SC3 {- hsc3 -}
 import Sound.SC3.Lang.Control.Event
 import Sound.SC3.Lang.Control.Instrument
 import Sound.SC3.Lang.Core
+import Sound.SC3.Lang.Pattern.Event
 import Sound.SC3.Lang.Pattern.ID
 
 -- | Make an 'envGen' 'UGen' with 'envLinen'' structure with given
@@ -103,7 +104,7 @@ spawnTextureP (t,c) g =
 
 -- | 'audition' 'spawnTextureP'.
 spawnTextureU :: (Int -> Double,Int) -> UGen -> IO ()
-spawnTextureU = audition .: spawnTextureP
+spawnTextureU = paudition .: spawnTextureP
 
 -- | Generate an /event/ pattern from 'OverlapTexture' control
 -- parameters and a continuous signal.
@@ -125,7 +126,7 @@ overlapTextureP k g =
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in overlapTextureU (3,1,6,9) u
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
-overlapTextureU = audition .: overlapTextureP
+overlapTextureU = paudition .: overlapTextureP
 
 -- | Generate 'Synthdef' from a signal processing function over the
 -- indicated number of channels.
@@ -145,7 +146,7 @@ post_process nc f = do
 
 -- | Audition /event/ pattern with specified post-processing function.
 post_process_a :: (Transport m) => P Event -> Int -> (UGen -> UGen) -> m ()
-post_process_a p nc f = post_process nc f >> play p
+post_process_a p nc f = post_process nc f >> pplay p
 
 -- | Post processing function.
 type PPF = (UGen -> UGen)
@@ -173,7 +174,7 @@ xfadeTextureP k g =
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in xfadeTextureU (1,3,6) u
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
-xfadeTextureU = audition .: xfadeTextureP
+xfadeTextureU = paudition .: xfadeTextureP
 
 -- | Variant of 'xfadeTextureU' with post-processing stage.
 xfadeTextureU_pp :: XFadeTexture -> UGen -> Int -> PPF -> IO ()
@@ -200,7 +201,7 @@ overlapTextureP_st k u i_st =
 
 -- | Audition pattern given by 'overlapTextureP_st'.
 overlapTextureS :: OverlapTexture -> USTF st -> st -> IO ()
-overlapTextureS = audition .:: overlapTextureP_st
+overlapTextureS = paudition .:: overlapTextureP_st
 
 -- | Variant of 'overlapTextureS' with post-processing stage.
 overlapTextureS_pp :: OverlapTexture -> USTF st -> st -> Int -> PPF  -> IO ()
