@@ -1,11 +1,11 @@
--- | @sclang@ value pattern functions.
--- See <http://rd.slavepianos.org/?t=hsc3-texts> for tutorial.
+-- | Pattern functions.
 --
--- Haskell patterns: `pappend`, `pbool`, `pconcat`, `pcons`,
--- `pcountpost`, `pcountpre`, `pcycle`, `pempty`,`pfilter`, `phold`,
--- `pinterleave`,`pjoin`, `prepeat`, `preplicate`, `prsd`, `pscanl`,
--- `psplitPlaces`, `psplitPlaces'`, `ptail`, `ptake`, `ptrigger`,
--- `pzip`, `pzipWith`
+-- Haskell: `pappend`, `pconcat`, `pcons`, `pcycle`,
+-- `pempty`,`pfilter`, `pjoin`, `prepeat`, `preplicate`, `pscanl`,
+-- `psplitPlaces`, `ptail`, `ptake`, `pzip`, `pzipWith`.
+--
+-- Non SC3: `pbool`, `pcountpost`, `pcountpre`,`phold`, `pinterleave`,
+-- `prsd`, `ptrigger`.
 module Sound.SC3.Lang.Pattern.P.Base where
 
 import Control.Applicative {- base -}

@@ -1,28 +1,4 @@
--- | @sclang@ value pattern functions.
--- See <http://rd.slavepianos.org/?t=hsc3-texts> for tutorial.
---
--- SC3 /value/ patterns: `pbrown` (Pbrown), `pclutch` (Pclutch),
--- `pcollect` (Pcollect), `pconst` (Pconst), `pdegreeToKey`
--- (PdegreeToKey), `pdiff` (Pdiff), `pdrop` (Pdrop), `pdurStutter`
--- (PdurStutter), `pexprand` (Pexprand), `pfinval` (Pfinval), `pfuncn`
--- (Pfuncn), `pgeom` (Pgeom), `pif` (Pif), `place` (Place), `pn` (Pn),
--- `ppatlace` (Ppatlace), `prand` (Prand), `preject` (Preject),
--- `prorate` (Prorate), `pselect` (Pselect), `pseq` (Pseq), `pser`
--- (Pser), `pseries` (Pseries), `pshuf` (Pshuf), `pslide` (Pslide),
--- `pstutter` (Pstutter), `pswitch1` (Pswitch1), `pswitch` (Pswitch),
--- `ptuple` (Ptuple), `pwhite` (Pwhite), `pwrand` (Pwrand), `pwrap`
--- (Pwrap), `pxrand` (Pxrand).
---
--- SC3 variant patterns: `pbrown`', `prand'`, `prorate'`, `pseq1`,
--- `pseqn`, `pser1`, `pseqr`, `pwhite'`, `pwhitei`.
---
--- SC3 collection patterns: `pfold`
---
--- Haskell patterns: `pappend`, `pbool`, `pconcat`, `pcons`,
--- `pcountpost`, `pcountpre`, `pcycle`, `pempty`,`pfilter`, `phold`,
--- `pinterleave`,`pjoin`, `prepeat`, `preplicate`, `prsd`, `pscanl`,
--- `psplitPlaces`, `psplitPlaces'`, `ptail`, `ptake`, `ptrigger`,
--- `pzip`, `pzipWith`
+-- | 'P' type, instance and core functions.
 module Sound.SC3.Lang.Pattern.P.Core where
 
 import Control.Applicative hiding ((<*)) {- base -}

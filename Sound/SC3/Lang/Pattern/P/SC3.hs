@@ -1,5 +1,4 @@
 -- | @sclang@ value pattern functions.
--- See <http://rd.slavepianos.org/?t=hsc3-texts> for tutorial.
 --
 -- SC3 /value/ patterns: `pbrown` (Pbrown), `pclutch` (Pclutch),
 -- `pcollect` (Pcollect), `pconst` (Pconst), `pdegreeToKey`

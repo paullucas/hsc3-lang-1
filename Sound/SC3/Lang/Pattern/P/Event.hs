@@ -1,6 +1,4 @@
-{-# Language FlexibleInstances #-}
 -- | @sclang@ event pattern functions.
--- See <http://rd.slavepianos.org/?t=hsc3-texts> for tutorial.
 --
 -- SC3 /event/ patterns: `padd` (Padd), `pbind` (Pbind), `pkey`
 -- (Pkey), `pmono` (Pmono), `pmul` (Pmul), `ppar` (Ppar), `pstretch`
