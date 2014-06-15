@@ -66,6 +66,12 @@ exprand e l r = fmap (M.exprange l r) (white e 0 1)
 geom :: Num a => a -> a -> [a]
 geom i s = iterate (* s) i
 
+-- > lace [[0],[1,2],[3,4,5]] `iEq` [0,1,3,0,2,4,0,1,5]
+-- > lace [[1],[2,5],[3,6]] `iEq` [1,2,3,1,5,6]
+-- > lace [[1],[2,5],[3,6..]] `iEq` [1,2,3,1,5,6,1,2,9,1,5,12]
+lace :: [[a]] -> [a]
+lace = concat . transpose . map cycle
+
 -- | Random elements from list.
 --
 -- > take_until_forms_set "string" (rand 'α' "string") == "grtrsiirn"

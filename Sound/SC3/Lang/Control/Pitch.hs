@@ -67,7 +67,7 @@ data Pitch = Pitch {mtranspose :: Double
                    ,scale :: [Double]
                    ,degree :: Double
                    ,stepsPerOctave :: Double
-                   ,detune :: Double
+                   ,detune :: Double -- Hz
                    ,harmonic :: Double
                    ,freq' :: Maybe Double
                    ,midinote' :: Maybe Double
