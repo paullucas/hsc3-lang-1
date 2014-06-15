@@ -69,6 +69,7 @@ Library
                    Sound.SC3.Lang.Pattern.Stream
                    Sound.SC3.Lang.Random.Lorrain_1980
                    Sound.SC3.Lang.Random.Gen
+                   Sound.SC3.Lang.Random.ID
                    Sound.SC3.Lang.Random.IO
                    Sound.SC3.Lang.Random.Monad
 
