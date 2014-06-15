@@ -75,8 +75,19 @@ octpc_to_midi (o,pc) = 60 + ((o - 4) * 12) + pc
 midicps :: (Floating a) => a -> a
 midicps a = 440.0 * (2.0 ** ((a - 69.0) * (1.0 / 12.0)))
 
+-- | 'midicps' of 'octpc_to_midi'.
 octpc_to_cps :: (Floating a) => (a,a) -> a
 octpc_to_cps = midicps . octpc_to_midi
+
+-- | 'octpc_to_cps' of 'degreeToKey'.
+degree_to_cps :: (Floating a, RealFrac a) => [a] -> a -> a -> a -> a
+degree_to_cps sc n d o =
+    let pc = degreeToKey sc n d
+    in octpc_to_cps (o,pc)
+
+-- | Variant with list inputs for degree and octave, and scalar inputs for scale and steps.
+degree_to_cps' :: (Floating a, RealFrac a) => [a] -> a -> [a] -> [a] -> [a]
+degree_to_cps' sc n = zipWith (degree_to_cps sc n)
 
 -- * UGen
 
