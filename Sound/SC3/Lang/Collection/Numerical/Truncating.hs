@@ -45,8 +45,3 @@ instance Floating a => Floating [a] where
     asinh = map asinh
     acosh = map acosh
     atanh = map atanh
-
-{-
-[1,2,3] * [4,5]
-[1,2,3] * 2
--}

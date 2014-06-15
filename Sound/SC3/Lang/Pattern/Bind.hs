@@ -11,6 +11,11 @@ import qualified Sound.SC3.Lang.Core as L {- hsc3-lang -}
 
 type Param = [(String,[Double])]
 
+pr_unused :: Synthdef -> Param -> [String]
+pr_unused sy pr = (map fst pr \\ synthdefParam sy) \\ ["dur","sustain"]
+
+-- * Synthdef bind
+
 sbind_init :: Int -> [Synthdef] -> [Bundle]
 sbind_init grp sy =
     let sy_b = bundle 0 (map d_recv sy)
@@ -33,10 +38,9 @@ sbind_tseq grp nid (sy,tm,sus,pr) =
              else if isNothing sus || "sustain" `elem` sy_pr
                   then []
                   else error ("sbind_tseq: sus given but no gate parameter")
-        pr_unused = (map fst pr \\ sy_pr) \\ ["dur","sustain"]
-    in if null pr_unused
-       then O.merge (map nd (zip3 tm nid pr')) gt
-       else error (show ("sbind_tseq: unused parameters",pr_unused))
+    in case pr_unused sy pr of
+         [] -> O.merge (map nd (zip3 tm nid pr')) gt
+         u -> error (show ("sbind_tseq: unused parameters",u))
 
 sbind_deriv :: Int -> [Int] -> (Synthdef,Param) -> [Bundle]
 sbind_deriv grp nid (sy,pr) =
@@ -53,3 +57,37 @@ sbind set =
 
 sbind1 :: (Synthdef,Param) -> NRT
 sbind1 = sbind . return
+
+-- * Node bind
+
+nbind_init :: Int -> [(Synthdef,Int,Param)] -> [Bundle]
+nbind_init grp m =
+    let (sy,nid,_) = unzip3 m
+        sy_b = bundle 0 (map d_recv sy)
+        grp_b = bundle 0 [g_new [(grp,AddToTail,0)]]
+        nd_b = bundle 0 (map (\(s,k) -> s_new (synthdefName s) k AddToTail grp []) (zip sy nid))
+    in [sy_b,grp_b,nd_b]
+
+nbind_tseq :: (Synthdef,Int,[Time],Param) -> [Bundle]
+nbind_tseq (sy,nid,tm,pr) =
+    let m (t,k,ar) = bundle t [n_set k ar]
+        pr' = let f (p,l) = zip (repeat p) l
+              in L.transpose_st (map f pr)
+    in case pr_unused sy pr of
+         [] -> map m (zip3 tm (repeat nid) pr')
+         u -> error (show ("nbind_tseq: unused parameters",u))
+
+nbind_deriv :: (Synthdef,Int,Param) -> [Bundle]
+nbind_deriv (sy,k,pr) =
+    let dur = fromMaybe (error "nbind_deriv: no dur parameter") (lookup "dur" pr)
+        tm = dx_d' dur
+    in nbind_tseq (sy,k,tm,pr)
+
+nbind :: [(Synthdef,Int,Param)] -> NRT
+nbind set =
+    let grp = 1
+        set' = map nbind_deriv set
+    in NRT (nbind_init grp set ++ foldl1 O.merge set')
+
+nbind1 :: (Synthdef,Int,Param) -> NRT
+nbind1 = nbind . return
