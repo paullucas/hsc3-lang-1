@@ -59,9 +59,12 @@ Library
                    Sound.SC3.Lang.Math.Window
                    Sound.SC3.Lang.Pattern
                    Sound.SC3.Lang.Pattern.Bind
-                   Sound.SC3.Lang.Pattern.Event
-                   Sound.SC3.Lang.Pattern.ID
                    Sound.SC3.Lang.Pattern.List
+                   Sound.SC3.Lang.Pattern.P
+                   Sound.SC3.Lang.Pattern.P.Base
+                   Sound.SC3.Lang.Pattern.P.Core
+                   Sound.SC3.Lang.Pattern.P.Event
+                   Sound.SC3.Lang.Pattern.P.SC3
                    Sound.SC3.Lang.Pattern.Plain
                    Sound.SC3.Lang.Pattern.Stream
                    Sound.SC3.Lang.Random.Lorrain_1980

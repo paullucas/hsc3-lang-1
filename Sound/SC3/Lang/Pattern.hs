@@ -6,5 +6,6 @@ import Sound.SC3.Lang.Control.Event as P
 import Sound.SC3.Lang.Control.Instrument as P
 import Sound.SC3.Lang.Control.Pitch as P
 import Sound.SC3.Lang.Control.OverlapTexture as P
-import Sound.SC3.Lang.Pattern.Event as P
-import Sound.SC3.Lang.Pattern.ID as P
+
+import Sound.SC3.Lang.Pattern.P as P
+import Sound.SC3.Lang.Pattern.P.Event as P
