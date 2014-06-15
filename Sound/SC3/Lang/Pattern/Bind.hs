@@ -1,3 +1,4 @@
+-- | Minimal functions for binding values to parameter names and sending to scsynth.
 module Sound.SC3.Lang.Pattern.Bind where
 
 import Data.List {- base -}

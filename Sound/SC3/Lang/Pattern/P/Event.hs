@@ -6,7 +6,7 @@
 -- (Pkey), `pmono` (Pmono), `pmul` (Pmul), `ppar` (Ppar), `pstretch`
 -- (Pstretch), `ptpar` (Ptpar).  `pedit`, `pinstr`, `pmce2`, `psynth`,
 -- `punion`.
-module Sound.SC3.Lang.Pattern.Event where
+module Sound.SC3.Lang.Pattern.P.Event where
 
 import qualified Data.Foldable as F {- base -}
 import Data.Maybe {- base -}
@@ -19,7 +19,7 @@ import Sound.SC3.Lang.Control.Duration
 import Sound.SC3.Lang.Control.Event
 import Sound.SC3.Lang.Control.Instrument
 import Sound.SC3.Lang.Core
-import Sound.SC3.Lang.Pattern.ID
+import Sound.SC3.Lang.Pattern.P
 
 -- * SC3 Event Patterns
 
