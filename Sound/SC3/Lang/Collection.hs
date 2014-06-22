@@ -714,6 +714,36 @@ to_wavetable =
     let f (e0,e1) = (2 * e0 - e1,e1 - e0)
     in t2_concat . map f . t2_overlap . (++ [0])
 
+-- | Variant of 'sineFill' that gives each component table.
+--
+-- > let t = sineGen 1024 (map recip [1,2,3,5,8,13,21,34,55]) (replicate 9 0)
+-- > map length t == replicate 9 1024
+--
+-- > import Sound.SC3.Plot
+-- > plotTable t
+sineGen :: (Floating n,Enum n) => Int -> [n] -> [n] -> [[n]]
+sineGen n =
+    let incr = (2 * pi) / fromIntegral n
+        ph partial = take n [0,incr * fromIntegral partial ..]
+        f h amp iph = map (\z -> sin (z + iph) * amp) (ph h)
+    in zipWith3 f [1..]
+
+-- | @Signal.*sineFill@ is a table generator.  Frequencies are
+-- partials, amplitudes and initial phases are as given.  Result is
+-- normalised.
+--
+-- > let t = let a = [[21,5,34,3,2,13,1,8,55]
+-- >                 ,[13,8,55,34,5,21,3,1,2]
+-- >                 ,[55,34,1,3,2,13,5,8,21]]
+-- >         in map (\amp -> sineFill 1024 (map recip amp) (replicate 9 0)) a
+--
+-- > import Sound.SC3.Plot
+-- > plotTable t
+sineFill :: (Ord n,Floating n,Enum n) => Int -> [n] -> [n] -> [n]
+sineFill n amp iph =
+    let t = sineGen n amp iph
+    in normalize (-1) 1 (map sum (transpose t))
+
 -- * Required
 
 -- | /z/ ranges from 0 (for /i/) to 1 (for /j/).
