@@ -54,9 +54,17 @@ kvariant' = mk_kvariant DL.empty (flip DL.snoc) DL.toList
 nrand :: (RandomGen g,Random n,Num n) => Int -> n -> g -> ([n],g)
 nrand k = kvariant k . rand
 
+-- | Stream variant of 'rand'.
+s_rand :: (RandomGen g,Random n,Num n) => n -> g -> [n]
+s_rand = r_iterate . rand
+
 -- | @SimpleNumber.rand2@ is 'randomR' in (-/n/,/n/).
 rand2 :: (RandomGen g,Random n,Num n) => n -> g -> (n,g)
 rand2 n = randomR (-n,n)
+
+-- | Stream variant of 'rand2'.
+s_rand2 :: (RandomGen g,Random n,Num n) => n -> g -> [n]
+s_rand2 = r_iterate . rand2
 
 -- | Variant of 'rand2' generating /k/ values.
 nrand2 :: (RandomGen g,Random a,Num a) => Int -> a -> g -> ([a],g)
