@@ -20,7 +20,7 @@ pr_unused sy pr = (map fst pr \\ synthdefParam sy) \\ ["dur","sustain"]
 sbind_init :: Int -> [Synthdef] -> [Bundle]
 sbind_init grp sy =
     let sy_b = bundle 0 (map d_recv sy)
-        grp_b = bundle 0 [g_new [(grp,AddToTail,0)]]
+        grp_b = bundle 0 [g_new [(grp,AddToHead,0)]]
     in [sy_b,grp_b]
 
 sbind_tseq :: Int -> [Int] -> (Synthdef,[Time],Maybe [Time],Param) -> [Bundle]
@@ -28,7 +28,7 @@ sbind_tseq grp nid (sy,tm,sus,pr) =
     let sy_pr = synthdefParam sy
         has_gate = "gate" `elem` sy_pr
         nd (t,k,ar) = let nm = synthdefName sy
-                      in bundle t [s_new nm k AddToTail grp ar]
+                      in bundle t [s_new nm k AddToHead grp ar]
         pr' = let f (p,l) = zip (repeat p) l
               in L.transpose_st (map f pr)
         gt = if has_gate
@@ -65,8 +65,8 @@ nbind_init :: Int -> [(Synthdef,Int,Param)] -> [Bundle]
 nbind_init grp m =
     let (sy,nid,_) = unzip3 m
         sy_b = bundle 0 (map d_recv sy)
-        grp_b = bundle 0 [g_new [(grp,AddToTail,0)]]
-        nd_b = bundle 0 (map (\(s,k) -> s_new (synthdefName s) k AddToTail grp []) (zip sy nid))
+        grp_b = bundle 0 [g_new [(grp,AddToHead,0)]]
+        nd_b = bundle 0 (map (\(s,k) -> s_new (synthdefName s) k AddToHead grp []) (zip sy nid))
     in [sy_b,grp_b,nd_b]
 
 nbind_tseq :: (Synthdef,Int,[Time],Param) -> [Bundle]

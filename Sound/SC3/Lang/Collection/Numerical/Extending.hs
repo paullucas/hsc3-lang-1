@@ -23,6 +23,28 @@ instance Num a => Num [a] where
     signum = map signum
     fromInteger n = [fromInteger n]
 
+instance Real a => Real [a] where
+  toRational = error "[Real], toRational"
+
+instance Enum a => Enum [a] where
+  succ = map succ
+  pred = map pred
+  toEnum = return . toEnum
+  fromEnum = error "[Enum], fromEnum"
+  enumFrom = error "[Enum]"
+  enumFromThen = error "[Enum]"
+  enumFromTo = error "[Enum]"
+  enumFromThenTo = error "[Enum]"
+
+instance Integral a => Integral [a] where
+  quot = zipWith_c quot
+  rem = zipWith_c rem
+  div = zipWith_c div
+  mod = zipWith_c mod
+  quotRem = error "[Integral] is partial"
+  divMod = error "[Integral] is partial"
+  toInteger = error "[Integral] is partial"
+
 instance Fractional a => Fractional [a] where
     recip = map recip
     (/) = zipWith_c (/)
