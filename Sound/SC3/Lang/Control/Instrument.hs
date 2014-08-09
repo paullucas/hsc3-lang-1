@@ -2,7 +2,7 @@
 module Sound.SC3.Lang.Control.Instrument where
 
 import Data.Default {- data-default -}
-import Sound.SC3.ID {- hsc3 -}
+import Sound.SC3 {- hsc3 -}
 
 -- | An 'Instr' is either a 'Synthdef' or the 'String' naming a
 -- 'Synthdef'.
