@@ -12,6 +12,8 @@
 module Sound.SC3.Lang.Control.OverlapTexture where
 
 import Data.List {- base -}
+import Data.Hashable {- hashable -}
+
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
 
@@ -40,13 +42,15 @@ with_env_u bus sig = out bus . (* sig) . mk_env
 with_env :: UGen -> Env_ST Double -> UGen -> UGen
 with_env bus (s,t) sig = with_env_u bus sig (constant s,constant t)
 
+gen_nm :: UGen -> String
+gen_nm = show . hash . show
+
 -- | Generate 'Synthdef', perhaps with envelope parameters for
 -- 'with_env', and a continuous signal.
 gen_synth :: UGen -> Maybe (Env_ST Double) -> UGen -> Synthdef
 gen_synth bus k g =
-  let n = show (hashUGen g)
-      g' = maybe (out bus g) (flip (with_env bus) g) k
-  in synthdef n g'
+  let g' = maybe (out bus g) (flip (with_env bus) g) k
+  in synthdef (gen_nm g) g'
 
 -- | Require envelope.
 gen_synth' :: UGen -> Env_ST Double -> UGen -> Synthdef
@@ -173,8 +177,7 @@ post_process_s nc b f =
                          Right (b',b'') -> (b',b'',out)
         i = in' nc AR src
         u = wr dst (f i)
-        nm = show (hashUGen u)
-    in synthdef nm u
+    in synthdef (gen_nm u) u
 
 -- | Run post-processing function.
 post_process :: (Transport m) => Int -> PP_Bus -> Int -> (UGen -> UGen) -> m ()

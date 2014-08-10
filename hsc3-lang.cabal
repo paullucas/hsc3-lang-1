@@ -25,6 +25,7 @@ Library
                    data-default,
                    data-ordlist,
                    dlist,
+                   hashable,
                    hmatrix-special,
                    hosc == 0.15.*,
                    hsc3 == 0.15.*,
