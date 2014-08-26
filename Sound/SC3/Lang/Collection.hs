@@ -544,7 +544,7 @@ normalizeSum l =
 --
 -- > normalize 0 1 [1,2,3] == [0,0.5,1]
 -- > normalize (-20) 10 [1,2,3] == [-20,-5,10]
-normalize :: (Fractional b, Ord b) => b -> b -> [b] -> [b]
+normalize :: (S.TernaryOp b,Fractional b, Ord b) => b -> b -> [b] -> [b]
 normalize l r c =
     let cl = minimum c
         cr = maximum c
@@ -560,7 +560,7 @@ normalize l r c =
 -- > import Sound.SC3.Plot
 -- > plotTable [asRandomTable 256 [1,0,1,0,1,0,1]]
 -- > plotTable [asRandomTable 256 (map (/ 100) ([0..100] ++ [100,99..50]))]
-asRandomTable :: (Enum a, RealFrac a) => Int -> [a] -> [a]
+asRandomTable :: (S.TernaryOp a,Enum a, RealFrac a) => Int -> [a] -> [a]
 asRandomTable n c =
     let n' = fromIntegral n
         a = integrate (resamp1 n c)
@@ -739,7 +739,7 @@ sineGen n =
 --
 -- > import Sound.SC3.Plot
 -- > plotTable t
-sineFill :: (Ord n,Floating n,Enum n) => Int -> [n] -> [n] -> [n]
+sineFill :: (S.TernaryOp n,Ord n,Floating n,Enum n) => Int -> [n] -> [n] -> [n]
 sineFill n amp iph =
     let t = sineGen n amp iph
     in normalize (-1) 1 (map sum (transpose t))
