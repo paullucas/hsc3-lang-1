@@ -97,7 +97,7 @@ warpFader l r d n =
 --
 -- > plotTable1 (map (warpDbFader (-60) 0 W_Map) [0,0.01 .. 1])
 -- > plotTable1 (map (warpDbFader 0 60 W_Unmap) [0 .. 60])
-warpDbFader :: (Eq a,Floating a) => a -> a -> Warp a
+warpDbFader :: (TernaryOp a,Eq a,Floating a) => a -> a -> Warp a
 warpDbFader l r d n =
     if d == W_Map
     then let n' = if n == 0 then -180 else ampdb (n * n)
@@ -129,7 +129,7 @@ warpCurve k l r d n =
 -- > let Just w = warpNamed "-3"
 -- > let Just w = warpNamed "6"
 -- > plotTable1 (map (w 1 2 W_Map) [0,0.01 .. 1])
-warpNamed :: (Ord a,Eq a,RealFrac a,Floating a) =>
+warpNamed :: (TernaryOp a,Ord a,Eq a,RealFrac a,Floating a) =>
              String -> Maybe (a -> a -> Warp a)
 warpNamed nm =
     case nm of
