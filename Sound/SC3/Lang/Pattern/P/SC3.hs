@@ -413,9 +413,35 @@ patterns, the resulting pattern is flattened (joined).
 
 > prand 'α' [1,toP [10,20],2,3,4,5] 5 == toP [5,2,10,20,2,1]
 
+Random notes:
+
 > > Pbind(\note,Prand([0,1,5,7],inf),\dur,0.25).play
 
 > audition (pbind [(K_note,prand 'α' [0,1,5,7] inf),(K_dur,0.25)])
+
+Random frequencies:
+
+> > Pbind(\freq,Prand([300,500,231.2,399.2],inf),
+> >       \dur,0.1).play;
+
+> paudition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
+>                  ,(K_dur,0.1)])
+
+Random frequencies and durations:
+
+> > Pbind(\freq, Prand([300,500,231.2,399.2],inf),
+> >       \dur,Prand([0.1,0.3],inf)).play;
+
+> paudition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
+>                  ,(K_dur,prand 'β' [0.1,0.3] inf)])
+
+Random multipliers of a fundamental frequency:
+
+> > Pbind(\freq,Prand([1,1.2,2,2.5,3,4],inf) * 200,
+> >       \dur,0.1).play;
+
+> paudition (pbind [(K_freq,prand 'α' [1,1.2,2,2.5,3,4] inf * 200)
+>                  ,(K_dur,0.1)])
 
 Nested sequences of pitches:
 

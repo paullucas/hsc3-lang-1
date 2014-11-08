@@ -1,9 +1,11 @@
--- | @sclang@ event pattern functions.
---
--- SC3 /event/ patterns: `padd` (Padd), `pbind` (Pbind), `pkey`
--- (Pkey), `pmono` (Pmono), `pmul` (Pmul), `ppar` (Ppar), `pstretch`
--- (Pstretch), `ptpar` (Ptpar).  `pedit`, `pinstr`, `pmce2`, `psynth`,
--- `punion`.
+{- | @sclang@ event pattern functions.
+
+SC3 /event/ patterns: `padd` (Padd), `pbind` (Pbind), `pkey`
+(Pkey), `pmono` (Pmono), `pmul` (Pmul), `ppar` (Ppar), `pstretch`
+(Pstretch), `ptpar` (Ptpar).  `pedit`, `pinstr`, `pmce2`, `psynth`,
+`punion`.
+
+-}
 module Sound.SC3.Lang.Pattern.P.Event where
 
 import qualified Data.Foldable as F {- base -}
@@ -21,7 +23,19 @@ import Sound.SC3.Lang.Pattern.P
 
 -- * SC3 Event Patterns
 
--- | NewType for event patterns.
+{- | NewType for event patterns.
+
+`P_Event`s are `Audible`, if `scsynth` is running at port `57110` we
+can hear an arpeggio.
+
+> import Sound.SC3 {- hsc3 -}
+> import Sound.SC3.Lang.Pattern {- hsc3-lang -}
+
+> paudition (pbind [(K_instr,psynth defaultSynthdef)
+>                  ,(K_degree,toP [0,2,4,7])
+>                  ,(K_dur,0.25)])
+
+-}
 newtype P_Event = P_Event {p_Event :: P Event}
 
 -- | 'P_Event' is audible, 'P' 'Event' could be as well but it'd be an orphan instance.
@@ -64,17 +78,19 @@ padd (k,p) = pzipWith (\i j -> e_edit k 0 (+ i) j) p
 {-| Pbind.  SC3 pattern to assign keys to a set of 'Field' patterns
 making an 'Event' pattern.
 
-Each input pattern is assigned to key in the resulting event pattern.
+Each input pattern is assigned a key in the resulting event pattern.
 
 There are a set of reserved keys that have particular roles in the
-pattern library.
+pattern library, here frequency duration and amplitude, and a
+generalised _named parameter_ mechanism.
 
-> > p = Pbind(\x,Pseq([1,2,3],1),\y,Pseed(Pn(100,1),Prand([4,5,6],inf)));
-> > p.asStream.all(()) == [('y':4,'x':1),('y':6,'x':2),('y':4,'x':3)]
+> paudition (pbind [(K_freq,pseq [440,550,660,770] 2)
+>                  ,(K_dur,pseq [0.1,0.15,0.1] inf)
+>                  ,(K_amp,pseq [0.1,0.05] inf)
+>                  ,(K_param "pan",pseq [-1,0,1] inf)])
 
-> let p = pbind [(K_param "x",prand 'α' [100,300,200] inf)
->               ,(K_param "y",pseq [1,2,3] 1)]
-> in pkey (K_param "x") p == toP [200,200,300]
+The named keys given by `K_param` are ordinarily synthesiser
+parameters, above the stereo location of the sound.
 
 'K_param' can be elided if /OverloadedStrings/ are in place.
 
@@ -86,28 +102,113 @@ pattern library.
 'Event's implement variations on the @SC3@ 'Dur' and
 'Sound.SC3.Lang.Control.Pitch.Pitch' models.
 
-> > Pbind(\freq,Prand([300,500,231.2,399.2],inf),
-> >       \dur,0.1).play;
+'Sound.SC3.Lang.Control.Pitch.Pitch' can be written using midi note
+numbers, 'K_midinote':
 
-> paudition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
->                  ,(K_dur,0.1)])
+> > Pbind(\dur,0.125,
+> >       \legato,0.2,
+> >       \midinote,Pseq(#[60,62,64,65,67,69,71,72],inf)).play
 
-> > Pbind(\freq, Prand([300,500,231.2,399.2],inf),
-> >       \dur,Prand([0.1,0.3],inf)).play;
+> paudition (pbind [(K_dur,0.125)
+>                  ,(K_legato,0.2)
+>                  ,(K_midinote,pseq [60,62,64,65,67,69,71,72] inf)])
 
-> paudition (pbind [(K_freq,prand 'α' [300,500,231.2,399.2] inf)
->                  ,(K_dur,prand 'β' [0.1,0.3] inf)])
+or frequencies in hertz, 'K_freq':
 
-> > Pbind(\freq,Prand([1,1.2,2,2.5,3,4],inf) * 200,
-> >       \dur,0.1).play;
+> > Pbind(\dur,0.25,
+> >       \freq,Pseq(#[300,400,500,700,900],inf)).play
 
-> paudition (pbind [(K_freq,prand 'α' [1,1.2,2,2.5,3,4] inf * 200)
->                  ,(K_dur,0.1)])
+> paudition (pbind [(K_dur,0.25)
+>                  ,(K_freq,pseq [300,400,500,700,900] inf)])
 
-> paudition (pbind [(K_freq,pseq [440,550,660,770] 2)
->                  ,(K_dur,pseq [0.1,0.15,0.1] inf)
->                  ,(K_amp,pseq [0.1,0.05] inf)
->                  ,(K_param "pan",pseq [-1,0,1] inf)])
+or as scale degrees, 'K_degree':
+
+> > Pbind(\degree,Pseq([Pshuf(#[-7,-3,0,2,4,7],4),
+> >                     Pseq([0,1,2,3,4,5,6,7])],inf),
+> >       \dur,0.15).play
+
+> let d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4
+>                      ,pseq [0,1,2,3,4,5,6,7] 1]) inf
+> in paudition (pbind [(K_degree,d),(K_dur,0.15)])
+
+Detuning in hertz is at 'K_detune':
+
+> > Pbind(\dur,0.25,
+> >       \detune,-20,
+> >       \freq,Pseq(#[300,400,500,700,900],inf)).play
+
+> paudition (pbind [(K_dur,0.25)
+>                  ,(K_detune,-20)
+>                  ,(K_freq,pseq [300,400,500,700,900] inf)])
+
+Chords:
+
+> > Pbind(\degree,Pseq([Pshuf(#[-7,-3,0,2,4,7],4)+[0,4],
+> >                     Pseq( [0,1,2,3,4,5,6,7])+[0,2]],inf),
+> >       \dur,0.15).play
+
+> let {d = pseqr (\e -> [pshuf e [-7,-3,0,2,4,7] 4 + pmce2 0 4
+>                       ,pseq [0,1,2,3,4,5,6,7] 1 + pmce2 0 2]) inf}
+> in paudition (pbind [(K_degree,d),(K_dur,0.15)])
+
+Modal transposition is at 'K_mtranspose':
+
+> let {d e = pseq [pshuf e [-7,-3,0,2,4,7] 4
+>                 ,pseq [0,1,2,3,4,5,6,7] 1] 1
+>     ;f t e = pbind [(K_dur,0.15)
+>                    ,(K_mtranspose,t)
+>                    ,(K_degree,d e)]
+>     ;p = pzipWith f (pseq [0,1,2] inf) (pseries 0 1 inf)}
+> in paudition (pjoin p)
+
+Chromatic transposition is at 'K_ctranspose':
+
+> let {d e = pseq [pshuf e [-7,-3,0,2,4,7] 4
+>                 ,pseq [0,1,2,3,4,5,6,7] 1] 1
+>     ;f t e = pbind [(K_dur,0.15)
+>                    ,(K_ctranspose,t)
+>                    ,(K_degree,d e)]
+>     ;p = pzipWith f (pseq [0,3,-3] inf) (pseries 0 1 inf)}
+> in paudition (pjoin p)
+
+The basic key for the duration model, 'Dur', is 'K_dur':
+
+> > Pbind(\dur,Pseq([Pgeom(0.05,1.1,24),
+> >                  Pgeom(0.5,0.909,24)],inf),
+> >       \midinote,Pseq(#[60,58],inf)).play
+
+> paudition (pbind [(K_dur,pseq [pgeom 0.05 1.1 24
+>                               ,pgeom 0.5 0.909 24] inf)
+>                  ,(K_midinote,pseq [60,58] inf)])
+
+The 'K_legato' field scales the sounding duration of events, but not
+the logical time they occupy:
+
+> > Pbind(\dur,0.2,
+> >       \legato,Pseq([Pseries(0.05,0.05,40),
+> >                     Pseries(2.05,-0.05,40)],inf),
+> >       \midinote,Pseq(#[48,51,55,58,60,58,55,51],inf)).play
+
+> paudition (pbind [(K_dur,0.2)
+>                  ,(K_legato,pseq [pseries 0.05 0.05 40
+>                                  ,pseries 2.05 (-0.05) 40] inf)
+>                  ,(K_midinote,pseq [48,51,55,58,60,58,55,51] inf)])
+
+The amplitude can be set as a linear value at key 'K_amp', or in
+decibels below zero at key 'K_db', where zero is linear amplitude of
+@1@:
+
+> paudition (pbind [(K_dur,0.2)
+>                  ,(K_degree,prand 'α' [0,1,5,7] inf)
+>                  ,(K_db,prand 'β' [-96,-48,-24,-12,-6] inf)])
+
+As at /SC3/ a frequency value of /NaN/ indicates a rest.  There is a
+constant value `nan` that can be used for this purpose.  Alternately a
+non-zero `K_rest` key can be used.
+
+> paudition (pbind [(K_dur,0.25)
+>                  ,(K_amp,pseq [0.05,0.2] inf)
+>                  ,(K_rest,pseq [0,0,1] inf)])
 
 A finite binding stops the `Event` pattern.
 
@@ -292,9 +393,17 @@ pbind xs =
 (<|) k p = (k,fmap toF p)
 infixl 3 <|
 
-{- | Pkey.  SC3 pattern to read 'Key' at 'Event' pattern.  Note
--- however that in haskell is usually more appropriate to name the
--- pattern using /let/.
+{- | Pkey.  SC3 pattern to read 'Key' at 'Event' pattern.
+
+> > p = Pbind(\x,Pseq([1,2,3],1),\y,Pseed(Pn(100,1),Prand([4,5,6],inf)));
+> > p.asStream.all(()) == [('y':4,'x':1),('y':6,'x':2),('y':4,'x':3)]
+
+> let p = pbind [(K_param "x",prand 'α' [100,300,200] inf)
+>               ,(K_param "y",pseq [1,2,3] 1)]
+> in pkey (K_param "x") p == toP [200,200,300]
+
+Note however that in haskell is usually more appropriate to name the
+pattern using /let/.
 
 > pkey K_freq (pbind [(K_freq,return 440)]) == toP [440]
 > pkey K_amp (pbind [(K_amp,toP [0,1])]) == toP [0,1]
@@ -338,6 +447,22 @@ pmul :: P_Bind -> P Event -> P Event
 pmul (k,p) = pzipWith (\i j -> e_edit k 1 (* i) j) p
 
 {-| Ppar.  Variant of 'ptpar' with zero start times.
+
+Ordinarily the distance from one event to the next is given by the
+/delta/ time of the event.  However this can be set directly by using the
+'K_fwd'' key.  A 'K_fwd'' value of zero means that the next event is
+simultaneous with the current event.
+
+> let {n = 0.15
+>     ;p = pbind [(K_dur,prepeat n)
+>                ,(K_fwd',toP (cycle [0,0,n,0,n,n,0,n,0,0,n*4]))
+>                ,(K_legato,0.2)
+>                ,(K_octave,prand 'α' [4,5,5,6] inf)
+>                ,(K_degree,pxrand 'β' [0,1,5,7] inf)]}
+> in paudition p
+
+Setting 'K_fwd'' directly is not normally a good idea, instead use
+`pmerge` and `ppar`.
 
 The result of `pmerge` can be merged again, `ppar` merges a list of
 patterns.

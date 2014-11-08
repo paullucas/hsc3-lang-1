@@ -6,9 +6,10 @@ import qualified Data.Map as Map {- containers -}
 import Data.Maybe {- base -}
 import Data.Monoid {- base -}
 import Data.String {- base -}
+import System.Random {- base -}
+
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
-import System.Random {- base -}
 
 import qualified Sound.SC3.Lang.Collection as C
 import Sound.SC3.Lang.Core
@@ -330,23 +331,23 @@ type Event = Map.Map Key Field
 e_insert :: Key -> Field -> Event -> Event
 e_insert k v = Map.insert k v
 
--- | Event from association list.
+-- | Event from association list, type specialised 'Map.fromList'.
 --
 -- > e_get K_id (e_from_list [(K_id,1)]) == Just 1
 e_from_list :: [(Key,Field)] -> Event
 e_from_list = Map.fromList
 
--- | Event from association list.
+-- | Event from association list, type specialised 'Map.toList'.
 --
 -- > let a = [(K_id,1)] in e_to_list (e_from_list a) == a
 e_to_list :: Event -> [(Key,Field)]
 e_to_list = Map.toList
 
--- | Lookup /k/ in /e/.
+-- | Lookup /k/ in /e/, type specialised 'Map.lookup'.
 --
 -- > e_get K_id mempty == Nothing
 e_get :: Key -> Event -> Maybe Field
-e_get k = Map.lookup k
+e_get = Map.lookup
 
 -- | Immediate or vector element lookup.
 --
