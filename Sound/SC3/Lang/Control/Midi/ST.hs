@@ -16,7 +16,8 @@ type Midi_CC_Value = Midi_7bit
 type Midi_Key_Map = M.Map Midi_Note Midi_Velocity
 type Midi_CC_Map = M.Map Midi_CC_Ix Midi_CC_Value
 
-type Midi_State = MVar (Midi_Key_Map,Midi_Program,Midi_CC_Map)
+type Midi_State' = (Midi_Key_Map,Midi_Program,Midi_CC_Map)
+type Midi_State = MVar Midi_State'
 
 st_edit_km :: Midi_State -> (Midi_Note,Midi_Velocity) -> IO Midi_State
 st_edit_km mv (k,v) =
@@ -38,6 +39,9 @@ p3_fst (t,_,_) = t
 
 p3_third :: (t,u,v) -> v
 p3_third (_,_,v) = v
+
+st_read :: Midi_State -> IO Midi_State'
+st_read = readMVar
 
 st_access_km :: (Midi_Key_Map -> r) -> Midi_State -> IO r
 st_access_km f mv = withMVar mv (return . f . p3_fst)
