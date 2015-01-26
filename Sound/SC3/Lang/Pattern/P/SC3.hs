@@ -399,6 +399,8 @@ pn p n = mconcat (replicate n p)
 >         ,(K_dur,0.125)]
 > in audition (pbind p)
 
+> ppatlace [1,toP [2],toP [3,4]] 3 == toP [1,2,3,1,4,1]
+
 -}
 ppatlace :: [P a] -> Int -> P a
 ppatlace a n =

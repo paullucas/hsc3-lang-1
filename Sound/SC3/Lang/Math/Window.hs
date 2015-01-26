@@ -76,19 +76,19 @@ gaussian_table n = window_table n . gaussian
 
 -- | 'window_table' . 'hamming'.
 --
--- plotTable [hann_table 128,hamming_table 128]
+-- > plotTable [hann_table 128,hamming_table 128]
 hamming_table :: Int -> [Double]
 hamming_table n = window_table n hamming
 
 -- | 'window_table' . 'hann'.
 --
--- plotTable [hann_table 128]
+-- > plotTable [hann_table 128]
 hann_table :: Int -> [Double]
 hann_table n = window_table n hann
 
 -- | 'window_table' . 'kaiser'.
 --
--- let k = kaiser_table 128 in plotTable [k 1,k 2,k 8]
+-- > let k = kaiser_table 128 in plotTable [k 1,k 2,k 8]
 kaiser_table :: Int -> Double -> [Double]
 kaiser_table n = window_table n . kaiser
 

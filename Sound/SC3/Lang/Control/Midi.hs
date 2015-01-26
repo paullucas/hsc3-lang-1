@@ -95,6 +95,7 @@ control_message (i,j,k) =
 parse_b :: Integral n => Message -> [n]
 parse_b m =
     case m of
+      Message "/midi" [Int32 _,Midi (MIDI p q r s)] -> map fromIntegral [p,q,r,s]
       Message "/midi" [Int32 _,Blob b] -> map fromIntegral (B.unpack b)
       _ -> []
 
@@ -118,6 +119,27 @@ parse_m m =
       [0xd,i,j] -> Chanel_Aftertouch i j
       [0xe,i,j,k] -> Pitch_Bend i (b_join j k)
       x -> Unknown x
+
+-- | Byte sequence encoding for 'Midi_Message'.
+m_bytes :: (Bits t, Num t) => Midi_Message t -> [t]
+m_bytes m =
+    case m of
+      Chanel_Aftertouch i j -> [0xd + i,j]
+      Control_Change i j k -> [0xb + i,j,k]
+      Note_On i j k -> [0x9 + i,j,k]
+      Note_Off i j k -> [0x8 + i,j,k]
+      Polyphic_Key_Pressure i j k -> [0xa + i,j,k]
+      Program_Change i j -> [0xc + i,j]
+      Pitch_Bend i j -> let (p,q) = b_sep j in [0xe + i,p,q]
+      Unknown x -> x
+
+-- | 'B.pack' of 'm_bytes'.
+m_pack :: (Bits a,Integral a) => Midi_Message a -> B.ByteString
+m_pack = B.pack . map fromIntegral . m_bytes
+
+-- | Inverse of 'parse_m'.
+m_message :: (Bits a,Integral a) => Int -> Midi_Message a -> Message
+m_message i m = Message "/midi" [int32 i,Blob (m_pack m)]
 
 -- * SC3
 
