@@ -22,6 +22,18 @@ b_join p q = p .|. shiftL q 7
 b_sep :: (Num t,Bits t) => t -> (t, t)
 b_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
 
+status_sep :: Integral t => [t] -> [t]
+status_sep m =
+    case m of
+      [] -> []
+      st:dt -> let (l,h) = st `divMod` 16 in l:h:dt
+
+status_join :: Integral t => [t] -> [t]
+status_join m =
+    case m of
+      (st:ch:dt) -> st * 0x10 + ch : dt
+      _ -> error "status_join"
+
 -- * Types
 
 -- | <http://www.midi.org/techspecs/midimessages.php>
@@ -101,10 +113,7 @@ parse_b m =
 
 -- | Variant of 'parse_b' that give status byte as low and high.
 parse_c :: Integral n => Message -> [n]
-parse_c m =
-    case parse_b m of
-      st:dt -> let (l,h) = st `divMod` 16 in l:h:dt
-      _ -> []
+parse_c = status_sep . parse_b
 
 -- | Variant of 'parse_c' that constructs a 'Midi_Message'.
 parse_m :: (Bits n,Integral n) => Message -> Midi_Message n
@@ -121,17 +130,20 @@ parse_m m =
       x -> Unknown x
 
 -- | Byte sequence encoding for 'Midi_Message'.
-m_bytes :: (Bits t, Num t) => Midi_Message t -> [t]
+--
+-- > m_bytes (Control_Change 0 16 127) == [176,16,127]
+m_bytes :: (Bits t, Integral t) => Midi_Message t -> [t]
 m_bytes m =
-    case m of
-      Chanel_Aftertouch i j -> [0xd + i,j]
-      Control_Change i j k -> [0xb + i,j,k]
-      Note_On i j k -> [0x9 + i,j,k]
-      Note_Off i j k -> [0x8 + i,j,k]
-      Polyphic_Key_Pressure i j k -> [0xa + i,j,k]
-      Program_Change i j -> [0xc + i,j]
-      Pitch_Bend i j -> let (p,q) = b_sep j in [0xe + i,p,q]
-      Unknown x -> x
+    let r = case m of
+              Chanel_Aftertouch i j -> [0xd,i,j]
+              Control_Change i j k -> [0xb,i,j,k]
+              Note_On i j k -> [0x9,i,j,k]
+              Note_Off i j k -> [0x8,i,j,k]
+              Polyphic_Key_Pressure i j k -> [0xa,i,j,k]
+              Program_Change i j -> [0xc,i,j]
+              Pitch_Bend i j -> let (p,q) = b_sep j in [0xe,i,p,q]
+              Unknown x -> x
+    in status_join r
 
 -- | 'B.pack' of 'm_bytes'.
 m_pack :: (Bits a,Integral a) => Midi_Message a -> B.ByteString
