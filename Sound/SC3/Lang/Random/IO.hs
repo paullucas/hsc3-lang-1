@@ -5,7 +5,7 @@ import Control.Monad.IO.Class {- transformers -}
 import System.Random {- random -}
 
 import Sound.SC3.Lang.Core
-import Sound.SC3.Lang.Random.Gen as R
+import qualified Sound.SC3.Lang.Random.Gen as R
 
 -- | 'liftIO' of 'randomRIO'.
 randomM :: (Random a, MonadIO m) => (a, a) -> m a
@@ -32,6 +32,8 @@ rrand :: (MonadIO m,Random n) => n -> n -> m n
 rrand l r = randomM (l,r)
 
 -- | Variant of 'rrand' generating /k/ values.
+--
+-- > nrrand 9 (-9) 9
 nrrand :: (MonadIO m,Random a, Num a) => Int -> a -> a -> m [a]
 nrrand = randomG .:: R.nrrand
 
