@@ -12,6 +12,9 @@ module Sound.SC3.Lang.Random.Lorrain_1980 where
 -- > import Sound.SC3.Plot.Histogram
 -- > let h = plotHistogram . map (histogram 512)
 --
+-- > let r' = take 1000000 (randomRs (0.0,1.0) (mkStdGen 12345))
+-- > h [r']
+--
 -- > h [map (linear 1.0) r]
 linear :: Floating a => a -> a -> a
 linear g u = g * (1 - sqrt u)
@@ -58,9 +61,7 @@ logistic beta' alpha u = (- beta' - log (recip u - 1)) / alpha
 --
 -- > h [map arc_sine r]
 arc_sine :: Floating a => a -> a
-arc_sine u =
-    let x = sin (pi * u / 2)
-    in x * x
+arc_sine u = let x = sin (pi * u / 2) in x * x
 
 -- | §4.4.2 (Algorithm 15)
 --
@@ -80,3 +81,10 @@ beta a b (u1,u2) =
         y2 = u2 ** eb
         s = y1 + y2
     in if s <= 1.0 then Just (y1 / s) else Nothing
+
+-- | §4.4.1 Gauss-Laplace Distribution
+--
+-- > import Data.List.Split
+-- > h [map (gauss_laplace 0 1) (chunksOf 12 r')]
+gauss_laplace :: Num a => a -> a -> [a] -> a
+gauss_laplace mu sigma u = (sigma * (sum u - 6)) + mu

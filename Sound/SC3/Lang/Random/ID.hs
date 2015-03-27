@@ -31,3 +31,7 @@ nrrand e n l r = id_rand e (G.nrrand n l r)
 -- > ncoin 'α' 9 0.5 == [True,True,True,False,False,False,False,True,False]
 ncoin :: (Random a, Ord a, Fractional a, Enum e) => e -> Int -> a -> [Bool]
 ncoin e n w = id_rand e (G.ncoin n w)
+
+scramble :: Enum e => e -> [t] -> [t]
+scramble e = id_rand e . G.scramble
+
