@@ -71,6 +71,7 @@
 -- > System.Random.randomRIO (Float 0,Float 1):: IO Datum
 module Sound.SC3.Lang.Collection.Universal.Datum where
 
+import Prelude hiding ((<*))
 import qualified Data.ByteString.Char8 as C {- bytestring -}
 import Data.Int {- base -}
 import Data.Ratio {- base -}

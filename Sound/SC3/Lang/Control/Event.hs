@@ -4,7 +4,6 @@ module Sound.SC3.Lang.Control.Event where
 import Data.List {- base -}
 import qualified Data.Map as Map {- containers -}
 import Data.Maybe {- base -}
-import Data.Monoid {- base -}
 import Data.String {- base -}
 import System.Random {- base -}
 

@@ -8,7 +8,6 @@
 -- `prsd`, `ptrigger`.
 module Sound.SC3.Lang.Pattern.P.Base where
 
-import Control.Applicative {- base -}
 import Control.Monad {- base -}
 import qualified Data.Foldable as F {- base -}
 import qualified Data.List as L {- base -}

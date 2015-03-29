@@ -1,12 +1,12 @@
 -- | 'P' type, instance and core functions.
 module Sound.SC3.Lang.Pattern.P.Core where
 
+import Prelude hiding ((<*)) {- base -}
 import Control.Applicative hiding ((<*)) {- base -}
 import Control.Monad {- base -}
 import Data.Bifunctor {- bifunctors -}
 import qualified Data.Foldable as F {- base -}
 import qualified Data.List as L {- base -}
-import Data.Monoid {- base -}
 import qualified Data.Traversable as T {- base -}
 
 import Sound.SC3 (OrdE(..)) {- hsc3 -}
