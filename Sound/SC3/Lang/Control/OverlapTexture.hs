@@ -42,6 +42,9 @@ with_env_u bus sig = out bus . (* sig) . mk_env
 with_env :: UGen -> Env_ST Double -> UGen -> UGen
 with_env bus (s,t) sig = with_env_u bus sig (constant s,constant t)
 
+-- | 'show' of 'hash' of 'show'.
+--
+-- > gen_nm (sinOsc AR 440 0) == "8324144072232967079"
 gen_nm :: UGen -> String
 gen_nm = show . hash . show
 
@@ -165,6 +168,8 @@ spawnTextureU sp = audition . spawnTexture_nrt (1,0) sp
 
 -- * Post-process
 
+-- | Post processing may either replace the value on a bus, or write
+-- to a distinct bus.
 type PP_Bus = Either UGen (UGen,UGen)
 
 -- | Generate 'Synthdef' from a signal processing function over the
