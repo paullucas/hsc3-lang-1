@@ -56,6 +56,7 @@ Library
                    Sound.SC3.Lang.Data.Modal
                    Sound.SC3.Lang.Data.Vowel
                    Sound.SC3.Lang.Math
+                   Sound.SC3.Lang.Math.Chebyshev
                    Sound.SC3.Lang.Math.Warp
                    Sound.SC3.Lang.Math.Window
                    Sound.SC3.Lang.Pattern
