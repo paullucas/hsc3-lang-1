@@ -48,6 +48,9 @@ Library
                    Sound.SC3.Lang.Control.Event
                    Sound.SC3.Lang.Control.Instrument
                    Sound.SC3.Lang.Control.Midi
+                   Sound.SC3.Lang.Control.Midi.KY
+                   Sound.SC3.Lang.Control.Midi.OSC
+                   Sound.SC3.Lang.Control.Midi.OSC.SC3
                    Sound.SC3.Lang.Control.Midi.ST
                    Sound.SC3.Lang.Control.Pitch
                    Sound.SC3.Lang.Control.OverlapTexture

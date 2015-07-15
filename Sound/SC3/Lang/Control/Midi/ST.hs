@@ -5,6 +5,7 @@ import Control.Concurrent {- base -}
 import qualified Data.Map as M {- containers -}
 
 import Sound.SC3.Lang.Control.Midi {- hsc3-lang -}
+import Sound.SC3.Lang.Control.Midi.OSC {- hsc3-lang -}
 
 type Midi_7bit = Int
 type Midi_Note = Midi_7bit
