@@ -77,6 +77,7 @@ Library
                    Sound.SC3.Lang.Random.ID
                    Sound.SC3.Lang.Random.IO
                    Sound.SC3.Lang.Random.Monad
+                   Sound.SC3.Lang.Random.Server
 
 Source-Repository  head
   Type:            darcs
