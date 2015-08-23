@@ -47,4 +47,4 @@ param_to_message :: Param -> Message
 param_to_message = message "/param" . param_to_datum
 
 with_midi_osc_sc3 :: Connection UDP a -> IO a
-with_midi_osc_sc3 = withTransport (openUDP "127.0.0.1" 57150)
+with_midi_osc_sc3 = withTransport (openUDP "127.0.0.1" 57300)
