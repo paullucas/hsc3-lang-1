@@ -544,11 +544,11 @@ normalizeSum l =
 --
 -- > normalize 0 1 [1,2,3] == [0,0.5,1]
 -- > normalize (-20) 10 [1,2,3] == [-20,-5,10]
-normalize :: (S.TernaryOp b,Fractional b, Ord b) => b -> b -> [b] -> [b]
+normalize :: (Fractional n, Ord n) => n -> n -> [n] -> [n]
 normalize l r c =
     let cl = minimum c
         cr = maximum c
-    in map (\e -> S.linlin e cl cr l r) c
+    in map (\e -> S.linlin' e cl cr l r) c
 
 -- | @ArrayedCollection.asRandomTable@ returns an integral table that
 -- can be used to generate random numbers with a specified
@@ -567,6 +567,10 @@ asRandomTable n c =
         b = normalize 0 (n' - 1) a
     in map (\i -> indexInBetween i b / n') [0 .. n' - 1]
 
+-- | Non-catenating variant of 'slide'.
+slide' :: Integral i => i -> i -> [a] -> [[a]]
+slide' w n l = map (\i -> genericTake w (L.genericDrop i l)) [0,n .. genericLength l - w]
+
 -- | @List.slide@ is an identity window function with subsequences of
 -- length /w/ and stride of /n/.
 --
@@ -579,9 +583,7 @@ asRandomTable n c =
 -- > > [1,2,3,4,5,6].slide(4,2)
 -- > slide 4 2 [1,2,3,4,5,6] == [1,2,3,4,3,4,5,6]
 slide :: Integral i => i -> i -> [a] -> [a]
-slide w n l =
-    let k = genericLength l
-    in concatMap (\i -> genericTake w (L.genericDrop i l)) [0,n .. k-w]
+slide w n = concat . slide' w n
 
 -- | @List.mirror@ concatentates with 'tail' of 'reverse' to make a
 -- palindrome.

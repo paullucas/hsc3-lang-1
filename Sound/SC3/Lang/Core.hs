@@ -2,7 +2,6 @@
 module Sound.SC3.Lang.Core where
 
 import Data.Maybe {- base -}
-import Data.Monoid {- base -}
 
 -- * "Data.Function" variants
 

@@ -40,6 +40,7 @@ Library
   Exposed-modules: Sound.SC3.Lang.Collection
                    Sound.SC3.Lang.Collection.Array
                    Sound.SC3.Lang.Collection.Extension
+                   Sound.SC3.Lang.Collection.Gen
                    Sound.SC3.Lang.Collection.Numerical.Extending
                    Sound.SC3.Lang.Collection.Numerical.Truncating
                    Sound.SC3.Lang.Collection.Universal.Datum
