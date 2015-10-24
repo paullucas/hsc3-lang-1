@@ -1,4 +1,7 @@
 -- | Implementaion of server b_gen routines.
+--
+-- The naming scheme is: _p generates one partial, _l generates a list
+-- of partials, _nrm is the unit normalise form.
 module Sound.SC3.Lang.Collection.Gen where
 
 import Data.List
@@ -9,6 +12,14 @@ import qualified Sound.SC3.Lang.Math.Chebyshev as M {- hsc3-lang -}
 two_pi :: Floating n => n
 two_pi = 2 * pi
 
+-- | Sum (mix) multiple tables into one.
+sum_l :: Num n => [[n]] -> [n]
+sum_l = map sum . transpose
+
+-- | Unit normalisation.
+nrm_u :: (Fractional n,Ord n) => [n] -> [n]
+nrm_u = C.normalize (-1) 1
+
 -- * sine1
 
 sine1_p :: (Enum n,Floating n) => Int -> (n,n) -> [n]
@@ -17,17 +28,10 @@ sine1_p n (pfreq,ampl) = sine3_p n (pfreq,ampl,0)
 sine1_l :: (Enum n,Floating n) => Int -> [n] -> [[n]]
 sine1_l n ampl = map (sine1_p n) (zip [1..] ampl)
 
-sum_l :: Num n => [[n]] -> [n]
-sum_l = map sum . transpose
-
 -- > import Sound.SC3.Plot
 -- > plotTable1 (sine1 256 [1,0.95 .. 0.5])
--- > plotTable1 (C.normalize 0.95 1.05 (sine1 256 [1,0.95 .. 0.5]))
 sine1 :: (Enum n,Floating n) => Int -> [n] -> [n]
 sine1 n = sum_l . sine1_l n
-
-nrm_u :: (Fractional n,Ord n) => [n] -> [n]
-nrm_u = C.normalize (-1) 1
 
 -- > plotTable1 (sine1_nrm 256 [1,0.95 .. 0.5])
 sine1_nrm :: (Enum n,Floating n,Ord n) => Int -> [n] -> [n]

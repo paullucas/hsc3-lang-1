@@ -464,9 +464,11 @@ resamp1_gen n r f c =
 -- desired length, with values resampled evenly-spaced from the
 -- receiver with linear interpolation.
 --
+-- > > [1].resamp1(3) == [1,1,1]
 -- > > [1,2,3,4].resamp1(12)
 -- > > [1,2,3,4].resamp1(3) == [1,2.5,4]
 --
+-- > resamp1 3 [1] == [1,1,1]
 -- > resamp1 12 [1,2,3,4]
 -- > resamp1 3 [1,2,3,4] == [1,2.5,4]
 resamp1 :: (Enum n,RealFrac n) => Int -> [n] -> [n]
