@@ -563,7 +563,7 @@ normalize l r c = normalise_rng (minimum c,maximum c) (l,r) c
 -- > import Sound.SC3.Plot
 -- > plotTable [asRandomTable 256 [1,0,1,0,1,0,1]]
 -- > plotTable [asRandomTable 256 (map (/ 100) ([0..100] ++ [100,99..50]))]
-asRandomTable :: (S.TernaryOp a,Enum a, RealFrac a) => Int -> [a] -> [a]
+asRandomTable :: (Enum a, RealFrac a) => Int -> [a] -> [a]
 asRandomTable n c =
     let n' = fromIntegral n
         a = integrate (resamp1 n c)
@@ -729,7 +729,7 @@ to_wavetable =
 sineGen :: (Floating n,Enum n) => Int -> [n] -> [n] -> [[n]]
 sineGen n =
     let incr = (2 * pi) / fromIntegral n
-        ph partial = take n [0,incr * fromIntegral partial ..]
+        ph partial = take n [0,incr * partial ..]
         f h amp iph = map (\z -> sin (z + iph) * amp) (ph h)
     in zipWith3 f [1..]
 
@@ -744,7 +744,7 @@ sineGen n =
 --
 -- > import Sound.SC3.Plot
 -- > plotTable t
-sineFill :: (S.TernaryOp n,Ord n,Floating n,Enum n) => Int -> [n] -> [n] -> [n]
+sineFill :: (Ord n,Floating n,Enum n) => Int -> [n] -> [n] -> [n]
 sineFill n amp iph =
     let t = sineGen n amp iph
     in normalize (-1) 1 (map sum (transpose t))
