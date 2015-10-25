@@ -34,3 +34,15 @@ median xs =
        then head (drop (n `div` 2) xs')
        else mean (take 2 (drop i xs'))
 
+-- | Select averaging function by name.
+--
+-- > parse_averaging_f "median" [1,2,3,5,8,12] == 4
+parse_averaging_f :: (Floating n,Ord n) => String -> [n] -> n
+parse_averaging_f nm =
+    case nm of
+      "median" -> median
+      "mean" -> mean
+      "harmonic-mean" -> harmonic_mean
+      "geometric-mean" -> geometric_mean
+      _ -> error "parse_avg_f"
+

@@ -538,6 +538,10 @@ normalizeSum l =
     let n = sum l
     in map (/ n) l
 
+-- | Variant that specifies range of input sequence separately.
+normalise_rng :: Fractional n => (n,n) -> (n,n) -> [n] -> [n]
+normalise_rng (il,ir) (l,r) = map (\e -> S.linlin' e il ir l r)
+
 -- | @ArrayedCollection.normalize@ returns a new Array with the receiver
 -- items normalized between min and max.
 --
@@ -547,10 +551,7 @@ normalizeSum l =
 -- > normalize 0 1 [1,2,3] == [0,0.5,1]
 -- > normalize (-20) 10 [1,2,3] == [-20,-5,10]
 normalize :: (Fractional n, Ord n) => n -> n -> [n] -> [n]
-normalize l r c =
-    let cl = minimum c
-        cr = maximum c
-    in map (\e -> S.linlin' e cl cr l r) c
+normalize l r c = normalise_rng (minimum c,maximum c) (l,r) c
 
 -- | @ArrayedCollection.asRandomTable@ returns an integral table that
 -- can be used to generate random numbers with a specified
