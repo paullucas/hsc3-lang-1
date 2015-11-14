@@ -25,37 +25,11 @@ parse_c = status_sep . parse_b
 
 -- | Variant of 'parse_c' that constructs a 'Midi_Message'.
 parse_m :: (Bits n,Integral n) => Message -> Midi_Message n
-parse_m m =
-    case parse_c m of
-      [0x8,i,j,k] -> Note_Off i j k
-      [0x9,i,j,0] -> Note_Off i j 0
-      [0x9,i,j,k] -> Note_On i j k
-      [0xa,i,j,k] -> Polyphic_Key_Pressure i j k
-      [0xb,i,j,k] -> Control_Change i j k
-      [0xc,i,j] -> Program_Change i j
-      [0xd,i,j] -> Chanel_Aftertouch i j
-      [0xe,i,j,k] -> Pitch_Bend i (b_join j k)
-      x -> Unknown x
+parse_m = m_decode . parse_c
 
--- | Byte sequence encoding for 'Midi_Message'.
---
--- > m_bytes (Control_Change 0 16 127) == [176,16,127]
-m_bytes :: (Bits t, Integral t) => Midi_Message t -> [t]
-m_bytes m =
-    let r = case m of
-              Chanel_Aftertouch i j -> [0xd,i,j]
-              Control_Change i j k -> [0xb,i,j,k]
-              Note_On i j k -> [0x9,i,j,k]
-              Note_Off i j k -> [0x8,i,j,k]
-              Polyphic_Key_Pressure i j k -> [0xa,i,j,k]
-              Program_Change i j -> [0xc,i,j]
-              Pitch_Bend i j -> let (p,q) = b_sep j in [0xe,i,p,q]
-              Unknown x -> x
-    in status_join r
-
--- | 'B.pack' of 'm_bytes'.
+-- | 'B.pack' of 'm_encode'.
 m_pack :: (Bits a,Integral a) => Midi_Message a -> B.ByteString
-m_pack = B.pack . map fromIntegral . m_bytes
+m_pack = B.pack . map fromIntegral . m_encode
 
 -- | Inverse of 'parse_m'.
 m_message :: (Bits a,Integral a) => Int -> Midi_Message a -> Message

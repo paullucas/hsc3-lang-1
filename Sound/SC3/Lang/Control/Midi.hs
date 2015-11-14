@@ -17,6 +17,7 @@ b_join p q = p .|. shiftL q 7
 b_sep :: (Num t,Bits t) => t -> (t, t)
 b_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
 
+-- > status_sep [0x90,60,64] == [9,0,60,64]
 status_sep :: Integral t => [t] -> [t]
 status_sep m =
     case m of
@@ -32,6 +33,8 @@ status_join m =
 -- * Types
 
 -- | <http://www.midi.org/techspecs/midimessages.php>
+--
+-- Channel messages have the channel number in the first position.
 data Midi_Message a = Chanel_Aftertouch a a
                     | Control_Change a a a
                     | Note_On a a a
@@ -65,6 +68,7 @@ data Control_Message a = All_Notes_Off a
                        | Sostenuto_On_Off a a
                        | Sustain_On_Off a a
                        | Undefined
+                       | Volume a a
                          deriving (Eq,Show)
 
 -- | 'Control_Change' midi messages may, in some cases, have commonly
@@ -79,6 +83,7 @@ control_message (i,j,k) =
       2 -> Breath_Controller i k
       4 -> Foot_Controller i k
       5 -> Portamento_Time i k
+      7 -> Volume i k
       8 -> Balance i k
       10 -> Pan i k
       11 -> Expression_Controller i k
@@ -95,3 +100,35 @@ control_message (i,j,k) =
       126 -> Mono_Mode_On i j
       127 -> Poly_Mode_On i
       _ -> Undefined
+
+-- * Encoding & Decoding
+
+-- | Byte sequence encoding for 'Midi_Message'.
+--
+-- > m_encode (Control_Change 0 16 127) == [176,16,127]
+m_encode :: (Bits t, Integral t) => Midi_Message t -> [t]
+m_encode m =
+    let r = case m of
+              Chanel_Aftertouch i j -> [0xd,i,j]
+              Control_Change i j k -> [0xb,i,j,k]
+              Note_On i j k -> [0x9,i,j,k]
+              Note_Off i j k -> [0x8,i,j,k]
+              Polyphic_Key_Pressure i j k -> [0xa,i,j,k]
+              Program_Change i j -> [0xc,i,j]
+              Pitch_Bend i j -> let (p,q) = b_sep j in [0xe,i,p,q]
+              Unknown x -> x
+    in status_join r
+
+m_decode :: (Integral t,Bits t) => [t] -> Midi_Message t
+m_decode m =
+    case m of
+      [0x8,i,j,k] -> Note_Off i j k
+      [0x9,i,j,0] -> Note_Off i j 0
+      [0x9,i,j,k] -> Note_On i j k
+      [0xa,i,j,k] -> Polyphic_Key_Pressure i j k
+      [0xb,i,j,k] -> Control_Change i j k
+      [0xc,i,j] -> Program_Change i j
+      [0xd,i,j] -> Chanel_Aftertouch i j
+      [0xe,i,j,k] -> Pitch_Bend i (b_join j k)
+      x -> Unknown x
+
