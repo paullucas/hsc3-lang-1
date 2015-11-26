@@ -7,28 +7,45 @@ import Data.Bits {- base -}
 
 -- | Join two 7-bit values into a 14-bit value.
 --
--- > map (uncurry b_join) [(0,0),(0,64),(127,127)] == [0,8192,16383]
-b_join :: Bits a => a -> a -> a
-b_join p q = p .|. shiftL q 7
+-- > map bits_7_join [(0,0),(0,64),(127,127)] == [0,8192,16383]
+bits_7_join :: Bits a => (a,a) -> a
+bits_7_join (p,q) = p .|. shiftL q 7
 
--- | Inverse of 'b_join'.
+-- | Inverse of 'bits_14_sep'.
 --
--- > map b_sep [0,8192,16383] == [(0,0),(0,64),(127,127)]
-b_sep :: (Num t,Bits t) => t -> (t, t)
-b_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
+-- > map bits_14_sep [0,8192,16383] == [(0,0),(0,64),(127,127)]
+bits_14_sep :: (Num t,Bits t) => t -> (t,t)
+bits_14_sep n = (0x7f .&. n,0xff .&. shiftR n 7)
 
--- > status_sep [0x90,60,64] == [9,0,60,64]
-status_sep :: Integral t => [t] -> [t]
-status_sep m =
+-- | Separate status byte into high (command) and low (channel) 4-bit values.
+--
+-- > shiftR 0xB5 4 == 0xB
+-- > 0xB5 .&. 0x0F == 0x5
+-- > status_sep 0xB5 == (0xB,0x5)
+status_sep :: (Num t, Bits t) => t -> (t,t)
+status_sep x = (shiftR x 4,x .&. 0x0F)
+
+-- | Inverse of 'status_sep'.
+--
+-- > status_join (9,4) == 0x94
+status_join :: Bits a => (a, a) -> a
+status_join (md,ch) = shiftL md 4 .|. ch
+
+-- | Separate status byte into high (command) and low (channel) 4-bit values.
+--
+-- > msg_status_sep [0x90,60,64] == [9,0,60,64]
+msg_status_sep :: (Num t, Bits t) => [t] -> [t]
+msg_status_sep m =
     case m of
       [] -> []
-      st:dt -> let (l,h) = st `divMod` 16 in l:h:dt
+      st:dt -> let (h,l) = status_sep st in h:l:dt
 
-status_join :: Integral t => [t] -> [t]
-status_join m =
+-- | Inverse of 'msg_status_sep'.
+msg_status_join :: Bits a => [a] -> [a]
+msg_status_join m =
     case m of
-      (st:ch:dt) -> st * 0x10 + ch : dt
-      _ -> error "status_join"
+      h:l:dt -> status_join (h,l) : dt
+      _ -> error "msg_status_join"
 
 -- * Types
 
@@ -115,10 +132,11 @@ m_encode m =
               Note_Off i j k -> [0x8,i,j,k]
               Polyphic_Key_Pressure i j k -> [0xa,i,j,k]
               Program_Change i j -> [0xc,i,j]
-              Pitch_Bend i j -> let (p,q) = b_sep j in [0xe,i,p,q]
+              Pitch_Bend i j -> let (p,q) = bits_14_sep j in [0xe,i,p,q]
               Unknown x -> x
-    in status_join r
+    in msg_status_join r
 
+-- | Byte sequence decoding for 'Midi_Message'.
 m_decode :: (Integral t,Bits t) => [t] -> Midi_Message t
 m_decode m =
     case m of
@@ -129,6 +147,6 @@ m_decode m =
       [0xb,i,j,k] -> Control_Change i j k
       [0xc,i,j] -> Program_Change i j
       [0xd,i,j] -> Chanel_Aftertouch i j
-      [0xe,i,j,k] -> Pitch_Bend i (b_join j k)
+      [0xe,i,j,k] -> Pitch_Bend i (bits_7_join (j,k))
       x -> Unknown x
 

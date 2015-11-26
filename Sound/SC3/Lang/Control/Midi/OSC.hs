@@ -19,9 +19,9 @@ parse_b m =
       Message "/midi" [Int32 _,Blob b] -> map fromIntegral (B.unpack b)
       _ -> []
 
--- | Variant of 'parse_b' that give status byte as low and high.
-parse_c :: Integral n => Message -> [n]
-parse_c = status_sep . parse_b
+-- | Variant of 'parse_b' that give status byte as high & low components.
+parse_c :: (Integral n,Bits n) => Message -> [n]
+parse_c = msg_status_sep . parse_b
 
 -- | Variant of 'parse_c' that constructs a 'Midi_Message'.
 parse_m :: (Bits n,Integral n) => Message -> Midi_Message n
