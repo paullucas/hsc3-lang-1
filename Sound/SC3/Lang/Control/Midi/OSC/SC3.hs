@@ -4,23 +4,19 @@ module Sound.SC3.Lang.Control.Midi.OSC.SC3 where
 import Data.List.Split {- split -}
 
 import Sound.OSC {- hsc3 -}
---import Sound.SC3 {- hsc3 -}
 
--- | (controller-id,node/group-id,name,min-value,max-value,warp,unit)
-data Param = Param {param_cc_id :: Int
-                   ,param_node_id :: Int
-                   ,param_name :: String
-                   ,param_min :: Double
-                   ,param_max :: Double
-                   ,param_warp :: String
-                   ,param_unit :: String}
-            deriving (Read,Show)
+-- | Parameter meta-data.
+data Param = Param
+    {param_cc_id :: Int
+    ,param_node_id :: Int
+    ,param_name :: String
+    ,param_min :: Double
+    ,param_max :: Double
+    ,param_warp :: String
+    ,param_unit :: String}
+             deriving (Read,Show)
 
-type Param' = (Int,Int,String,Double,Double,String,String)
-
-param :: Param' -> Param
-param (c,k,nm,l,r,w,u) = Param c k nm l r w u
-
+-- | Type-specialised 'read'.
 parse_param_read :: String -> Param
 parse_param_read = read
 
@@ -46,5 +42,14 @@ param_to_datum cfg =
 param_to_message :: Param -> Message
 param_to_message = message "/param" . param_to_datum
 
+clear :: Message
+clear = message "/clear" []
+
 with_midi_osc_sc3 :: Connection UDP a -> IO a
 with_midi_osc_sc3 = withTransport (openUDP "127.0.0.1" 57300)
+
+-- | Unpacked 'Param', ie. (controller-id,node/group-id,name,min-value,max-value,warp,unit).
+type Param' = (Int,Int,String,Double,Double,String,String)
+
+param :: Param' -> Param
+param (cc,k,nm,l,r,w,u) = Param cc k nm l r w u
