@@ -11,52 +11,72 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 randomM :: (Random a, MonadIO m) => (a, a) -> m a
 randomM = liftIO . randomRIO
 
--- | @SimpleNumber.rand@ is 'randomRIO' in (0,/n/).
-rand :: (MonadIO m,Random n,Num n) => n -> m n
-rand n = randomM (0,n)
-
--- | @SimpleNumber.rand2@ is 'randomRIO' in (-/n/,/n/).
-rand2 :: (MonadIO m,Random n,Num n) => n -> m n
-rand2 n = randomM (-n,n)
-
 -- | 'liftIO' of 'getStdRandom'.
 randomG :: MonadIO m => (StdGen -> (a, StdGen)) -> m a
 randomG = liftIO . getStdRandom
 
--- | Variant of 'rand2' generating /k/ values.
+-- | 'R.rand'.
+rand :: (MonadIO m,Random n,Num n) => n -> m n
+rand = randomG . R.rand
+
+-- | 'R.nrand'.
+nrand :: (Random a, Num a) => Int -> a -> IO [a]
+nrand = randomG .: R.nrand
+
+-- | 'R.rand2'.
+rand2 :: (MonadIO m,Random n,Num n) => n -> m n
+rand2 = randomG . R.rand2
+
+-- | 'R.nrand2'.
 nrand2 :: (Random a, Num a) => Int -> a -> IO [a]
 nrand2 = randomG .: R.nrand2
 
--- | @SimpleNumber.rrand@ is 'curry' 'randomRIO'.
+-- | 'R.rrand'.
 rrand :: (MonadIO m,Random n) => n -> n -> m n
-rrand l r = randomM (l,r)
+rrand = randomG .: R.rrand
 
--- | Variant of 'rrand' generating /k/ values.
+-- | 'R.nrrand'.
 --
 -- > nrrand 9 (-9) 9
 nrrand :: (MonadIO m,Random a, Num a) => Int -> a -> a -> m [a]
 nrrand = randomG .:: R.nrrand
 
--- | @SequenceableCollection.choose@ selects an element at random.
+-- | 'R.choose'.
 choose :: MonadIO m => [a] -> m a
 choose = randomG . R.choose
 
--- | @SimpleNumber.exprand@ generates exponentially distributed random
--- number in the given interval.
+-- | 'R.nchoose'.
+nchoose :: MonadIO m => Int -> [a] -> m [a]
+nchoose = randomG .: R.nchoose
+
+-- | 'R.exprand'.
 exprand :: (MonadIO m,Floating n,Random n) => n -> n -> m n
 exprand = randomG .: R.exprand
 
--- | @SimpleNumber.coin@ is 'True' at given probability, which is in
--- range (0,1).
+-- | 'R.exprand'.
+nexprand :: (MonadIO m,Floating n,Random n) => Int -> n -> n -> m [n]
+nexprand = randomG .:: R.nexprand
+
+-- | 'R.coin'.
 coin :: (MonadIO m,Random n,Fractional n,Ord n) => n -> m Bool
 coin = randomG . R.coin
 
--- | @List.scramble@ shuffles the elements.
+-- | 'R.coin'.
+ncoin :: (MonadIO m,Random n,Fractional n,Ord n) => Int -> n -> m [Bool]
+ncoin = randomG .: R.ncoin
+
+-- | 'R.scramble'.
 scramble :: MonadIO m => [t] -> m [t]
 scramble = randomG . R.scramble
 
--- | @SequenceableCollection.wchoose@ selects an element from a list
--- given a list of weights which sum to @1@.
+-- | 'R.wchoose'.
 wchoose :: (MonadIO m,Random a,Ord a,Fractional a) => [b] -> [a] -> m b
 wchoose = randomG .: R.wchoose
 
+-- | 'R.wchoose_N'.
+wchoose_N :: (MonadIO m,Random a,Ord a,Fractional a) => [b] -> [a] -> m b
+wchoose_N = randomG .: R.wchoose_N
+
+-- | 'R.nwchoose_N'.
+nwchoose_N :: (MonadIO m,Random a,Ord a,Fractional a) => Int -> [b] -> [a] -> m [b]
+nwchoose_N = randomG .:: R.nwchoose_N
