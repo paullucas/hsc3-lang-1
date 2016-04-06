@@ -13,8 +13,9 @@ import qualified Sound.SC3.Lang.Random.Gen as R
 
 -- | Remove successive duplicates.
 --
+-- > rsd [1,1,2,2,3,3] == [1,2,3]
 -- > rsd [1,2,3,1,2,3] == [1,2,3,1,2,3]
-rsd :: (Eq a) => [a] -> [a]
+rsd :: Eq a => [a] -> [a]
 rsd =
     let f (p,_) i = (Just i,if Just i == p then Nothing else Just i)
     in mapMaybe snd . scanl f (Nothing,Nothing)
@@ -42,19 +43,21 @@ brown_ (l,r,s) (n,g) =
     let (i,g') = randomR (-s,s) g
     in (S.foldToRange l r (n + i),g')
 
--- | Brown noise with list inputs.
---
--- > let l = brown 'α' (repeat 1) (repeat 700) (cycle [1,20])
--- > in l `iEq` [415,419,420,428]
-brown :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
-brown e l_ r_ s_ =
-    let i = (randomR (head l_,head r_) (mkStdGen (fromEnum e)))
-        rec (n,g) z =
+brown' :: (RandomGen g,Num t,Ord t,Random t) => (t,g) -> [t] -> [t] -> [t] -> [t]
+brown' i l_ r_ s_ =
+    let rec (n,g) z =
             case z of
               [] -> []
               (l,r,s):z' -> let (n',g') = brown_ (l,r,s) (n,g)
                             in n' : rec (n',g') z'
     in rec i (zip3 l_ r_ s_)
+
+-- | Brown noise with list inputs and random intial value.
+--
+-- > let l = brown 'α' (repeat 1) (repeat 700) (cycle [1,20])
+-- > in l `iEq` [415,419,420,428]
+brown :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
+brown e l_ r_ = brown' (randomR (head l_,head r_) (mkStdGen (fromEnum e))) l_ r_
 
 -- | 'M.exprange' of 'white'
 exprand :: (Enum e,Random a,Floating a) => e -> a -> a -> [a]

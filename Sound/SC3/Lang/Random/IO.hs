@@ -18,7 +18,7 @@ randomG = liftIO . getStdRandom
 -- | 'R.rand'.
 --
 -- > import Control.Monad
--- > replicateM_ 10 (rand 100)
+-- > replicateM 10 (rand 100)
 rand :: (MonadIO m,Random n,Num n) => n -> m n
 rand = randomG . R.rand
 
