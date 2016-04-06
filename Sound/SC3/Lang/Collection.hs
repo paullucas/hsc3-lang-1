@@ -3,7 +3,7 @@
 -- becomes @m i j c@.
 module Sound.SC3.Lang.Collection where
 
-import qualified Data.List.Split as L {- split -}
+import Data.List.Split {- split -}
 import Data.List as L {- base -}
 import Data.Maybe {- base -}
 import qualified Sound.SC3 as S {- hsc3 -}
@@ -202,7 +202,7 @@ fib n i j =
       0 -> []
       _ -> j : fib (n - 1) j (i + j)
 
--- | @SequenceableCollection.first@ is a total variant of 'L.head'.
+-- | @SequenceableCollection.first@ is a total variant of 'head'.
 --
 -- > > [3,4,5].first == 3
 -- > first [3,4,5] == Just 3
@@ -216,7 +216,7 @@ first xs =
       [] -> Nothing
       x:_ -> Just x
 
--- | Synonym for 'L.head'.
+-- | Synonym for 'head'.
 first' :: [t] -> t
 first' = head
 
@@ -295,7 +295,7 @@ indexInBetween e l =
     in maybe (fromInteger (size l) - 1) f (indexOfGreaterThan e l)
 
 -- | @SequenceableCollection.keep@ is, for positive /n/ a synonym for
--- 'L.take', and for negative /n/ a variant on 'L.drop' based on the
+-- 'take', and for negative /n/ a variant on 'drop' based on the
 -- 'length' of /l/.
 --
 -- > > [1,2,3,4,5].keep(3) == [1,2,3]
@@ -309,7 +309,7 @@ indexInBetween e l =
 keep :: Integral i => i -> [a] -> [a]
 keep n l =
     if n < 0
-    then L.genericDrop (genericLength l + n) l
+    then genericDrop (genericLength l + n) l
     else genericTake n l
 
 -- | @SequenceableCollection.drop@ is, for positive /n/ a synonym for
@@ -327,8 +327,8 @@ keep n l =
 drop :: Integral i => i -> [a] -> [a]
 drop n l =
     if n < 0
-    then L.genericTake (L.genericLength l + n) l
-    else L.genericDrop n l
+    then genericTake (genericLength l + n) l
+    else genericDrop n l
 
 -- | Function to calculate a list equal in length to the longest input
 -- list, therefore being productive over infinite lists.
@@ -417,7 +417,7 @@ separate f l =
 -- > > [1,2,3,4,5,6,7,8].clump(3) == [[1,2,3],[4,5,6],[7,8]]
 -- > clump 3 [1,2,3,4,5,6,7,8] == [[1,2,3],[4,5,6],[7,8]]
 clump :: Int -> [a] -> [[a]]
-clump = L.chunksOf
+clump = chunksOf
 
 -- | @SequenceableCollection.clumps@ is a synonym for
 -- 'Data.List.Split.splitPlaces'.
@@ -540,7 +540,7 @@ normalizeSum l =
 
 -- | Variant that specifies range of input sequence separately.
 normalise_rng :: Fractional n => (n,n) -> (n,n) -> [n] -> [n]
-normalise_rng (il,ir) (l,r) = map (\e -> S.linlin' e il ir l r)
+normalise_rng (il,ir) (l,r) = map (\e -> S.linlin e il ir l r)
 
 -- | @ArrayedCollection.normalize@ returns a new Array with the receiver
 -- items normalized between min and max.
@@ -572,7 +572,7 @@ asRandomTable n c =
 
 -- | Non-catenating variant of 'slide'.
 slide' :: Integral i => i -> i -> [a] -> [[a]]
-slide' w n l = map (\i -> genericTake w (L.genericDrop i l)) [0,n .. genericLength l - w]
+slide' w n l = map (\i -> genericTake w (genericDrop i l)) [0,n .. genericLength l - w]
 
 -- | @List.slide@ is an identity window function with subsequences of
 -- length /w/ and stride of /n/.
@@ -671,7 +671,7 @@ windex w n = findIndex (n <) (integrate w)
 t2_window :: Integral i => i -> [t] -> [(t,t)]
 t2_window n x =
     case x of
-      i:j:_ -> (i,j) : t2_window n (L.genericDrop n x)
+      i:j:_ -> (i,j) : t2_window n (genericDrop n x)
       _ -> []
 
 -- | List of 2-tuples of adjacent elements.
