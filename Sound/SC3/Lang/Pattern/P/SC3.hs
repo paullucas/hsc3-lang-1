@@ -69,9 +69,9 @@ The underlying primitive is then `fold_` function.
 pfold :: (RealFrac n) => P n -> n -> n -> P n
 pfold = P.ffold
 
--- | Pattern variant of 'C.normalizeSum'.
+-- | Pattern variant of 'normalizeSum'.
 pnormalizeSum :: Fractional n => P n -> P n
-pnormalizeSum = liftP C.normalizeSum
+pnormalizeSum = liftP normalizeSum
 
 -- * SC3 Patterns
 

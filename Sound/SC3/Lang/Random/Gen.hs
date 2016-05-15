@@ -6,8 +6,10 @@ import Data.Maybe {- base  -}
 import System.Random {- random -}
 import System.Random.Shuffle {- random-shuffle -}
 
+import Sound.SC3.Common.Buffer {- hsc3 -}
+
 import qualified Sound.SC3.Lang.Collection as C
-import Sound.SC3.Lang.Core
+import Sound.SC3.Lang.Core ((.:))
 import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'randomR' in (0,/n/).
@@ -136,7 +138,7 @@ wchoose l w g =
 -- > let r = "dcbbacaadd"
 -- > in r == fst (kvariant 10 (wchoose_N "abcd" [8,4,2,1]) (mkStdGen 0))
 wchoose_N :: (Fractional a,Ord a,RandomGen g,Random a) => [b] -> [a] -> g -> (b, g)
-wchoose_N l w = wchoose l (C.normalizeSum w)
+wchoose_N l w = wchoose l (normalizeSum w)
 
 -- | 'kvariant' of 'wchoose_N'.
 nwchoose_N :: (Fractional a,Ord a,RandomGen g,Random a) => Int -> [b] -> [a] -> g -> ([b], g)

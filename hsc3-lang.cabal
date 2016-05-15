@@ -17,8 +17,7 @@ Cabal-Version:     >= 1.8
 Data-files:        README
 
 Library
-  Build-Depends:   array,
-                   base >= 4.8,
+  Build-Depends:   base >= 4.8,
                    bifunctors,
                    bytestring,
                    containers,
@@ -34,17 +33,13 @@ Library
                    split,
                    random,
                    random-shuffle,
-                   transformers,
-                   vector
+                   transformers
   GHC-Options:     -Wall -fwarn-tabs
   Exposed-modules: Sound.SC3.Lang.Collection
-                   Sound.SC3.Lang.Collection.Array
                    Sound.SC3.Lang.Collection.Extension
-                   Sound.SC3.Lang.Collection.Gen
                    Sound.SC3.Lang.Collection.Numerical.Extending
                    Sound.SC3.Lang.Collection.Numerical.Truncating
                    Sound.SC3.Lang.Collection.Universal.Datum
-                   Sound.SC3.Lang.Collection.Vector
                    Sound.SC3.Lang.Control.Duration
                    Sound.SC3.Lang.Control.Event
                    Sound.SC3.Lang.Control.Instrument
@@ -56,7 +51,6 @@ Library
                    Sound.SC3.Lang.Data.Modal
                    Sound.SC3.Lang.Data.Vowel
                    Sound.SC3.Lang.Math
-                   Sound.SC3.Lang.Math.Chebyshev
                    Sound.SC3.Lang.Math.Statistics
                    Sound.SC3.Lang.Math.Warp
                    Sound.SC3.Lang.Math.Window

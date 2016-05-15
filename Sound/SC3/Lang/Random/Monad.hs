@@ -5,8 +5,10 @@ import Control.Monad {- base -}
 import Control.Monad.Random {- MonadRandom -}
 import Data.Maybe {- base  -}
 
+import Sound.SC3.Common.Buffer {- hsc3 -}
+
 import qualified Sound.SC3.Lang.Collection as C
-import Sound.SC3.Lang.Core
+import Sound.SC3.Lang.Core ((.:))
 import qualified Sound.SC3.Lang.Math as M
 
 -- | @SimpleNumber.rand@ is 'getRandomR' in (0,/n/).
@@ -61,7 +63,7 @@ wchoose l w = do
   return (l !! n)
 
 wchoose_N :: (RandomGen g,Fractional t,Ord t,Random t) => [a] -> [t] -> Rand g a
-wchoose_N l w = wchoose l (C.normalizeSum w)
+wchoose_N l w = wchoose l (normalizeSum w)
 
 -- | Variant of 'choose' generating /k/ values.
 --
