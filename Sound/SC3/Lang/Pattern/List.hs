@@ -38,12 +38,12 @@ ffold :: (Functor f,Num a,Ord a) => f a -> a -> a -> f a
 ffold p i j = fmap (\n -> S.fold_ n i j) p
 
 -- | SC3 pattern to constrain the range of output values by wrapping,
--- the primitive is 'S.genericWrap'.
+-- the primitive is 'S.generic_wrap'.
 --
 -- > let p = fmap round (fwrap (geom 200 1.2 10) 200 1000)
 -- > in p == [200,240,288,346,415,498,597,717,860,231]
 fwrap :: (Functor f,Ord a,Num a) => f a -> a -> a -> f a
-fwrap xs l r = fmap (S.genericWrap l r) xs
+fwrap xs l r = fmap (S.generic_wrap l r) xs
 
 -- * Non-SC3 Patterns
 

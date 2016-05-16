@@ -66,13 +66,13 @@ arc_sine u = let x = sin (pi * u / 2) in x * x
 -- | §4.4.2 (Algorithm 15)
 --
 -- > let adj l = case l of {[] -> []; p:q:l' -> (p,q) : adj l'}
--- > let r' = adj r
--- > h [mapMaybe (beta 0.45 0.45) r'
--- >   ,mapMaybe (beta 0.65 0.45) r'
--- >   ,mapMaybe (beta 0.45 0.65) r']
+-- > let r'' = adj r
+-- > h [mapMaybe (beta 0.45 0.45) r''
+-- >   ,mapMaybe (beta 0.65 0.45) r''
+-- >   ,mapMaybe (beta 0.45 0.65) r'']
 --
--- > h [mapMaybe (beta 0.35 0.5) r'
--- >   ,mapMaybe (beta 0.5 0.65) r']
+-- > h [mapMaybe (beta 0.35 0.5) r''
+-- >   ,mapMaybe (beta 0.5 0.65) r'']
 beta :: (Floating a,Ord a) => a -> a -> (a,a) -> Maybe a
 beta a b (u1,u2) =
     let ea = 1.0 / a

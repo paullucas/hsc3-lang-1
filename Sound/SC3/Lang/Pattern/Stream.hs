@@ -88,7 +88,7 @@ rand e a =
 -- > segment [0..4] 5 (3,5) == [3,4,0]
 segment :: [a] -> Int -> (Int,Int) -> [a]
 segment a k (l,r) =
-    let i = map (S.genericWrap 0 (k - 1)) [l .. r]
+    let i = map (S.generic_wrap 0 (k - 1)) [l .. r]
     in map (a !!) i
 
 -- > slide [1,2,3,4] 4 1 0 True `iEq` [[1,2,3,4],[2,3,4,1],[3,4,1,2],[4,1,2,3]]
