@@ -57,6 +57,8 @@ nrand :: (RandomGen g,Random n,Num n) => Int -> n -> g -> ([n],g)
 nrand k = kvariant k . rand
 
 -- | Stream variant of 'rand'.
+--
+-- > take 10 (s_rand 100 (mkStdGen 246873)) == [47,73,45,79,72,90,67,26,67,6]
 s_rand :: (RandomGen g,Random n,Num n) => n -> g -> [n]
 s_rand = r_iterate . rand
 
@@ -65,6 +67,8 @@ rand2 :: (RandomGen g,Random n,Num n) => n -> g -> (n,g)
 rand2 n = randomR (-n,n)
 
 -- | Stream variant of 'rand2'.
+--
+-- > take 10 (s_rand2 100 (mkStdGen 246873)) == [36,92,-77,-64,31,-87,-1,-90,91,2]
 s_rand2 :: (RandomGen g,Random n,Num n) => n -> g -> [n]
 s_rand2 = r_iterate . rand2
 
@@ -75,6 +79,12 @@ nrand2 k = kvariant k . rand2
 -- | @SimpleNumber.rrand@ is 'curry' 'randomR'.
 rrand :: (Random n, RandomGen g) => n -> n -> g -> (n,g)
 rrand = curry randomR
+
+-- | Stream variant of 'rrand'.
+--
+-- > take 10 (s_rrand 100 200 (mkStdGen 246873)) == [147,173,145,179,172,190,167,126,167,106]
+s_rrand :: (RandomGen g,Random n,Num n) => n -> n -> g -> [n]
+s_rrand lhs = r_iterate . rrand lhs
 
 -- | Variant of 'rrand' generating /k/ values.
 nrrand :: (RandomGen g,Random a,Num a) => Int -> a -> a -> g -> ([a],g)
