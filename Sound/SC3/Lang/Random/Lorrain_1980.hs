@@ -5,11 +5,11 @@ module Sound.SC3.Lang.Random.Lorrain_1980 where
 
 -- | §4.3.1 (g=1)
 --
--- > import System.Random
+-- > import System.Random {- random -}
 -- > let r = take 32768 (randomRs (0.0,1.0) (mkStdGen 12345))
 --
--- > import Sound.SC3.Plot
--- > import Sound.SC3.Plot.Histogram
+-- > import Sound.SC3.Plot {- hsc3-plot -}
+-- > import Sound.SC3.Plot.Histogram {- hsc3-plot -}
 -- > let h = plotHistogram . map (histogram 512)
 --
 -- > let r' = take 1000000 (randomRs (0.0,1.0) (mkStdGen 12345))
@@ -82,9 +82,33 @@ beta a b (u1,u2) =
         s = y1 + y2
     in if s <= 1.0 then Just (y1 / s) else Nothing
 
--- | §4.4.1 Gauss-Laplace Distribution
+gauss_laplace_t12 :: Num a => a -> a -> T12 a -> a
+gauss_laplace_t12 mu sigma u = (sigma * (t12_sum u - 6)) + mu
+
+-- | §4.4.1 Gauss-Laplace Distribution.
 --
--- > import Data.List.Split
--- > h [map (gauss_laplace 0 1) (chunksOf 12 r')]
+-- Requires 12 uniformly distributed random numbers in (0,1), range
+-- when mu=0 and sigma=1 is (-6,6), with 99.7% in (-3,3) and 68.3% in
+-- (-1,1).
+--
+-- > import Data.List.Split {- split -}
+-- > let chunks_of_strict n = filter ((== n) . length) . chunksOf n
+-- > let r'' = chunks_of_strict 12 r'
+-- > h [map (gauss_laplace 0 1) r'',map (gauss_laplace 0.75 0.5) r'']
 gauss_laplace :: Num a => a -> a -> [a] -> a
-gauss_laplace mu sigma u = (sigma * (sum u - 6)) + mu
+gauss_laplace mu sigma u = gauss_laplace_t12 mu sigma (t12_from_list u)
+
+-- * T12
+
+type T12 n = (n,n,n,n,n,n,n,n,n,n,n,n)
+
+t12_sum :: Num n => T12 n -> n
+t12_sum t =
+    let (n1,n2,n3,n4,n5,n6,n7,n8,n9,n10,n11,n12) = t
+    in n1 + n2 + n3 + n4 + n5 + n6 + n7 + n8 + n9 + n10 + n11 + n12
+
+t12_from_list :: [t] -> T12 t
+t12_from_list l =
+    case l of
+      [p,q,r,s,t,u,v,w,x,y,z,a] -> (p,q,r,s,t,u,v,w,x,y,z,a)
+      _ -> error "t12_from_list"
