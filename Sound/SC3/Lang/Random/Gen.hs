@@ -100,6 +100,9 @@ choose l g =
 nchoose :: RandomGen g => Int -> [a] -> g -> ([a],g)
 nchoose k = kvariant k . choose
 
+s_choose :: RandomGen g => [a] -> g -> [a]
+s_choose = r_iterate . choose
+
 -- | @SimpleNumber.exprand@ generates exponentially distributed random
 -- number in the given interval.
 exprand :: (Floating n,Random n,RandomGen g) => n -> n -> g -> (n,g)
@@ -153,3 +156,9 @@ wchoose_N l w = wchoose l (normalizeSum w)
 -- | 'kvariant' of 'wchoose_N'.
 nwchoose_N :: (Fractional a,Ord a,RandomGen g,Random a) => Int -> [b] -> [a] -> g -> ([b], g)
 nwchoose_N n = kvariant n .: wchoose_N
+
+s_wchoose :: (RandomGen g,Random a,Ord a,Fractional a) => [b] -> [a] -> g -> [b]
+s_wchoose l = r_iterate . wchoose l
+
+s_wchoose_N :: (RandomGen g,Random a,Ord a,Fractional a) => [b] -> [a] -> g -> [b]
+s_wchoose_N l = r_iterate . wchoose_N l
