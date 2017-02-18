@@ -9,7 +9,7 @@ import Data.Maybe
 -- | Extract 'Fn'th formant triple of an 'Fdata'.
 --
 -- > formant F1 (fdata Bass I) == (1750,-30,90)
-formant :: Num n => Fn -> Fdata n -> (n,n,n)
+formant :: Fn -> Fdata n -> (n,n,n)
 formant n v = formants v !! fromEnum n
 
 -- | Lookup formant 'Fdata' given 'Voice' and 'Vowel'.
@@ -22,14 +22,16 @@ fdata v i =
     let f (p,q,_,_,_) = p == v && q == i
     in fromMaybe (error "fdata") (find f fdata_table)
 
--- | Formant triples of an 'Fdata'.
---
--- > formants (fdata Bass I) == [(250,0,60)
--- >                            ,(1750,-30,90)
--- >                            ,(2600,-16,100)
--- >                            ,(3050,-22,120)
--- >                            ,(3340,-28,120)]
-formants :: Num n => Fdata n -> [(n,n,n)]
+{- | Formant triples of an 'Fdata'.
+
+> formants (fdata Bass I) == [(250,0,60)
+>                            ,(1750,-30,90)
+>                            ,(2600,-16,100)
+>                            ,(3050,-22,120)
+>                            ,(3340,-28,120)]
+
+-}
+formants :: Fdata n -> [(n,n,n)]
 formants (_,_,f,a,bw) = map triple' (transpose [f,a,bw])
 
 -- * Data types

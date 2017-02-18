@@ -83,11 +83,11 @@ rrand = curry randomR
 -- | Stream variant of 'rrand'.
 --
 -- > take 10 (s_rrand 100 200 (mkStdGen 246873)) == [147,173,145,179,172,190,167,126,167,106]
-s_rrand :: (RandomGen g,Random n,Num n) => n -> n -> g -> [n]
+s_rrand :: (RandomGen g,Random n) => n -> n -> g -> [n]
 s_rrand lhs = r_iterate . rrand lhs
 
 -- | Variant of 'rrand' generating /k/ values.
-nrrand :: (RandomGen g,Random a,Num a) => Int -> a -> a -> g -> ([a],g)
+nrrand :: (RandomGen g,Random a) => Int -> a -> a -> g -> ([a],g)
 nrrand k = kvariant k .: rrand
 
 -- | @SequenceableCollection.choose@ selects an element at random.

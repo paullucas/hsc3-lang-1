@@ -17,13 +17,13 @@ nchoose e n l = id_rand e (G.nchoose n l)
 rand :: (Random a, Num a, Enum e) => e -> a -> a
 rand e n = id_rand e (G.rand n)
 
-rrand :: (Random a, Num a, Enum e) => e -> a -> a -> a
+rrand :: (Random a, Enum e) => e -> a -> a -> a
 rrand e l r = id_rand e (G.rrand l r)
 
 -- | /n/ iterations of 'rrand'.
 --
 -- > nrrand 'α' 9 1 9 == [8,3,4,7,4,9,2,9,3]
-nrrand :: (Random a, Num a, Enum e) => e -> Int -> a -> a -> [a]
+nrrand :: (Random a, Enum e) => e -> Int -> a -> a -> [a]
 nrrand e n l r = id_rand e (G.nrrand n l r)
 
 -- | /n/ iterations of 'coin'.

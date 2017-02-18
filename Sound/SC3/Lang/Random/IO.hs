@@ -41,7 +41,7 @@ rrand = randomG .: R.rrand
 -- | 'R.nrrand'.
 --
 -- > nrrand 9 (-9) 9
-nrrand :: (MonadIO m,Random a, Num a) => Int -> a -> a -> m [a]
+nrrand :: (MonadIO m,Random a) => Int -> a -> a -> m [a]
 nrrand = randomG .:: R.nrrand
 
 -- | 'R.choose'.

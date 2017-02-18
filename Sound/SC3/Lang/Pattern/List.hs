@@ -269,7 +269,7 @@ if_zip a b c =
     in map f (zip3 a b c)
 
 -- | Underlying 'funcn'.
-funcn' :: (RandomGen g) => g -> (g -> (n,g)) -> Int -> [n]
+funcn' :: g -> (g -> (n,g)) -> Int -> [n]
 funcn' g_ f n =
   let rec [] _ = []
       rec h g =
@@ -303,7 +303,7 @@ white' e l r =
 -- | Type-specialised ('Integral') 'white'.
 --
 -- > whitei' 'α' 1 9 5 == [3,9,2,9,4]
-whitei' :: (Random n,Integral n,Enum e) => e -> n -> n -> Int -> [n]
+whitei' :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
 whitei' = white
 
 -- | A variant of 'pwhite' that generates integral (rounded) values.
