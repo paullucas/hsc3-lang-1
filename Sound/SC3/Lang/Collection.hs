@@ -4,12 +4,12 @@
 module Sound.SC3.Lang.Collection where
 
 import Data.List.Split {- split -}
-import Data.List as L {- base -}
+import Data.List {- base -}
 import Data.Maybe {- base -}
 
 import qualified Sound.SC3 as S {- hsc3 -}
 
-import Sound.SC3.Lang.Core {- hsc3-lang -}
+import qualified Sound.SC3.Lang.Core as C {- hsc3-lang -}
 
 -- * Collection
 
@@ -81,21 +81,21 @@ inject i f = foldl f i
 --
 -- > any' (\i _ -> even i) [1,2,3,4] == True
 any' :: Integral i => (a -> i -> Bool) -> [a] -> Bool
-any' = isJust .: detect
+any' f = isJust . detect f
 
 -- | @Collection.every@ is 'True' if /f/ applies at all elements.
 --
 -- > every (\i _ -> even i) [1,2,3,4] == False
 every :: Integral i => (a -> i -> Bool) -> [a] -> Bool
 every f =
-    let g = not .: f
+    let g x = not . f x
     in not . any' g
 
 -- | @Collection.count@ is 'length' of 'select'.
 --
 -- > count (\i _ -> even i) [1,2,3,4] == 2
 count :: Integral i => (a -> i -> Bool) -> [a] -> i
-count = genericLength .: select
+count f = genericLength . select f
 
 -- | @Collection.occurencesOf@ is an '==' variant of 'count'.
 --
@@ -108,19 +108,19 @@ occurencesOf k = count (\e _ -> e == k)
 --
 -- > sum' (ignoringIndex (* 2)) [1,2,3,4] == 20
 sum' :: (Num a,Integral i) => (b -> i -> a) -> [b] -> a
-sum' = sum .: collect
+sum' f = sum . collect f
 
 -- | @Collection.maxItem@ is 'maximum' of 'collect'.
 --
 -- > maxItem (ignoringIndex (* 2)) [1,2,3,4] == 8
 maxItem :: (Ord b,Integral i) => (a -> i -> b) -> [a] -> b
-maxItem = maximum .: collect
+maxItem f = maximum . collect f
 
 -- | @Collection.minItem@ is 'maximum' '.' 'collect'.
 --
 -- > minItem (ignoringIndex (* 2)) [1,2,3,4] == 2
 minItem :: (Integral i,Ord b) => (a -> i -> b) -> [a] -> b
-minItem = minimum .: collect
+minItem f = minimum . collect f
 
 -- | Variant of 'zipWith' that cycles the shorter input.
 --
@@ -221,11 +221,11 @@ first xs =
 first' :: [t] -> t
 first' = head
 
--- | Total variant of 'L.last'.
+-- | Total variant of 'Data.List.last'.
 --
 -- > > (1..5).last == 5
 -- > lastM [1..5] == Just 5
--- > L.last [1..5] == 5
+-- > Data.List.last [1..5] == 5
 --
 -- > > [].last == nil
 -- > lastM [] == Nothing
@@ -240,9 +240,9 @@ lastM xs =
 last :: [t] -> Maybe t
 last = lastM
 
--- | Synonym for 'L.last'.
+-- | Synonym for 'Data.List.last'.
 last' :: [t] -> t
-last' = L.last
+last' = Data.List.last
 
 -- | @SequenceableCollection.indexOf@ is a variant of 'elemIndex' with
 -- reversed arguments.
@@ -254,7 +254,7 @@ indexOf = flip elemIndex
 
 -- | 'fromJust' variant of 'indexOf'.
 indexOf' :: Eq a => [a] -> a -> Int
-indexOf' = fromJust .: indexOf
+indexOf' f = fromJust . indexOf f
 
 -- | @SequenceableCollection.indexOfEqual@ is just 'indexOf'.
 indexOfEqual :: Eq a => [a] -> a -> Maybe Int
@@ -314,8 +314,8 @@ keep n l =
     else genericTake n l
 
 -- | @SequenceableCollection.drop@ is, for positive /n/ a synonym for
--- 'L.drop', for negative /n/ a variant on 'L.take' based on the
--- 'L.length' of /l/.
+-- 'Data.List.drop', for negative /n/ a variant on 'Data.List.take'
+-- based on the 'length' of /l/.
 --
 -- > > [1,2,3,4,5].drop(3) == [4,5]
 -- > L.drop 3 [1,2,3,4,5] == [4,5]
@@ -612,7 +612,7 @@ windex w n = findIndex (n <) (integrate w)
 slide1 :: Integral i => [i] -> [i] -> [a] -> [[a]]
 slide1 w n l =
     case (w,n,l) of
-      (w0:w',n0:n',_) -> case genericTakeMaybe w0 l of
+      (w0:w',n0:n',_) -> case C.genericTakeMaybe w0 l of
                            Nothing -> []
                            Just r -> let l' = genericDrop n0 l
                                      in r : slide1 w' n' l'
@@ -620,7 +620,7 @@ slide1 w n l =
 
 -- | 'concat' of 'slide1'.
 slide2 :: Integral i => [i] -> [i] -> [a] -> [a]
-slide2 = concat .:: slide1
+slide2 p q = concat . slide1 p q
 
 -- | Variant where stutter input is a list and the result is not
 -- catentated.
@@ -631,4 +631,4 @@ stutter1 = zipWith genericReplicate
 
 -- | 'concat' of 'stutter1'.
 stutter2 :: Integral i => [i] -> [a] -> [a]
-stutter2 = concat .: stutter1
+stutter2 p = concat . stutter1 p
