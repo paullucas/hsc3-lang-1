@@ -47,9 +47,6 @@ Library
                    Sound.SC3.Lang.Control.OverlapTexture
                    Sound.SC3.Lang.Control.Spec
                    Sound.SC3.Lang.Core
-                   Sound.SC3.Lang.Data.CMUdict
-                   Sound.SC3.Lang.Data.Modal
-                   Sound.SC3.Lang.Data.Vowel
                    Sound.SC3.Lang.Math
                    Sound.SC3.Lang.Math.Statistics
                    Sound.SC3.Lang.Math.Warp

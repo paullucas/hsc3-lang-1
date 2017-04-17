@@ -39,13 +39,13 @@ nrand2 k = replicateM k . rand2
 -- | @SimpleNumber.rrand@ is 'curry' 'getRandomR'.
 --
 -- > evalRand (replicateM 2 (rrand 3 9)) (mkStdGen 1) == [5,8]
-rrand :: (RandomGen g,Random n,Num n) => n -> n -> Rand g n
+rrand :: (RandomGen g,Random n) => n -> n -> Rand g n
 rrand l r = getRandomR (l,r)
 
 -- | Variant of 'rrand' generating /k/ values.
 --
 -- > evalRand (nrrand 4 3 9) (mkStdGen 1) == [5,8,9,6]
-nrrand :: (RandomGen g,Random n,Num n) => Int -> n -> n -> Rand g [n]
+nrrand :: (RandomGen g,Random n) => Int -> n -> n -> Rand g [n]
 nrrand k = replicateM k .: rrand
 
 -- | @SequenceableCollection.choose@ selects an element at random.

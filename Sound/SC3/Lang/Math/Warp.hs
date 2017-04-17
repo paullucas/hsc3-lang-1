@@ -129,7 +129,7 @@ warpCurve k l r d n =
 -- > let Just w = warpNamed "-3"
 -- > let Just w = warpNamed "6"
 -- > plotTable1 (map (w 1 2 W_Map) [0,0.01 .. 1])
-warpNamed :: (Ord a,Eq a,RealFrac a,Floating a) => String -> Maybe (a -> a -> Warp a)
+warpNamed :: (Ord a,RealFrac a,Floating a) => String -> Maybe (a -> a -> Warp a)
 warpNamed nm =
     case nm of
       "lin" -> Just warpLinear
