@@ -1,3 +1,4 @@
+-- | Control specifications.
 module Sound.SC3.Lang.Control.Spec where
 
 import Data.Maybe {- base -}
@@ -8,11 +9,14 @@ data Ctl_Spec = Ctl_Spec {cspec_name :: String
                          ,cspec_min :: Double
                          ,cspec_max :: Double
                          ,cspec_warp :: String
-                         ,cspec_step :: Double
-                         ,cspec_def :: Double
-                         ,cspec_unit :: String}
+                         ,cspec_step :: Double -- value to of step increment/decrement
+                         ,cspec_def :: Double -- default value
+                         ,cspec_unit :: String -- unit of measure (hz, db, etc.)
+                         }
                 deriving (Eq,Show)
 
+-- | Generate 'W.Warp' from 'cspec_min', 'cspec_max' and 'cspec_warp'.
+-- Recognised warp names are @lin@, @exp@ and @amp@.
 cspec_warp_f :: Ctl_Spec -> W.Warp Double
 cspec_warp_f c =
     let l = cspec_min c
