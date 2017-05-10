@@ -118,7 +118,7 @@ overlapTexture_nrt (grp,bus) k g =
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in overlapTextureU (3,1,6,9) u
 overlapTextureU :: OverlapTexture -> UGen -> IO ()
-overlapTextureU t = audition . overlapTexture_nrt (1,0) t
+overlapTextureU t = nrt_audition . overlapTexture_nrt (1,0) t
 
 -- * XFade texture
 
@@ -150,7 +150,7 @@ xfadeTexture_nrt (grp,bus) k g =
 -- >     ;u = pan2 o (rand 'β' (-1) 1) (rand 'γ' 0.1 0.2)}
 -- > in xfadeTextureU (1,3,6) u
 xfadeTextureU :: XFadeTexture -> UGen -> IO ()
-xfadeTextureU t = audition . xfadeTexture_nrt (1,0) t
+xfadeTextureU t = nrt_audition . xfadeTexture_nrt (1,0) t
 
 -- * Spawn texture
 
@@ -164,7 +164,7 @@ spawnTexture_nrt (grp,bus) (t,c) g = nrt_sy1 grp (gen_synth bus Nothing g) (map 
 
 -- | 'audition' 'spawnTexture_nrt'.
 spawnTextureU :: Spawn_Texture -> UGen -> IO ()
-spawnTextureU sp = audition . spawnTexture_nrt (1,0) sp
+spawnTextureU sp = nrt_audition . spawnTexture_nrt (1,0) sp
 
 -- * Post-process
 
@@ -189,11 +189,11 @@ post_process :: (Transport m) => Int -> PP_Bus -> Int -> (UGen -> UGen) -> m ()
 post_process nc bus grp f = do
   let s = post_process_s nc bus f
   _ <- async (d_recv s)
-  send (s_new0 (synthdefName s) (-1) AddToTail grp)
+  sendMessage (s_new0 (synthdefName s) (-1) AddToTail grp)
 
 -- | Audition 'NRT' with specified post-processing function.
 post_process_nrt :: (Transport m) => Loc_GB -> NRT -> Int -> (UGen -> UGen) -> m ()
-post_process_nrt (grp,bus) sc nc f = post_process nc (Left bus) grp f >> play sc
+post_process_nrt (grp,bus) sc nc f = post_process nc (Left bus) grp f >> performNRT sc
 
 -- | Post processing function.
 type PPF = (UGen -> UGen)
@@ -228,7 +228,7 @@ overlapTexture_nrt_st (grp,bus) k u i_st =
 
 -- | 'audition' of 'overlapTexture_nrt_st'.
 overlapTextureS :: OverlapTexture -> USTF st -> st -> IO ()
-overlapTextureS t f = audition . overlapTexture_nrt_st (1,0) t f
+overlapTextureS t f = nrt_audition . overlapTexture_nrt_st (1,0) t f
 
 -- | Variant of 'overlapTextureS' with post-processing stage.
 overlapTextureS_pp :: OverlapTexture -> USTF st -> st -> Int -> PPF  -> IO ()
@@ -262,7 +262,7 @@ overlapTextureR k uf =
         u <- liftIO uf
         let g = with_env 0 (overlapTexture_env k) u
         _ <- async (d_recv (synthdef nm g))
-        send (s_new0 nm (-1) AddToTail 1)
+        sendMessage (s_new0 nm (-1) AddToTail 1)
         case st of
           0 -> return Nothing
           _ -> return (Just (st-1,dt))

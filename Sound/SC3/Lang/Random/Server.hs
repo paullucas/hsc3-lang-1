@@ -11,4 +11,4 @@ buf_scramble n = do
   (_,sz,_,_) <- b_query1_unpack n
   b <- b_getn1_data n (0,sz - 1)
   r <- liftIO (L.scramble b)
-  send (b_setn1 n 0 r)
+  sendMessage (b_setn1 n 0 r)
