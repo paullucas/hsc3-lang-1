@@ -193,7 +193,7 @@ post_process nc bus grp f = do
 
 -- | Audition 'NRT' with specified post-processing function.
 post_process_nrt :: (Transport m) => Loc_GB -> NRT -> Int -> (UGen -> UGen) -> m ()
-post_process_nrt (grp,bus) sc nc f = post_process nc (Left bus) grp f >> performNRT sc
+post_process_nrt (grp,bus) sc nc f = post_process nc (Left bus) grp f >> nrt_play sc
 
 -- | Post processing function.
 type PPF = (UGen -> UGen)

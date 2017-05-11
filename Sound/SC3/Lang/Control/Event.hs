@@ -712,7 +712,7 @@ e_nrt =
 
 -- | Audition 'Event_Seq'.
 e_play :: Transport m => Event_Seq -> m ()
-e_play = performNRT . e_nrt
+e_play = nrt_play . e_nrt
 
 instance Audible Event_Seq where play_at _ = e_play
 
