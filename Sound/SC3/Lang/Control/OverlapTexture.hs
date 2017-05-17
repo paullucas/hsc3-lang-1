@@ -17,6 +17,8 @@ import Data.Hashable {- hashable -}
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
 
+import qualified Sound.SC3.Common.Prelude as P {- hsc3 -}
+
 -- * Envelope
 
 -- | Envelope defined by /sustain/ and /transition/ times.
@@ -62,7 +64,7 @@ gen_synth' bus k = gen_synth bus (Just k)
 -- | Schedule 'Synthdef' at indicated intervals.  Synthdef is sent once at time zero.
 nrt_sy1 :: Int -> Synthdef -> [Double] -> NRT
 nrt_sy1 grp sy dur =
-    let tm = dx_d' dur
+    let tm = P.dx_d' dur
         f t = bundle t [s_new0 (synthdefName sy) (-1) AddToHead grp]
     in NRT (bundle 0 [d_recv sy] : map f tm)
 
@@ -70,7 +72,7 @@ nrt_sy1 grp sy dur =
 -- activation bundle.
 nrt_sy :: Int -> [Synthdef] -> [Time] -> NRT
 nrt_sy grp sy dur =
-    let tm = dx_d' dur
+    let tm = P.dx_d' dur
         f t s = bundle t [d_recv s
                          ,s_new0 (synthdefName s) (-1) AddToHead grp]
     in NRT (zipWith f tm sy)

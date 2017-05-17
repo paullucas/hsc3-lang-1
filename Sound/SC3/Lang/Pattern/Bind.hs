@@ -8,6 +8,8 @@ import Data.Maybe {- base -}
 import Sound.OSC {- hosc -}
 import Sound.SC3 {- hsc3 -}
 
+import qualified Sound.SC3.Common.Prelude as P {- hsc3 -}
+
 import qualified Sound.SC3.Lang.Core as L {- hsc3-lang -}
 
 type Param = [(String,[Double])]
@@ -32,7 +34,7 @@ sbind_tseq grp nid (sy,tm,sus,pr) =
         pr' = let f (p,l) = zip (repeat p) l
               in L.transpose_st (map f pr)
         gt = if has_gate
-             then let sus' = fromMaybe (d_dx' tm) sus
+             then let sus' = fromMaybe (P.d_dx' tm) sus
                       -- pr' may be finite, zipped here to halt if required...
                       f (t,g,k,_) = bundle (t + g) [n_set1 k "gate" 0]
                   in map f (zip4 tm sus' nid pr')
@@ -47,7 +49,7 @@ sbind_deriv :: Int -> [Int] -> (Synthdef,Param) -> [Bundle]
 sbind_deriv grp nid (sy,pr) =
     let dur = fromMaybe (error "sbind_deriv: no dur parameter") (lookup "dur" pr)
         sus = lookup "sustain" pr
-        tm = dx_d' dur
+        tm = P.dx_d' dur
     in sbind_tseq grp nid (sy,tm,sus,pr)
 
 sbind :: [(Synthdef,Param)] -> NRT
@@ -81,7 +83,7 @@ nbind_tseq (sy,nid,tm,pr) =
 nbind_deriv :: (Synthdef,Int,Param) -> [Bundle]
 nbind_deriv (sy,k,pr) =
     let dur = fromMaybe (error "nbind_deriv: no dur parameter") (lookup "dur" pr)
-        tm = dx_d' dur
+        tm = P.dx_d' dur
     in nbind_tseq (sy,k,tm,pr)
 
 nbind :: [(Synthdef,Int,Param)] -> NRT
