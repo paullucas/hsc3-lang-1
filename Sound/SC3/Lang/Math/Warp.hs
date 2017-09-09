@@ -141,4 +141,3 @@ warpNamed nm =
       _ -> case readSigned readFloat nm of
              [(c,"")] -> Just (warpCurve c)
              _ -> Nothing
-

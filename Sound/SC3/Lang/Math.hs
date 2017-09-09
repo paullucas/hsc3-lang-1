@@ -48,18 +48,6 @@ inf = maxBound
 isInf :: (Eq a,Bounded a) => a -> Bool
 isInf = (== inf)
 
--- | @SimpleNumber.linexp@ shifts from linear to exponential ranges.
---
--- > > [1,1.5,2].collect({|i| i.linexp(1,2,10,100).floor}) == [10,31,100]
--- > map (floor . linexp 1 2 10 100) [1,1.5,2] == [10,31,100]
-linexp :: (Ord a, Floating a) => a -> a -> a -> a -> a -> a
-linexp l r l' r' n =
-    if n <= l
-    then l'
-    else if n >= r
-         then r'
-         else ((r'/l') ** ((n-l)/(r-l))) * l'
-
 -- | @SimpleNumber.log10@ is the base 10 logarithm.
 log10 :: Floating a => a -> a
 log10 = logBase 10
