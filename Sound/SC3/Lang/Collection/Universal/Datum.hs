@@ -76,9 +76,11 @@ import qualified Data.ByteString.Char8 as C {- bytestring -}
 import Data.Int {- base -}
 import Data.Ratio {- base -}
 import Data.String {- base -}
-import Sound.OSC {- hosc -}
-import Sound.SC3 {- hsc3 -}
 import System.Random {- random -}
+
+import Sound.OSC {- hosc -}
+import Sound.OSC.Datum.Normalise {- hosc -}
+import Sound.SC3 {- hsc3 -}
 
 -- * Lifting
 

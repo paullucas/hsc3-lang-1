@@ -3,8 +3,9 @@ module Sound.SC3.Lang.Pattern.List where
 
 import qualified Data.Map as M {- containers -}
 import Data.List {- base -}
-import qualified Sound.SC3 as S {- hsc3 -}
 import System.Random {- random -}
+
+import qualified Sound.SC3 as SC3 {- hsc3 -}
 
 import qualified Sound.SC3.Lang.Collection as C
 import Sound.SC3.Lang.Core
@@ -30,20 +31,20 @@ fbool = fmap (> 0)
 --
 -- > ffold [10,11,12,-6,-7,-8] (-7) 11 == [10,11,10,-6,-7,-6]
 --
--- The underlying primitive is the 'S.fold_' function.
+-- The underlying primitive is the 'SC3.fold_' function.
 --
--- > let f n = S.fold_ n (-7) 11
+-- > let f n = SC3.fold_ n (-7) 11
 -- > in map f [10,11,12,-6,-7,-8] == [10,11,10,-6,-7,-6]
 ffold :: (Functor f,Num a,Ord a) => f a -> a -> a -> f a
-ffold p i j = fmap (\n -> S.fold_ n i j) p
+ffold p i j = fmap (\n -> SC3.fold_ n i j) p
 
 -- | SC3 pattern to constrain the range of output values by wrapping,
--- the primitive is 'S.generic_wrap'.
+-- the primitive is 'SC3.generic_wrap'.
 --
 -- > let p = fmap round (fwrap (geom 200 1.2 10) 200 1000)
 -- > in p == [200,240,288,346,415,498,597,717,860,231]
 fwrap :: (Functor f,Ord a,Num a) => f a -> a -> a -> f a
-fwrap xs l r = fmap (S.generic_wrap l r) xs
+fwrap xs l r = fmap (SC3.generic_wrap (l,r)) xs
 
 -- * Non-SC3 Patterns
 
@@ -309,8 +310,8 @@ whitei' = white
 -- | A variant of 'pwhite' that generates integral (rounded) values.
 --
 -- > whitei 'α' 1 9 5 == [5,1,7,7,8]
-whitei :: (Random n,S.RealFracE n,Enum e) => e -> n -> n -> Int -> [n]
-whitei = fmap S.floorE .::: white
+whitei :: (Random n,SC3.RealFracE n,Enum e) => e -> n -> n -> Int -> [n]
+whitei = fmap SC3.floorE .::: white
 
 -- | Underlying 'xrand'.
 xrand' :: Enum e => e -> [[a]] -> [a]

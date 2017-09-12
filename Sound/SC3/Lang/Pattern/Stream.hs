@@ -5,7 +5,7 @@ import Data.List {- base -}
 import Data.Maybe {- base -}
 import System.Random {- random -}
 
-import qualified Sound.SC3 as S {- hsc3 -}
+import qualified Sound.SC3 as SC3 {- hsc3 -}
 
 import Sound.SC3.Lang.Core {- hsc3-lang -}
 import qualified Sound.SC3.Lang.Math as M {- hsc3-lang -}
@@ -41,7 +41,7 @@ take_until_forms_set s l =
 brown_ :: (RandomGen g,Random n,Num n,Ord n) => (n,n,n) -> (n,g) -> (n,g)
 brown_ (l,r,s) (n,g) =
     let (i,g') = randomR (-s,s) g
-    in (S.foldToRange l r (n + i),g')
+    in (SC3.foldToRange l r (n + i),g')
 
 brown' :: (RandomGen g,Num t,Ord t,Random t) => (t,g) -> [t] -> [t] -> [t] -> [t]
 brown' i l_ r_ s_ =
@@ -88,7 +88,7 @@ rand e a =
 -- > segment [0..4] 5 (3,5) == [3,4,0]
 segment :: [a] -> Int -> (Int,Int) -> [a]
 segment a k (l,r) =
-    let i = map (S.generic_wrap 0 (k - 1)) [l .. r]
+    let i = map (SC3.generic_wrap (0,k - 1)) [l .. r]
     in map (a !!) i
 
 -- > slide [1,2,3,4] 4 1 0 True `iEq` [[1,2,3,4],[2,3,4,1],[3,4,1,2],[4,1,2,3]]
