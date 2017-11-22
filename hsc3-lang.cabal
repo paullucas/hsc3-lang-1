@@ -1,5 +1,5 @@
 Name:              hsc3-lang
-Version:           0.16
+Version:           0.17
 Synopsis:          Haskell SuperCollider Language
 Description:       Haskell library defining operations from the
                    SuperCollider language class library
@@ -26,8 +26,8 @@ Library
                    dlist,
                    hashable,
                    hmatrix-special,
-                   hosc == 0.16.*,
-                   hsc3 == 0.16.*,
+                   hosc == 0.17.*,
+                   hsc3 == 0.17.*,
                    MonadRandom,
                    transformers,
                    split,
