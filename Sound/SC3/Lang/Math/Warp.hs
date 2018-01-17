@@ -101,8 +101,8 @@ warpDbFader :: (Eq a,Floating a) => a -> a -> Warp a
 warpDbFader l r d n =
     if d == W_Map
     then let n' = if n == 0 then -180 else ampdb (n * n)
-         in linlin n' (-180) 0 l r
-    else sqrt (dbamp (linlin n l r (-180) 0))
+         in sc3_linlin n' (-180) 0 l r
+    else sqrt (dbamp (sc3_linlin n l r (-180) 0))
 
 -- | A curve warp given by a real /n/.
 --
