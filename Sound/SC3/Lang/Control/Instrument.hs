@@ -1,7 +1,6 @@
 -- | An instrument abstraction and a /default/ instrument for patterns.
 module Sound.SC3.Lang.Control.Instrument where
 
-import Data.Default {- data-default -}
 import Sound.SC3 {- hsc3 -}
 
 -- | An 'Instr' is either a 'Synthdef' or the 'String' naming a
@@ -31,9 +30,9 @@ i_repeat i =
       Instr_Def d sr -> i : repeat (Instr_Ref (synthdefName d) sr)
       Instr_Ref _ _ -> repeat i
 
--- | 'Instr' of 'defaultSynthdef', ie. 'def' of 'Synthdef'.
+-- | 'Instr' of 'defaultSynthdef'.
 defaultInstr :: Instr
-defaultInstr = Instr_Def def True
+defaultInstr = Instr_Def defaultSynthdef True
 
 {-
 withSC3 (send (d_recv defaultSynthdef))

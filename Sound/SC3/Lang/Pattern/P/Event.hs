@@ -564,7 +564,6 @@ pinstr :: String -> P Field
 pinstr s = pinstr' (Instr_Ref s True)
 
 {-| `Synthdef`s can be used directly as an instrument using `psynth`.
-The default synthdef is at 'Data.Default.def'.
 
 > let sineSynth =
 >   let {f = control KR "freq" 440

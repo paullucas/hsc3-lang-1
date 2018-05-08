@@ -5,7 +5,7 @@ Description:       Haskell library defining operations from the
                    SuperCollider language class library
 License:           GPL
 Category:          Sound
-Copyright:         (c) Rohan Drape, 2007-2017
+Copyright:         (c) Rohan Drape, 2007-2018
 Author:            Rohan Drape
 Maintainer:        rd@slavepianos.org
 Stability:         Experimental
@@ -21,7 +21,6 @@ Library
                    bifunctors,
                    bytestring,
                    containers,
-                   data-default,
                    data-ordlist,
                    dlist,
                    hashable,
