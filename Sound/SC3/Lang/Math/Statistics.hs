@@ -1,3 +1,4 @@
+-- | Simple statistical measures.
 module Sound.SC3.Lang.Math.Statistics where
 
 import Data.List {- base -}
@@ -45,4 +46,3 @@ parse_averaging_f nm =
       "harmonic-mean" -> harmonic_mean
       "geometric-mean" -> geometric_mean
       _ -> error "parse_avg_f"
-
