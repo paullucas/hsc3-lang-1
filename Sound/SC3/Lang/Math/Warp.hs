@@ -1,11 +1,11 @@
--- | A /warp/ is a mapping from the space @[0,1]@ to a user defined
--- space /[l,r]/.
+-- | A warp is a mapping from the space @[0,1]@ to a user defined space @[l,r]@.
 module Sound.SC3.Lang.Math.Warp where
 
 import Numeric {- base -}
-import Sound.SC3.Common.Math {- hsc3 -}
 
-import Sound.SC3.Lang.Math
+import qualified Sound.SC3.Common.Math as SC3 {- hsc3 -}
+
+import qualified Sound.SC3.Lang.Math as Math {- hsc3-lang -}
 
 -- | Warp direction.  'W_Map' is forward, 'W_Unmap' is reverse.
 data W_Direction = W_Map | W_Unmap
@@ -100,9 +100,9 @@ warpFader l r d n =
 warpDbFader :: (Eq a,Floating a) => a -> a -> Warp a
 warpDbFader l r d n =
     if d == W_Map
-    then let n' = if n == 0 then -180 else ampdb (n * n)
-         in sc3_linlin n' (-180) 0 l r
-    else sqrt (dbamp (sc3_linlin n l r (-180) 0))
+    then let n' = if n == 0 then -180 else Math.ampdb (n * n)
+         in SC3.sc3_linlin n' (-180) 0 l r
+    else sqrt (Math.dbamp (SC3.sc3_linlin n l r (-180) 0))
 
 -- | A curve warp given by a real /n/.
 --

@@ -32,7 +32,7 @@ type Loc_GB = (Int,UGen)
 mk_env :: Env_ST UGen -> UGen
 mk_env (s,t) =
     let c = EnvNum 4
-        p = envLinen' t s t 1 (c,c,c)
+        p = envLinen_c t s t 1 (c,c,c)
     in envGen KR 1 1 0 1 RemoveSynth p
 
 -- | Add multiplier stage and 'out' UGen writing to /bus/.
