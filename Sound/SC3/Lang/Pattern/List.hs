@@ -7,7 +7,7 @@ import System.Random {- random -}
 
 import qualified Sound.SC3 as SC3 {- hsc3 -}
 
-import qualified Sound.SC3.Lang.Collection as C
+import qualified Sound.SC3.Lang.Collection as Collection
 import qualified Sound.SC3.Lang.Core as Core
 import qualified Sound.SC3.Lang.Pattern.Stream as Stream
 
@@ -113,7 +113,7 @@ trigger :: [Bool] -> [a] -> [Maybe a]
 trigger p q =
     let r = countpre p
         f i x = replicate i Nothing ++ [Just x]
-    in concat (C.zipWith_c f r q)
+    in concat (Collection.zipWith_c f r q)
 
 -- * SC3 Patterns
 
@@ -132,12 +132,12 @@ brown e l r s = Stream.brown e (repeat l) (repeat r) (repeat s)
 -- > let d = [0.5,1,2,0.25,0.25]
 -- > durStutter s d == [0.5,1.0,2.0,0.25,0.25]
 durStutter :: Fractional a => [Int] -> [a] -> [a]
-durStutter =
+durStutter l =
     let f s d = case s of
                 0 -> []
                 1 -> [d]
                 _ -> replicate s (d / fromIntegral s)
-    in concat Core..: zipWith f
+    in concat . zipWith f l
 
 -- | Pexprand.  SC3 pattern of random values that follow a exponential
 -- distribution.
@@ -151,11 +151,11 @@ exprand e l r n = Core.take_inf n (Stream.exprand e l r)
 funcn :: Enum e => e -> (StdGen -> (n,StdGen)) -> Int -> [n]
 funcn e = funcn' (mkStdGen (fromEnum e))
 
--- | Pgeom.  'C.geom' with arguments re-ordered.
+-- | Pgeom.  'Collection.geom' with arguments re-ordered.
 --
 -- > geom 3 6 5 == [3,18,108,648,3888]
 geom :: Num a => a -> a -> Int -> [a]
-geom i s n = C.geom n i s
+geom i s n = Collection.geom n i s
 
 -- | Pif.  Consume values from /q/ or /r/ according to /p/.
 --
@@ -190,7 +190,7 @@ slide a n j s i wr = concat (take n (Stream.slide a j s i wr))
 -- > stutter [1,2,3] [4,5,6] == [4,5,5,6,6,6]
 -- > stutter (repeat 2) [4,5,6] == [4,4,5,5,6,6]
 stutter :: [Int] -> [a] -> [a]
-stutter = concat Core..: zipWith replicate
+stutter l = concat . zipWith replicate l
 
 -- | Pswitch.  SC3 pattern to select elements from a list of patterns
 -- by a pattern of indices.
@@ -283,13 +283,13 @@ rorate_n' :: Num a => a -> a -> [a]
 rorate_n' p i = [i * p,i * (1 - p)]
 
 rorate_n :: Num a => [a] -> [a] -> [a]
-rorate_n = concat Core..: zipWith rorate_n'
+rorate_n l = concat . zipWith rorate_n' l
 
 rorate_l' :: Num a => [a] -> a -> [a]
 rorate_l' p i = map (* i) p
 
 rorate_l :: Num a => [[a]] -> [a] -> [a]
-rorate_l = concat Core..: zipWith rorate_l'
+rorate_l l = concat . zipWith rorate_l' l
 
 -- | 'white' with pattern inputs.
 --
@@ -311,7 +311,7 @@ whitei' = white
 --
 -- > whitei 'α' 1 9 5 == [6,5,2,7,8]
 whitei :: (Random n,SC3.RealFracE n,Enum e) => e -> n -> n -> Int -> [n]
-whitei = fmap SC3.floorE Core..::: white
+whitei e l r = fmap SC3.floorE . white e l r
 
 -- | Underlying 'xrand'.
 xrand' :: Enum e => e -> [[a]] -> [a]
