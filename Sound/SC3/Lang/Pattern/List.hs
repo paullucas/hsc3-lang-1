@@ -8,8 +8,8 @@ import System.Random {- random -}
 import qualified Sound.SC3 as SC3 {- hsc3 -}
 
 import qualified Sound.SC3.Lang.Collection as C
-import Sound.SC3.Lang.Core
-import qualified Sound.SC3.Lang.Pattern.Stream as I
+import qualified Sound.SC3.Lang.Core as Core
+import qualified Sound.SC3.Lang.Pattern.Stream as Stream
 
 -- * Data.Bool variants
 
@@ -34,7 +34,7 @@ fbool = fmap (> 0)
 -- The underlying primitive is the 'SC3.fold_' function.
 --
 -- > let f n = SC3.fold_ n (-7) 11
--- > in map f [10,11,12,-6,-7,-8] == [10,11,10,-6,-7,-6]
+-- > map f [10,11,12,-6,-7,-8] == [10,11,10,-6,-7,-6]
 ffold :: (Functor f,Num a,Ord a) => f a -> a -> a -> f a
 ffold p i j = fmap (\n -> SC3.fold_ n i j) p
 
@@ -42,7 +42,7 @@ ffold p i j = fmap (\n -> SC3.fold_ n i j) p
 -- the primitive is 'SC3.generic_wrap'.
 --
 -- > let p = fmap round (fwrap (geom 200 1.2 10) 200 1000)
--- > in p == [200,240,288,346,415,498,597,717,860,231]
+-- > p == [200,240,288,346,415,498,597,717,860,231]
 fwrap :: (Functor f,Ord a,Num a) => f a -> a -> a -> f a
 fwrap xs l r = fmap (SC3.generic_wrap (l,r)) xs
 
@@ -97,7 +97,7 @@ interleave2 p q =
 
 -- | N-ary variant of 'interleave2', ie. 'concat' of 'transpose'.
 --
--- > interleave [whitei 'α' 0 4 3,whitei 'β' 5 9 3] == [3,7,0,8,1,6]
+-- > interleave [whitei 'α' 0 4 3,whitei 'β' 5 9 3] == [2,7,2,6,0,8]
 -- > [1..9] `isPrefixOf` interleave [[1,4..],[2,5..],[3,6..]]
 interleave :: [[a]] -> [a]
 interleave = concat . transpose
@@ -108,7 +108,7 @@ interleave = concat . transpose
 -- x.  False values at 'tr' generate `Nothing` values.
 --
 -- > let l = trigger (map toEnum [0,1,0,0,1,1]) [1,2,3]
--- > in l == [Nothing,Just 1,Nothing,Nothing,Just 2,Just 3]
+-- > l == [Nothing,Just 1,Nothing,Nothing,Just 2,Just 3]
 trigger :: [Bool] -> [a] -> [Maybe a]
 trigger p q =
     let r = countpre p
@@ -119,32 +119,32 @@ trigger p q =
 
 -- | Pbrown.  SC3 pattern to generate psuedo-brownian motion.
 --
--- > [4,4,1,8,5] `isPrefixOf` brown 'α' 0 9 15
+-- > [7,2,8,6,2] `isPrefixOf` brown 'α' 0 9 15
 brown :: (Enum e,Random n,Num n,Ord n) => e -> n -> n -> n -> [n]
-brown e l r s = I.brown e (repeat l) (repeat r) (repeat s)
+brown e l r s = Stream.brown e (repeat l) (repeat r) (repeat s)
 
 -- | PdurStutter.  SC3 pattern to partition a value into /n/ equal
 -- subdivisions.  Subdivides each duration by each stutter and yields
 -- that value stutter times.  A stutter of @0@ will skip the duration
 -- value, a stutter of @1@ yields the duration value unaffected.
 --
--- > let {s = [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0]
--- >     ;d = [0.5,1,2,0.25,0.25]}
--- > in durStutter s d == [0.5,1.0,2.0,0.25,0.25]
+-- > let s = [1,1,1,1,1,2,2,2,2,2,0,1,3,4,0]
+-- > let d = [0.5,1,2,0.25,0.25]
+-- > durStutter s d == [0.5,1.0,2.0,0.25,0.25]
 durStutter :: Fractional a => [Int] -> [a] -> [a]
 durStutter =
     let f s d = case s of
                 0 -> []
                 1 -> [d]
                 _ -> replicate s (d / fromIntegral s)
-    in concat .: zipWith f
+    in concat Core..: zipWith f
 
 -- | Pexprand.  SC3 pattern of random values that follow a exponential
 -- distribution.
 --
 -- > exprand 'α' 0.0001 1 10
 exprand :: (Enum e,Random a,Floating a) => e -> a -> a -> Int -> [a]
-exprand e l r n = take_inf n (I.exprand e l r)
+exprand e l r n = Core.take_inf n (Stream.exprand e l r)
 
 -- | Pfuncn.  Variant of the SC3 pattern that evaluates a closure at
 -- each step that has a 'StdGen' form.
@@ -168,9 +168,9 @@ if_demand p q r =
 
 -- | Prand.  Random elements of /p/.
 --
--- > rand' 'α' [1..9] 9 == [3,9,2,9,4,7,4,3,8]
+-- > rand' 'α' [1..9] 9 == [6,3,5,3,7,1,7,6,2]
 rand' :: Enum e => e -> [a] -> Int -> [a]
-rand' e a n = take_inf n (I.rand e a)
+rand' e a n = Core.take_inf n (Stream.rand e a)
 
 -- | Pseq.  'concat' of 'replicate' of 'concat'.
 --
@@ -183,20 +183,20 @@ seq' l n = concat (replicate n (concat l))
 -- > slide [1,2,3,4] 4 3 1 0 True == [1,2,3,2,3,4,3,4,1,4,1,2]
 -- > slide [1,2,3,4,5] 3 3 (-1) 0 True == [1,2,3,5,1,2,4,5,1]
 slide :: [a] -> Int -> Int -> Int -> Int -> Bool -> [a]
-slide a n j s i wr = concat (take n (I.slide a j s i wr))
+slide a n j s i wr = concat (take n (Stream.slide a j s i wr))
 
 -- | Pstutter.  Repeat each element of a pattern /n/ times.
 --
 -- > stutter [1,2,3] [4,5,6] == [4,5,5,6,6,6]
 -- > stutter (repeat 2) [4,5,6] == [4,4,5,5,6,6]
 stutter :: [Int] -> [a] -> [a]
-stutter = concat .: zipWith replicate
+stutter = concat Core..: zipWith replicate
 
 -- | Pswitch.  SC3 pattern to select elements from a list of patterns
 -- by a pattern of indices.
 --
 -- > let r = switch [[1,2,3,1,2,3],[65,76],[800]] [2,2,0,1]
--- > in r == [800,800,1,2,3,1,2,3,65,76]
+-- > r == [800,800,1,2,3,1,2,3,65,76]
 switch :: [[a]] -> [Int] -> [a]
 switch l i = i >>= (l !!)
 
@@ -223,7 +223,7 @@ switch1 ps =
 -- | Pwhite.  SC3 pattern to generate a uniform linear distribution in
 -- given range.
 --
--- > white 'α' 0 9 5 == [3,0,1,6,6]
+-- > white 'α' 0 9 5 == [1,8,9,4,4]
 --
 -- It is important to note that this structure is not actually
 -- indeterminate, so that the below is zero.
@@ -231,25 +231,25 @@ switch1 ps =
 -- > white 'α' 1 9 5  == [3,9,2,9,4]
 -- > let p = white 'α' 0.0 1.0 3 in zipWith (-) p p == [0,0,0]
 white :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
-white e l r n = take_inf n (I.white e l r)
+white e l r n = Core.take_inf n (Stream.white e l r)
 
 -- | Pwrand.  SC3 pattern to embed values randomly chosen from a list.
 -- Returns one item from the list at random for each repeat, the
 -- probability for each item is determined by a list of weights which
 -- should sum to 1.0 and must be equal in length to the selection list.
 --
--- > let w = C.normalizeSum [1,3,5]
--- > in wrand 'ζ' [[1],[2],[3,4]] w 6 == [3,4,2,2,3,4,1,3,4]
+-- > let w = SC3.normalizeSum [1,3,5]
+-- > wrand 'ζ' [[1],[2],[3,4]] w 6 == [1,3,4,1,3,4,3,4,2]
 wrand :: (Enum e,Fractional n,Ord n,Random n) =>
          e -> [[a]] -> [n] -> Int -> [a]
-wrand e a w n = concat (take_inf n (I.wrand_generic e a w))
+wrand e a w n = concat (Core.take_inf n (Stream.wrand_generic e a w))
 
 -- | Pxrand.  SC3 pattern that is like 'rand' but filters successive
 -- duplicates.
 --
 -- > xrand 'α' [return 1,[2,3],[4,5,6]] 9 == [4,5,6,2,3,4,5,6,1]
 xrand :: Enum e => e -> [[a]] -> Int -> [a]
-xrand e a n = take_inf n (xrand' e a)
+xrand e a n = Core.take_inf n (xrand' e a)
 
 -- * SC3 Variant Patterns
 
@@ -283,17 +283,17 @@ rorate_n' :: Num a => a -> a -> [a]
 rorate_n' p i = [i * p,i * (1 - p)]
 
 rorate_n :: Num a => [a] -> [a] -> [a]
-rorate_n = concat .: zipWith rorate_n'
+rorate_n = concat Core..: zipWith rorate_n'
 
 rorate_l' :: Num a => [a] -> a -> [a]
 rorate_l' p i = map (* i) p
 
 rorate_l :: Num a => [[a]] -> [a] -> [a]
-rorate_l = concat .: zipWith rorate_l'
+rorate_l = concat Core..: zipWith rorate_l'
 
 -- | 'white' with pattern inputs.
 --
--- > white' 'α' (repeat 0) [9,19,9,19,9,19] == [3,0,1,6,6,15]
+-- > white' 'α' (repeat 0) [9,19,9,19,9,19] == [1,18,9,4,4,13]
 white' :: (Enum e,Random n) => e -> [n] -> [n] -> [n]
 white' e l r =
     let g = mkStdGen (fromEnum e)
@@ -303,16 +303,16 @@ white' e l r =
 
 -- | Type-specialised ('Integral') 'white'.
 --
--- > whitei' 'α' 1 9 5 == [3,9,2,9,4]
+-- > whitei' 'α' 1 9 5 == [6,3,5,3,7]
 whitei' :: (Random n,Enum e) => e -> n -> n -> Int -> [n]
 whitei' = white
 
 -- | A variant of 'pwhite' that generates integral (rounded) values.
 --
--- > whitei 'α' 1 9 5 == [5,1,7,7,8]
+-- > whitei 'α' 1 9 5 == [6,5,2,7,8]
 whitei :: (Random n,SC3.RealFracE n,Enum e) => e -> n -> n -> Int -> [n]
-whitei = fmap SC3.floorE .::: white
+whitei = fmap SC3.floorE Core..::: white
 
 -- | Underlying 'xrand'.
 xrand' :: Enum e => e -> [[a]] -> [a]
-xrand' e = concat . I.xrand e
+xrand' e = concat . Stream.xrand e

@@ -42,6 +42,7 @@ newtype P_Event = P_Event {p_Event :: P Event}
 instance Audible P_Event where
     play_at _ = e_play . Event_Seq . unP . p_Event
 
+-- | 'play' of 'P_Event'.
 pplay :: Transport m => P Event -> m ()
 pplay = play . P_Event
 
@@ -52,8 +53,7 @@ paudition = audition . P_Event
 -- | Synonym for ('Key','P Field').
 type P_Bind = (Key,P Field)
 
-{-|
-Padd.  Add a value to an existing key, or set the key if it doesn't exist.
+{-| Padd.  Add a value to an existing key, or set the key if it doesn't exist.
 
 > > p = Padd(\freq,801,Pbind(\freq,Pseq([100],1)));
 > > p.asStream.all(()) == [('freq':901)]

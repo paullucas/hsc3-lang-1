@@ -45,17 +45,17 @@ brown_ (l,r,s) (n,g) =
 
 brown' :: (RandomGen g,Num t,Ord t,Random t) => (t,g) -> [t] -> [t] -> [t] -> [t]
 brown' i l_ r_ s_ =
-    let rec (n,g) z =
+    let recur (n,g) z =
             case z of
               [] -> []
               (l,r,s):z' -> let (n',g') = brown_ (l,r,s) (n,g)
-                            in n' : rec (n',g') z'
-    in rec i (zip3 l_ r_ s_)
+                            in n' : recur (n',g') z'
+    in recur i (zip3 l_ r_ s_)
 
 -- | Brown noise with list inputs and random intial value.
 --
 -- > let l = brown 'α' (repeat 1) (repeat 700) (cycle [1,20])
--- > in l `iEq` [415,419,420,428]
+-- > l `iEq` [653,663,664,678,677]
 brown :: (Enum e,Random n,Num n,Ord n) => e -> [n] -> [n] -> [n] -> [n]
 brown e l_ r_ = brown' (randomR (head l_,head r_) (mkStdGen (fromEnum e))) l_ r_
 
