@@ -10,7 +10,6 @@ module Sound.SC3.Lang.Pattern.P.Event where
 
 import qualified Data.Foldable as F {- base -}
 import Data.Maybe {- base -}
-import Data.Monoid {- base -}
 
 import Sound.OSC {- hsc3 -}
 import Sound.SC3 {- hsc3 -}

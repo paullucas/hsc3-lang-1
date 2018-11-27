@@ -12,7 +12,6 @@ import Control.Monad {- base -}
 import qualified Data.Foldable as F {- base -}
 import qualified Data.List as L {- base -}
 import qualified Data.List.Split as S {- split -}
-import Data.Monoid {- base -}
 import qualified Data.Traversable as T {- base -}
 
 import Sound.SC3.Lang.Pattern.P.Core

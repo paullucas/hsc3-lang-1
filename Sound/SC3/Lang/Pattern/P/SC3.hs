@@ -20,7 +20,6 @@ module Sound.SC3.Lang.Pattern.P.SC3 where
 
 import Control.Monad {- base -}
 import qualified Data.List as L {- base -}
-import Data.Monoid {- base -}
 import System.Random {- random -}
 
 import Sound.SC3 {- hsc3 -}
