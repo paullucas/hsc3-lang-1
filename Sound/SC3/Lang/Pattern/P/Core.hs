@@ -111,8 +111,10 @@ unP_repeat = either repeat id . unP_either
 instance Functor P where
     fmap f (P p) = P (bimap f (map f) p)
 
+instance Semigroup (P a) where
+    (<>) p q = toP (unP p ++ unP q)
+
 instance Monoid (P a) where
-    mappend p q = toP (unP p ++ unP q)
     mempty = toP []
 
 instance Applicative P where
