@@ -1,0 +1,11 @@
+resolver: lts-12.20
+packages:
+- .
+- location:
+    git: https://github.com/paullucas/hsc3-1.git
+    commit: master
+  extra-dep: true
+- location:
+    git: https://github.com/paullucas/hosc-1.git
+    commit: master
+  extra-dep: true
