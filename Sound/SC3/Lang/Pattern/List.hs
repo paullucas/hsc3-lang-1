@@ -31,12 +31,12 @@ fbool = fmap (> 0)
 --
 -- > ffold [10,11,12,-6,-7,-8] (-7) 11 == [10,11,10,-6,-7,-6]
 --
--- The underlying primitive is the 'SC3.fold_' function.
+-- The underlying primitive is the 'SC3.sc3_fold' function.
 --
--- > let f n = SC3.fold_ n (-7) 11
+-- > let f n = SC3.fold2 n (-7) 11
 -- > map f [10,11,12,-6,-7,-8] == [10,11,10,-6,-7,-6]
 ffold :: (Functor f,Num a,Ord a) => f a -> a -> a -> f a
-ffold p i j = fmap (\n -> SC3.fold_ n i j) p
+ffold p i j = fmap (\n -> SC3.sc3_fold n i j) p
 
 -- | SC3 pattern to constrain the range of output values by wrapping,
 -- the primitive is 'SC3.generic_wrap'.
